@@ -15,6 +15,11 @@
 #include "bsp_board_extra.h"
 #include "lv_demos.h"
 #include "ui.h"
+#include "WiFiManager.h"
+#include "ProductService.h"
+
+ TaskHandle_t fetchTaskHandle = NULL;
+void fetchExpiringProductsTask(void *param);
 
 void app_main(void)
 {
@@ -35,6 +40,10 @@ void app_main(void)
     ui_init();
     bsp_display_unlock();
 
+    wifiManager.init(CONFIG_WIFI_SSID, CONFIG_WIFI_PASSWORD);
+
+    xTaskCreate(fetchExpiringProductsTask, "FetchProducts", 8192, NULL, 3, &fetchTaskHandle);
+
     // Continuous update loop
     while (1)
     {
@@ -44,4 +53,30 @@ void app_main(void)
 
         vTaskDelay(pdMS_TO_TICKS(10)); // ~100Hz update rate
     }
+}
+
+// Task to fetch products expiring today or tomorrow
+void fetchExpiringProductsTask(void *param)
+{
+    while (!wifiManager.isConnected())
+    {
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+
+    ESP_LOGI(TAG, "WiFi connected. Fetching expiring products...");
+   
+    // Fetch products expiring today or tomorrow
+    int out;
+    auto products = productService.getProducts({}, &out);
+    if (products.empty())
+    {
+        ESP_LOGI(TAG, "No products expiring soon");
+      //  LVGLManager::updateStatusLabel("No products expiring soon");
+        fetchTaskHandle = NULL;
+        vTaskDelete(NULL);
+        return;
+    }
+
+    fetchTaskHandle = NULL;
+    vTaskDelete(NULL);
 }
