@@ -1,6 +1,5 @@
 **/squareline/backup/**
 **/squareline/autosave/**
-components/**
 managed_components/**
 build/**
 .vscode/**

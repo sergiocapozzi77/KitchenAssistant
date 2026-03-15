@@ -36,13 +36,13 @@ dependencies:
   esp_cam_sensor:
     dependencies: []
     source:
-      path: C:\Users\sergi\source\repos\KitchenAssistant\components\esp_cam_sensor
+      path: C:\Users\sergi\Source\Repos\KitchenAssistant\components\esp_cam_sensor
       type: local
     version: 0.9.0
   esp_lcd_jd9365:
     dependencies: []
     source:
-      path: C:\Users\sergi\source\repos\KitchenAssistant\components\esp_lcd_jd9365
+      path: C:\Users\sergi\Source\Repos\KitchenAssistant\components\esp_lcd_jd9365
       type: local
     version: 1.0.2
   esp_lcd_touch_gsl3680:
@@ -51,7 +51,7 @@ dependencies:
       public: true
       version: ^1.1.0
     source:
-      path: C:\Users\sergi\source\repos\KitchenAssistant\components\esp_lcd_touch_gsl3680
+      path: C:\Users\sergi\Source\Repos\KitchenAssistant\components\esp_lcd_touch_gsl3680
       type: local
     version: '*'
   espressif/cmake_utilities:
@@ -87,7 +87,7 @@ dependencies:
     - name: lvgl/lvgl
       version: '>=8,<10'
     source:
-      path: C:\Users\sergi\source\repos\KitchenAssistant\components\esp32_p4_function_ev_board
+      path: C:\Users\sergi\Source\Repos\KitchenAssistant\components\esp32_p4_function_ev_board
       type: local
     targets:
     - esp32p4
@@ -103,7 +103,7 @@ dependencies:
       type: service
     version: 1.3.2
   espressif/esp_h264:
-    component_hash: e0b0212f2bdf1fc289a7370e6e7e69cd19883ae52661c746e9023a7cc7f22255
+    component_hash: 40cb64e697a8cfd787453165f6ce54e1fb8601844448eb073d677b9f9fde071e
     dependencies:
     - name: idf
       require: private
@@ -114,7 +114,7 @@ dependencies:
     targets:
     - esp32s3
     - esp32p4
-    version: 1.2.0~1
+    version: 1.3.0
   espressif/esp_ipa:
     component_hash: 7547b050a99351a85aaba8ba38211c36fd4769c2ae3e570fa330dc90dfd2704c
     dependencies:
@@ -212,12 +212,12 @@ dependencies:
       type: idf
     version: 5.5.2
   lvgl/lvgl:
-    component_hash: 17e68bfd21f0edf4c3ee838e2273da840bf3930e5dbc3bfa6c1190c3aed41f9f
+    component_hash: 184e532558c1c45fefed631f3e235423d22582aafb4630f3e8885c35281a49ae
     dependencies: []
     source:
       registry_url: https://components.espressif.com/
       type: service
-    version: 9.4.0
+    version: 9.5.0
 direct_dependencies:
 - chmorgan/esp-audio-player
 - chmorgan/esp-file-iterator
@@ -237,6 +237,6 @@ direct_dependencies:
 - espressif/esp_sccb_intf
 - idf
 - lvgl/lvgl
-manifest_hash: 69a21c2c9ddca14291dcad7130413abfea2c468ec7bb91bc4e2a578968990608
+manifest_hash: 8ed29d88ddf95982ed46513a8ca1c833c76e254ba0411c12bd0aabcc66c1ad89
 target: esp32p4
 version: 2.0.0
