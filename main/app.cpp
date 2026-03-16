@@ -62,7 +62,7 @@ void Application::initTasks()
     // ESP_ERROR_CHECK(product_fetcher->start());
 
     // Task to fetch products expiring today or tomorrow
-    //   xTaskCreate(Application::fetchProductsTask, "FetchProducts", 8192, this, 5, &fetchTaskHandle);
+    xTaskCreate(Application::fetchProductsTask, "FetchProducts", 8192, this, 5, &fetchTaskHandle);
 
     // ESP_LOGI(TAG, "Tasks started");
 }
@@ -70,7 +70,7 @@ void Application::initTasks()
 void Application::initHardware()
 {
     // WiFi
-    //  wifiManager.init(CONFIG_WIFI_SSID, CONFIG_WIFI_PASSWORD);
+    wifiManager.init(CONFIG_WIFI_SSID, CONFIG_WIFI_PASSWORD);
 
     bsp_display_cfg_t cfg = {
         .lvgl_port_cfg = ESP_LVGL_PORT_INIT_CONFIG(),

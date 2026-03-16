@@ -97,6 +97,7 @@
       "fileSystemPath": "",
       "lvglInclude": "lvgl.h",
       "screensLifetimeSupport": false,
+      "useDockerDesktop": true,
       "generateSourceCodeForEezFramework": false,
       "compressFlowDefinition": false,
       "executionQueueSize": 1000,
@@ -287,9 +288,14 @@
                           "localStyles": {
                             "objID": "a28cdea2-afef-4803-c7ea-5dfd7cf68e34",
                             "definition": {
+                              "ANY": {
+                                "DEFAULT": {
+                                  "layout": "FLEX",
+                                  "flex_flow": "COLUMN"
+                                }
+                              },
                               "MAIN": {
                                 "DEFAULT": {
-                                  "flex_flow": "COLUMN",
                                   "grid_cell_row_pos": 1,
                                   "grid_cell_y_align": "STRETCH"
                                 }
@@ -415,7 +421,9 @@
               "group": "",
               "groupIndex": 0,
               "tabviewPosition": "TOP",
-              "tabviewSize": 32
+              "tabviewSize": 32,
+              "selectedTab": 0,
+              "selectedTabType": "literal"
             }
           ],
           "widgetFlags": "CLICKABLE|PRESS_LOCK|CLICK_FOCUSABLE|GESTURE_BUBBLE|SNAPPABLE|SCROLLABLE|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER",
@@ -433,6 +441,7 @@
       ],
       "connectionLines": [],
       "localVariables": [],
+      "componentGroups": [],
       "userProperties": [],
       "name": "Main",
       "left": 0,

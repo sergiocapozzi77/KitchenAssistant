@@ -24,8 +24,6 @@ bool WiFiManager::sntp_initialized = false;
 void WiFiManager::init(const std::string &ssid,
                        const std::string &password)
 {
-    esp_task_wdt_delete(xTaskGetCurrentTaskHandle());
-
     ESP_LOGI(TAG, "Initializing WiFi... SSID: %s Password: %s", ssid.c_str(), password.c_str());
     // --- Network stack ---
     ESP_ERROR_CHECK(esp_netif_init());
@@ -83,7 +81,6 @@ void WiFiManager::init(const std::string &ssid,
     // Explicitly connect (like AppSettings does in wifiConnectTask)
     ESP_ERROR_CHECK(esp_wifi_connect());
 
-    esp_task_wdt_add(xTaskGetCurrentTaskHandle());
     ESP_LOGI(TAG, "WiFi initialization complete");
 }
 
