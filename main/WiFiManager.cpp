@@ -9,7 +9,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include <cstring>
-
+#include "esp_task_wdt.h"
 WiFiManager wifiManager;
 
 static const char *TAG = "WiFiManager";
@@ -24,23 +24,30 @@ bool WiFiManager::sntp_initialized = false;
 void WiFiManager::init(const std::string &ssid,
                        const std::string &password)
 {
+    esp_task_wdt_delete(xTaskGetCurrentTaskHandle());
+
+    ESP_LOGI(TAG, "Initializing WiFi... SSID: %s Password: %s", ssid.c_str(), password.c_str());
     // --- Network stack ---
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
-    esp_netif_create_default_wifi_sta();
+    esp_netif_t *sta_netif = esp_netif_create_default_wifi_sta();
+    assert(sta_netif); // Add this assertion like AppSettings does
 
     // --- WiFi init ---
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+
+    ESP_LOGI(TAG, "Initializing WiFi, init");
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
-    // Set UK country (channels 1–13)
-    wifi_country_t country = {
-        .cc = "GB",
-        .schan = 1,
-        .nchan = 13,
-        .policy = WIFI_COUNTRY_POLICY_AUTO};
-    ESP_ERROR_CHECK(esp_wifi_set_country(&country));
+    // // Set UK country (channels 1–13)
+    // wifi_country_t country = {
+    //     .cc = "GB",
+    //     .schan = 1,
+    //     .nchan = 13,
+    //     .policy = WIFI_COUNTRY_POLICY_AUTO};
+    // ESP_ERROR_CHECK(esp_wifi_set_country(&country));
 
+    ESP_LOGI(TAG, "Initializing WiFi, events");
     // Register events
     ESP_ERROR_CHECK(esp_event_handler_register(
         WIFI_EVENT,
@@ -54,7 +61,13 @@ void WiFiManager::init(const std::string &ssid,
         &WiFiManager::eventHandler,
         this));
 
-    // --- WiFi configuration ---
+    ESP_LOGI(TAG, "Initializing WiFi, setmode");
+    // --- Set mode and START first (like AppSettings) ---
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+    ESP_LOGI(TAG, "Initializing WiFi, start");
+    ESP_ERROR_CHECK(esp_wifi_start());
+
+    // --- THEN set configuration (matches AppSettings pattern) ---
     wifi_config_t wifi_config = {};
     strncpy((char *)wifi_config.sta.ssid, ssid.c_str(), sizeof(wifi_config.sta.ssid) - 1);
     strncpy((char *)wifi_config.sta.password, password.c_str(), sizeof(wifi_config.sta.password) - 1);
@@ -63,13 +76,14 @@ void WiFiManager::init(const std::string &ssid,
     wifi_config.sta.pmf_cfg.capable = false;
     wifi_config.sta.pmf_cfg.required = false;
 
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+    ESP_LOGI(TAG, "Initializing WiFi, setconfig");
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
-    ESP_ERROR_CHECK(esp_wifi_start());
 
-    // Disable power save for stability
-    ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
+    ESP_LOGI(TAG, "Initializing WiFi, connect");
+    // Explicitly connect (like AppSettings does in wifiConnectTask)
+    ESP_ERROR_CHECK(esp_wifi_connect());
 
+    esp_task_wdt_add(xTaskGetCurrentTaskHandle());
     ESP_LOGI(TAG, "WiFi initialization complete");
 }
 
@@ -100,8 +114,9 @@ void WiFiManager::eventHandler(void *arg,
         switch (event_id)
         {
         case WIFI_EVENT_STA_START:
-            ESP_LOGI(TAG, "Connecting to WiFi...");
-            esp_wifi_connect();
+            // REMOVE THIS CASE - we call esp_wifi_connect() explicitly in init()
+            // ESP_LOGI(TAG, "Connecting to WiFi...");
+            // esp_wifi_connect();
             break;
 
         case WIFI_EVENT_STA_DISCONNECTED:
@@ -144,7 +159,6 @@ void WiFiManager::eventHandler(void *arg,
         }
     }
 }
-
 // ============================================================
 // SNTP
 // ============================================================

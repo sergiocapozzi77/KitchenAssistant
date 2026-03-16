@@ -1,9 +1,10 @@
 idf_component_register(
     SRCS 
-        main.c 
+        main.cpp
+        app.cpp
         ProductService.cpp
         WifiManager.cpp
-        ui_extensions.c
+        ui_extensions.cpp
         ui/screens.c
         ui/styles.c
         ui/images.c

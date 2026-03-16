@@ -185,8 +185,7 @@
             {
               "type": "tabset",
               "id": "EDITORS",
-              "weight": 65,
-              "selected": 1,
+              "weight": 55.289812646370024,
               "enableDeleteWhenEmpty": false,
               "enableClose": false,
               "children": [
@@ -219,7 +218,7 @@
             {
               "type": "row",
               "id": "#c371aa4d-3c84-4dc9-9861-726270333f86",
-              "weight": 20,
+              "weight": 29.710187353629976,
               "children": [
                 {
                   "type": "tabset",
@@ -498,88 +497,6 @@
                       "id": "DEBUGGER_LOGS",
                       "name": "Logs",
                       "component": "logs",
-                      "enableClose": false,
-                      "icon": "svg:log"
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        }
-      }
-    },
-    "rootDockerSimulator": {
-      "version": 1,
-      "json": {
-        "global": {
-          "splitterSize": 4,
-          "splitterExtra": 4,
-          "tabEnableRename": false,
-          "borderEnableAutoHide": true
-        },
-        "borders": [],
-        "layout": {
-          "type": "row",
-          "id": "#0b4e5c08-093b-4ba8-8573-4bbfa0da8384",
-          "children": [
-            {
-              "type": "tabset",
-              "id": "#b6d431eb-2c7a-4f9b-b955-fe1d11df69de",
-              "weight": 70,
-              "enableDrop": false,
-              "enableDrag": false,
-              "enableClose": false,
-              "enableTabStrip": true,
-              "children": [
-                {
-                  "type": "tab",
-                  "id": "DOCKER_SIMULATOR_PREVIEW",
-                  "name": "Preview",
-                  "component": "dockerSimulatorPreview",
-                  "enableClose": false,
-                  "icon": "material:computer"
-                }
-              ]
-            },
-            {
-              "type": "row",
-              "id": "#764f2347-1c0f-40c1-b789-538c69b3e127",
-              "weight": 30,
-              "children": [
-                {
-                  "type": "tabset",
-                  "id": "#3287f5dc-6617-4432-a991-9617bfbb1d09",
-                  "weight": 50,
-                  "enableDrop": false,
-                  "enableDrag": false,
-                  "enableClose": false,
-                  "enableTabStrip": true,
-                  "children": [
-                    {
-                      "type": "tab",
-                      "id": "DOCKER_SIMULATOR_LOGS",
-                      "name": "Build Logs",
-                      "component": "dockerSimulatorLogs",
-                      "enableClose": false,
-                      "icon": "svg:log"
-                    }
-                  ]
-                },
-                {
-                  "type": "tabset",
-                  "id": "#50b4c629-b737-4200-929b-3bdc5dd45260",
-                  "weight": 50,
-                  "enableDrop": false,
-                  "enableDrag": false,
-                  "enableClose": false,
-                  "enableTabStrip": true,
-                  "children": [
-                    {
-                      "type": "tab",
-                      "id": "DOCKER_SIMULATOR_PREVIEW_LOGS",
-                      "name": "Preview Logs",
-                      "component": "dockerSimulatorPreviewLogs",
                       "enableClose": false,
                       "icon": "svg:log"
                     }
@@ -1064,15 +981,21 @@
     "[KitchenHelp.eez-project]:/userPages/0[flow-state]": {
       "selection": {
         "0": {
-          "1": {
-            "$selected": true
+          "0": {
+            "0": {
+              "0": {
+                "1": {
+                  "$selected": true
+                }
+              }
+            }
           }
         }
       },
       "transform": {
         "translate": {
           "x": -400,
-          "y": -340
+          "y": -240
         },
         "scale": 1
       },
@@ -1105,7 +1028,9 @@
   "selectedStylePropertyName": "",
   "lvglPart": "MAIN",
   "lvglState": "DEFAULT",
-  "lvglExpandedPropertiesGroup": [],
+  "lvglExpandedPropertiesGroup": [
+    "LAYOUT"
+  ],
   "showInactiveFlowsInDebugger": true,
   "globalFlowZoom": true,
   "flowZoom": 1,

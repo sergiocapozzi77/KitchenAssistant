@@ -10,17 +10,22 @@ static void delete_btn_cb(lv_event_t *e);
 
 void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
 {
+    // Acquire LVGL lock for thread safety
+    lv_lock();
+
     // Clear existing children
     lv_obj_clean(root);
 
     // Group products by category
     std::map<std::string, std::vector<const Product *>> grouped;
-    for (const auto &p : products) {
+    for (const auto &p : products)
+    {
         grouped[p.category].push_back(&p);
     }
 
     // Build UI
-    for (const auto &[category, items] : grouped) {
+    for (const auto &[category, items] : grouped)
+    {
 
         // --- Group header ---
         lv_obj_t *header = lv_label_create(root);
@@ -32,7 +37,8 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
         lv_obj_set_style_pad_left(header, 6, 0);
 
         // --- Product rows ---
-        for (const Product *p : items) {
+        for (const Product *p : items)
+        {
 
             // Row container
             lv_obj_t *row = lv_obj_create(root);
@@ -40,8 +46,8 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
             lv_obj_set_height(row, LV_SIZE_CONTENT);
             lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
             lv_obj_set_flex_align(row, LV_FLEX_ALIGN_SPACE_BETWEEN,
-                                       LV_FLEX_ALIGN_CENTER,
-                                       LV_FLEX_ALIGN_CENTER);
+                                  LV_FLEX_ALIGN_CENTER,
+                                  LV_FLEX_ALIGN_CENTER);
             lv_obj_set_style_pad_all(row, 6, 0);
             lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
 
@@ -66,21 +72,28 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
                                 static_cast<void *>(rowId));
 
             // Free the rowId string when the button is deleted
-            lv_obj_add_event_cb(btn_del, [](lv_event_t *e) {
-                delete static_cast<std::string *>(lv_event_get_user_data(e));
-            }, LV_EVENT_DELETE, rowId);
+            lv_obj_add_event_cb(btn_del, [](lv_event_t *e)
+                                { delete static_cast<std::string *>(lv_event_get_user_data(e)); }, LV_EVENT_DELETE, rowId);
         }
     }
+
+    // Release LVGL lock
+    lv_unlock();
 }
 
 static void delete_btn_cb(lv_event_t *e)
 {
     std::string *rowId = static_cast<std::string *>(lv_event_get_user_data(e));
+
+    // Callbacks are already executed within LVGL's context, but if the delete
+    // operation triggers async work (network, service layer), we should protect UI access
+
     // TODO: call your service to delete product with *rowId
     LV_LOG_USER("Delete product: %s", rowId->c_str());
 
-    // Remove the row from the UI (btn -> row container)
-    lv_obj_t *btn = lv_event_get_target(e);
+    // UI deletion is safe here as we're in LVGL event context,
+    // but wrap it anyway for consistency if service calls might trigger re-entrant UI updates
+    lv_obj_t *btn = static_cast<lv_obj_t *>(lv_event_get_target(e));
     lv_obj_t *row = lv_obj_get_parent(btn);
     lv_obj_del(row);
 }

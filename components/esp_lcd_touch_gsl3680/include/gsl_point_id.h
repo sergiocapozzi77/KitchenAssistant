@@ -15,4 +15,3 @@ void gsl_alg_id_main(struct gsl_touch_info *cinfo);
 void gsl_DataInit(unsigned int *conf_in);
 
 #endif
-

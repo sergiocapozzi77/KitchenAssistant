@@ -73,6 +73,7 @@ void create_screen_main() {
                                     lv_obj_set_size(obj, LV_PCT(100), LV_PCT(100));
                                     lv_obj_set_style_grid_cell_row_pos(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                                     lv_obj_set_style_grid_cell_y_align(obj, LV_GRID_ALIGN_STRETCH, LV_PART_MAIN | LV_STATE_DEFAULT);
+                                    lv_obj_set_style_radius(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                                 }
                                 {
                                     // products_list

@@ -1,6 +1,7 @@
 #include "ProductService.h"
 #include "esp_log.h"
 #include "esp_http_client.h"
+#include "esp_crt_bundle.h"
 #include <random>
 #include <sstream>
 #include <iomanip>
@@ -53,6 +54,7 @@ esp_http_client_handle_t ProductService::createHttpClient(const std::string &url
     cfg.buffer_size = 8192;
     cfg.buffer_size_tx = 2048;
     cfg.skip_cert_common_name_check = false;
+    cfg.crt_bundle_attach = esp_crt_bundle_attach;
 
     esp_http_client_handle_t client = esp_http_client_init(&cfg);
 
