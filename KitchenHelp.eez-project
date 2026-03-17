@@ -110,7 +110,17 @@
     "structures": [],
     "enums": []
   },
-  "actions": [],
+  "actions": [
+    {
+      "objID": "5b5f84b9-cb2e-4148-c573-db3bd836f173",
+      "components": [],
+      "connectionLines": [],
+      "localVariables": [],
+      "componentGroups": [],
+      "userProperties": [],
+      "name": "ScreenLoading"
+    }
+  ],
   "userPages": [
     {
       "objID": "4b40eba7-b31a-468a-b887-11dfd0b6637f",
@@ -131,7 +141,15 @@
             "childStyles": []
           },
           "timeline": [],
-          "eventHandlers": [],
+          "eventHandlers": [
+            {
+              "objID": "07705e1a-58dd-451d-ca40-382c0b588144",
+              "eventName": "SCREEN_LOAD_START",
+              "handlerType": "action",
+              "action": "ScreenLoading",
+              "userData": 0
+            }
+          ],
           "leftUnit": "px",
           "topUnit": "px",
           "widthUnit": "px",
@@ -154,6 +172,7 @@
               },
               "timeline": [],
               "eventHandlers": [],
+              "identifier": "tabview",
               "leftUnit": "px",
               "topUnit": "px",
               "widthUnit": "%",
@@ -176,6 +195,7 @@
                   },
                   "timeline": [],
                   "eventHandlers": [],
+                  "identifier": "",
                   "leftUnit": "px",
                   "topUnit": "px",
                   "widthUnit": "px",
@@ -359,7 +379,7 @@
                   },
                   "group": "",
                   "groupIndex": 0,
-                  "tabName": "Products",
+                  "tabName": "\\uF015 Products",
                   "tabNameType": "literal"
                 },
                 {
@@ -470,7 +490,17 @@
     "groups": []
   },
   "fonts": [],
-  "bitmaps": [],
+  "bitmaps": [
+    {
+      "objID": "4c2db48b-a572-4b67-e81e-887b57bf151c",
+      "name": "Shopping",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAA10lEQVR4AexVuw7CMAwEJvgDRkbY4P8/AjbYGPkE2OCuiqUedRIHVKlDK7/OtX2KK6WrxcjPpAgeOOw7KeM14qpET8DB2940xk/gKkmE4I5BlAvMMukNnnKlKWmEYJcGnJKnO9BA7R1CXzyCI0q5ElPATgyb75Iwhun3wCIewVkq2sBgZR6BjbR9f+Nc3urElwik8FcQIXhlhufyUh4h2KCDa4ETyeWlKEIgDa1gJqhubF7RtFfE27FF3dN4H7l/77tNheSg1yPo/7l4RbQoe4XfI5CCf8EHAAD//4Txi+MAAAAGSURBVAMATBwmMeCcVeEAAAAASUVORK5CYII=",
+      "bpp": 15,
+      "alwaysBuild": false,
+      "lvglBinaryOutputFormat": 3,
+      "lvglDither": false
+    }
+  ],
   "colors": [],
   "themes": [
     {

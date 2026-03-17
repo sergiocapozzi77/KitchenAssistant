@@ -6,6 +6,7 @@
 #include "esp_log.h"
 #include "esp_err.h"
 #include "ProductService.h"
+#include "ui_extensions.h"
 
 static const char *TAG = "UIEXTENSIONS";
 

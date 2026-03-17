@@ -8,7 +8,9 @@ idf_component_register(
         ui/screens.c
         ui/styles.c
         ui/images.c
+        ui/actions.c
         ui/ui.c
+        ui/ui_image_shopping.c
     INCLUDE_DIRS 
     . 
     ui)
