@@ -253,22 +253,25 @@ int ProductService::httpDelete(const std::string &url)
 std::vector<Product> ProductService::getProductsRetry(const std::vector<std::string> &queries, int &out)
 {
     std::vector<Product> result;
-    int maxRetry = 0;
-    do
+    int maxRetry = 5; // Set the limit clearly
+    int attempt = 0;
+
+    while (attempt < maxRetry)
     {
         result = getProducts(queries, out);
 
-        if (out != 0)
+        if (out == 0)
         {
-            ESP_LOGE(TAG, "Failed to fetch products");
-            vTaskDelay(2000 / portTICK_PERIOD_MS); // Wait before retrying
+            ESP_LOGI(TAG, "Successfully fetched %d products on attempt %d", result.size(), attempt + 1);
+            return result; // Success! Exit early
         }
-        else
-        {
-            ESP_LOGI(TAG, "Fetched %d products", result.size());
-        }
-    } while (out != 0 && maxRetry++ < 5);
 
+        attempt++;
+        ESP_LOGE(TAG, "Attempt %d/%d failed. Retrying in 2s...", attempt, maxRetry);
+        vTaskDelay(pdMS_TO_TICKS(2000));
+    }
+
+    ESP_LOGE(TAG, "All retry attempts failed.");
     return result;
 }
 
@@ -277,78 +280,76 @@ std::vector<Product> ProductService::getProductsRetry(const std::vector<std::str
  * ========================================================= */
 std::vector<Product> ProductService::getProducts(const std::vector<std::string> &queries, int &out)
 {
-    out = -1;
+    out = -1; // Default to error
     std::vector<Product> allProducts;
 
-    const int perPage = 25; // Smaller page size recommended for ESP32 RAM
+    const int perPage = 25;
     int offset = 0;
-    int total = 2147483647; // Equivalent to int.MaxValue
+    int total = 2147483647;
+    int safetyCounter = 0; // Prevent infinite loops
 
-    // Base URL
     std::string baseUrl = Endpoint + "/tablesdb/" + DatabaseId + "/tables/" + CollectionId + "/rows";
 
-    while ((int)allProducts.size() < total)
+    while ((int)allProducts.size() < total && safetyCounter++ < 40)
     {
-        // 1. Build the Query String
+        // 1. Give the system a moment to breathe (Reset WDT)
+        vTaskDelay(pdMS_TO_TICKS(50));
+
         std::string url = baseUrl + "?";
         int qIdx = 0;
 
-        // Add user-provided queries
         for (const auto &q : queries)
         {
             url += "queries[" + std::to_string(qIdx++) + "]=" + urlEncode(q) + "&";
         }
 
-        // Add Pagination Queries (Limit and Offset as JSON strings)
         std::string limitJson = "{\"method\":\"limit\",\"values\":[" + std::to_string(perPage) + "]}";
         std::string offsetJson = "{\"method\":\"offset\",\"values\":[" + std::to_string(offset) + "]}";
 
         url += "queries[" + std::to_string(qIdx++) + "]=" + urlEncode(limitJson) + "&";
         url += "queries[" + std::to_string(qIdx++) + "]=" + urlEncode(offsetJson);
 
-        // 2. Perform HTTP GET
+        // 2. HTTP Request
         int status;
         std::string body = httpGet(url, status);
 
         if (status != 200)
         {
-            ESP_LOGE(TAG, "Fetch failed at offset %d: %d", offset, status);
-            break;
+            ESP_LOGE(TAG, "Network Error: %d at offset %d", status, offset);
+            out = -1;
+            return allProducts; // Returning early ensures getProductsRetry sees out != 0
         }
 
-        // 3. Parse JSON
+        // 3. JSON Parsing
         cJSON *root = cJSON_Parse(body.c_str());
         if (!root)
         {
-            ESP_LOGE(TAG, "JSON parse error");
-            break;
+            ESP_LOGE(TAG, "JSON Parse Error at offset %d", offset);
+            out = -1;
+            return allProducts;
         }
 
-        // Update total count from the first response
         if (total == 2147483647)
         {
             cJSON *totalItem = cJSON_GetObjectItem(root, "total");
             if (totalItem && cJSON_IsNumber(totalItem))
-            {
                 total = totalItem->valueint;
-            }
         }
 
         cJSON *rows = cJSON_GetObjectItem(root, "rows");
         if (!rows || !cJSON_IsArray(rows) || cJSON_GetArraySize(rows) == 0)
         {
             cJSON_Delete(root);
-            break; // No more data
+            break;
         }
 
-        // 4. Extract Products
         cJSON *item;
         cJSON_ArrayForEach(item, rows)
         {
             cJSON *name = cJSON_GetObjectItem(item, "name");
             cJSON *qty = cJSON_GetObjectItem(item, "quantity");
-            cJSON *cat = cJSON_GetObjectItem(item, "category");
             cJSON *id = cJSON_GetObjectItem(item, "$id");
+            cJSON *cat = cJSON_GetObjectItem(item, "category");
 
             if (name && id && cJSON_IsString(name) && cJSON_IsString(id))
             {
@@ -361,21 +362,15 @@ std::vector<Product> ProductService::getProducts(const std::vector<std::string> 
             }
         }
 
-        int rowsFetchedThisTime = cJSON_GetArraySize(rows);
+        int rowsFetched = cJSON_GetArraySize(rows);
         cJSON_Delete(root);
-
-        // 5. Update Offset
         offset = allProducts.size();
 
-        // Safety break
-        if (rowsFetchedThisTime < perPage || (int)allProducts.size() >= total)
-        {
+        if (rowsFetched < perPage || (int)allProducts.size() >= total)
             break;
-        }
     }
 
-    ESP_LOGI(TAG, "Total products accumulated: %d", allProducts.size());
-    out = 0;
+    out = 0; // Success!
     return allProducts;
 }
 

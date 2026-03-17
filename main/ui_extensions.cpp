@@ -164,7 +164,7 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
 
         lv_obj_t *qty_val = lv_label_create(qty_cont);
         lv_label_set_text_fmt(qty_val, "%d", p->quantity);
-        lv_obj_set_style_bg_color(qty_cont, lv_color_hex(0xFFFFFF), 0);
+        lv_obj_set_style_bg_color(qty_val, lv_color_hex(0xFFFFFF), 0);
         lv_obj_set_style_text_font(qty_val, &lv_font_montserrat_14, 0);
         lv_obj_set_style_pad_hor(qty_val, 5, 0);
 

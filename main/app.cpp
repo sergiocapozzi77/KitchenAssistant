@@ -137,7 +137,7 @@ void Application::fetchProductsTask(void *param)
     ESP_LOGI(TAG, "WiFi connected. Fetching products...");
 
     // Fetch products
-    int out = 0;
+    int out;
     auto products = productService.getProductsRetry({}, out);
     if (products.empty())
     {
