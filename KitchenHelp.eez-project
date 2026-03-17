@@ -495,7 +495,16 @@
       "objID": "4c2db48b-a572-4b67-e81e-887b57bf151c",
       "name": "Shopping",
       "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAA10lEQVR4AexVuw7CMAwEJvgDRkbY4P8/AjbYGPkE2OCuiqUedRIHVKlDK7/OtX2KK6WrxcjPpAgeOOw7KeM14qpET8DB2940xk/gKkmE4I5BlAvMMukNnnKlKWmEYJcGnJKnO9BA7R1CXzyCI0q5ElPATgyb75Iwhun3wCIewVkq2sBgZR6BjbR9f+Nc3urElwik8FcQIXhlhufyUh4h2KCDa4ETyeWlKEIgDa1gJqhubF7RtFfE27FF3dN4H7l/77tNheSg1yPo/7l4RbQoe4XfI5CCf8EHAAD//4Txi+MAAAAGSURBVAMATBwmMeCcVeEAAAAASUVORK5CYII=",
-      "bpp": 15,
+      "bpp": 32,
+      "alwaysBuild": false,
+      "lvglBinaryOutputFormat": 3,
+      "lvglDither": false
+    },
+    {
+      "objID": "f3ad274e-eedd-4fb7-dbd7-e718ed33a267",
+      "name": "Chef",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAABWUlEQVR4AcySMTIGQRCFl4jMEYgQiggdwTHIuAEnICN0DZESEcrICIUyMt731/RWm3/atC2qbPWb7uk3Pa9nZheHP/7+jcCSDvokfBQQk9P0e8ucYENbvAmrghkxOTjLNX1LgGLrFP9QKs/kFwqO5TE41gAEqSU/ohbYEcPx5b7Ys2ZHgtmJgkfBG1dG7a5P1gK3hfTdbiq3JtRGfktJO9WFYuyaweAFTPlFpO+27lT0aPdjNAwHil8FbI8BeIFtEsKlMNXsFOu2gRe4Ksn94r3jEYHliIHNzVvtjSW8gB13ReS58FM7VQG1csMdA/ACzO0x6aTVIWtaYO1hIWyP2bQW4HdcnjHTBv4o9hirawGId4bfQkugtTedAeOIgc1DnxUIN+gRPQEeL4NQpycQFmaJngD3nEGo1xMIC7NETyBz/6wJ9XoCYWGWiAQy995aM6cbCcwtnJr4BAAA///9AQEYAAAABklEQVQDAMoYQTEFG+m6AAAAAElFTkSuQmCC",
+      "bpp": 32,
       "alwaysBuild": false,
       "lvglBinaryOutputFormat": 3,
       "lvglDither": false

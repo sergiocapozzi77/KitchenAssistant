@@ -11,6 +11,7 @@ idf_component_register(
         ui/actions.c
         ui/ui.c
         ui/ui_image_shopping.c
+        ui/ui_image_chef.c
     INCLUDE_DIRS 
     . 
     ui)

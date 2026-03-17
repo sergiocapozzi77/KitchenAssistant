@@ -32,4 +32,5 @@ void action_screen_loading(lv_event_t *e)
     // This function can be used to perform actions when the loading screen is shown
     ESP_LOGI("actions", "Loading screen shown");
     set_tab_icon(objects.tabview, 0, &img_shopping);
+    set_tab_icon(objects.tabview, 1, &img_chef);
 }
