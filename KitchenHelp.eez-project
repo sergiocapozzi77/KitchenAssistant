@@ -165,7 +165,7 @@
                   "left": 0,
                   "top": 0,
                   "width": 800,
-                  "height": 1248,
+                  "height": 1220,
                   "customInputs": [],
                   "customOutputs": [],
                   "style": {
@@ -416,12 +416,19 @@
               "disabledStateType": "literal",
               "states": "",
               "localStyles": {
-                "objID": "99077c0e-fc7a-4394-93d5-f095eb5347af"
+                "objID": "99077c0e-fc7a-4394-93d5-f095eb5347af",
+                "definition": {
+                  "MAIN": {
+                    "DEFAULT": {
+                      "text_font": "MONTSERRAT_20"
+                    }
+                  }
+                }
               },
               "group": "",
               "groupIndex": 0,
               "tabviewPosition": "TOP",
-              "tabviewSize": 32,
+              "tabviewSize": 60,
               "selectedTab": 0,
               "selectedTabType": "literal"
             }

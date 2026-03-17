@@ -138,7 +138,7 @@ void Application::fetchProductsTask(void *param)
 
     // Fetch products
     int out = 0;
-    auto products = productService.getProducts({}, out);
+    auto products = productService.getProductsRetry({}, out);
     if (products.empty())
     {
         ESP_LOGI(TAG, "No products found");

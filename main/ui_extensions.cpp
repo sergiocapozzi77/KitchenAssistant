@@ -100,7 +100,7 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
             lv_obj_t *title = lv_label_create(header);
             lv_label_set_text(title, currentCategory.c_str());
             lv_obj_set_style_text_color(title, lv_color_hex(0x495057), 0);
-            lv_obj_set_style_text_font(title, &lv_font_montserrat_16, 0);
+            lv_obj_set_style_text_font(title, &lv_font_montserrat_20, 0);
 
             lv_obj_t *arrow = lv_label_create(header);
             lv_label_set_text(arrow, LV_SYMBOL_DOWN);
@@ -139,6 +139,7 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
         lv_label_set_text(name, p->name.c_str());
         lv_obj_set_flex_grow(name, 1);
         lv_obj_set_style_text_color(name, lv_color_hex(0x495057), 0);
+        lv_obj_set_style_text_font(name, &lv_font_montserrat_16, 0);
 
         // Quantity Selector (The pill-shaped container in the pic)
         lv_obj_t *qty_cont = lv_obj_create(row);

@@ -250,84 +250,133 @@ int ProductService::httpDelete(const std::string &url)
     return status;
 }
 
+std::vector<Product> ProductService::getProductsRetry(const std::vector<std::string> &queries, int &out)
+{
+    std::vector<Product> result;
+    int maxRetry = 0;
+    do
+    {
+        result = getProducts(queries, out);
+
+        if (out != 0)
+        {
+            ESP_LOGE(TAG, "Failed to fetch products");
+            vTaskDelay(2000 / portTICK_PERIOD_MS); // Wait before retrying
+        }
+        else
+        {
+            ESP_LOGI(TAG, "Fetched %d products", result.size());
+        }
+    } while (out != 0 && maxRetry++ < 5);
+
+    return result;
+}
+
 /* =========================================================
  * BUSINESS LOGIC
  * ========================================================= */
 std::vector<Product> ProductService::getProducts(const std::vector<std::string> &queries, int &out)
 {
     out = -1;
-    std::vector<Product> result;
+    std::vector<Product> allProducts;
 
-    std::string url = Endpoint + "/tablesdb/" + DatabaseId +
-                      "/tables/" + CollectionId + "/rows";
+    const int perPage = 25; // Smaller page size recommended for ESP32 RAM
+    int offset = 0;
+    int total = 2147483647; // Equivalent to int.MaxValue
 
-    if (!queries.empty())
+    // Base URL
+    std::string baseUrl = Endpoint + "/tablesdb/" + DatabaseId + "/tables/" + CollectionId + "/rows";
+
+    while ((int)allProducts.size() < total)
     {
-        url += "?";
-        for (size_t i = 0; i < queries.size(); i++)
+        // 1. Build the Query String
+        std::string url = baseUrl + "?";
+        int qIdx = 0;
+
+        // Add user-provided queries
+        for (const auto &q : queries)
         {
-            url += "queries[" + std::to_string(i) + "]=" + urlEncode(queries[i]);
-            if (i + 1 < queries.size())
-                url += "&";
+            url += "queries[" + std::to_string(qIdx++) + "]=" + urlEncode(q) + "&";
         }
-    }
 
-    int status;
-    std::string body = httpGet(url, status);
+        // Add Pagination Queries (Limit and Offset as JSON strings)
+        std::string limitJson = "{\"method\":\"limit\",\"values\":[" + std::to_string(perPage) + "]}";
+        std::string offsetJson = "{\"method\":\"offset\",\"values\":[" + std::to_string(offset) + "]}";
 
-    if (status != 200)
-    {
-        ESP_LOGE(TAG, "GET failed: %d, Reason: %s", status, body.c_str());
-        return result;
-    }
+        url += "queries[" + std::to_string(qIdx++) + "]=" + urlEncode(limitJson) + "&";
+        url += "queries[" + std::to_string(qIdx++) + "]=" + urlEncode(offsetJson);
 
-    cJSON *root = cJSON_Parse(body.c_str());
-    if (!root)
-    {
-        ESP_LOGE(TAG, "JSON parse error");
-        return result;
-    }
+        // 2. Perform HTTP GET
+        int status;
+        std::string body = httpGet(url, status);
 
-    cJSON *rows = cJSON_GetObjectItem(root, "rows");
-    if (!rows || !cJSON_IsArray(rows))
-    {
-        ESP_LOGW(TAG, "No 'rows' array in response");
+        if (status != 200)
+        {
+            ESP_LOGE(TAG, "Fetch failed at offset %d: %d", offset, status);
+            break;
+        }
+
+        // 3. Parse JSON
+        cJSON *root = cJSON_Parse(body.c_str());
+        if (!root)
+        {
+            ESP_LOGE(TAG, "JSON parse error");
+            break;
+        }
+
+        // Update total count from the first response
+        if (total == 2147483647)
+        {
+            cJSON *totalItem = cJSON_GetObjectItem(root, "total");
+            if (totalItem && cJSON_IsNumber(totalItem))
+            {
+                total = totalItem->valueint;
+            }
+        }
+
+        cJSON *rows = cJSON_GetObjectItem(root, "rows");
+        if (!rows || !cJSON_IsArray(rows) || cJSON_GetArraySize(rows) == 0)
+        {
+            cJSON_Delete(root);
+            break; // No more data
+        }
+
+        // 4. Extract Products
+        cJSON *item;
+        cJSON_ArrayForEach(item, rows)
+        {
+            cJSON *name = cJSON_GetObjectItem(item, "name");
+            cJSON *qty = cJSON_GetObjectItem(item, "quantity");
+            cJSON *cat = cJSON_GetObjectItem(item, "category");
+            cJSON *id = cJSON_GetObjectItem(item, "$id");
+
+            if (name && id && cJSON_IsString(name) && cJSON_IsString(id))
+            {
+                Product p;
+                p.name = name->valuestring;
+                p.rowId = id->valuestring;
+                p.quantity = (qty && cJSON_IsNumber(qty)) ? qty->valueint : 0;
+                p.category = (cat && cJSON_IsString(cat)) ? cat->valuestring : "Uncategorized";
+                allProducts.push_back(p);
+            }
+        }
+
+        int rowsFetchedThisTime = cJSON_GetArraySize(rows);
         cJSON_Delete(root);
-        return result;
-    }
 
-    cJSON *item;
-    cJSON_ArrayForEach(item, rows)
-    {
-        // Safe JSON extraction with null checks
-        cJSON *nameItem = cJSON_GetObjectItem(item, "name");
-        cJSON *qtyItem = cJSON_GetObjectItem(item, "quantity");
-        cJSON *catItem = cJSON_GetObjectItem(item, "category");
-        cJSON *idItem = cJSON_GetObjectItem(item, "$id");
-        cJSON *expiryItem = cJSON_GetObjectItem(item, "expiry");
+        // 5. Update Offset
+        offset = allProducts.size();
 
-        if (!nameItem || !cJSON_IsString(nameItem) ||
-            !qtyItem || !cJSON_IsNumber(qtyItem) ||
-            !idItem || !cJSON_IsString(idItem))
+        // Safety break
+        if (rowsFetchedThisTime < perPage || (int)allProducts.size() >= total)
         {
-            ESP_LOGW(TAG, "Skipping malformed product");
-            continue;
+            break;
         }
-
-        Product p;
-        p.name = nameItem->valuestring;
-        p.quantity = qtyItem->valueint;
-        p.category = (catItem && cJSON_IsString(catItem)) ? catItem->valuestring : "";
-        p.rowId = idItem->valuestring;
-        p.expiry = (expiryItem && cJSON_IsString(expiryItem)) ? expiryItem->valuestring : "";
-        result.push_back(p);
     }
 
-    cJSON_Delete(root);
-    ESP_LOGI(TAG, "Retrieved %d products", result.size());
-
+    ESP_LOGI(TAG, "Total products accumulated: %d", allProducts.size());
     out = 0;
-    return result;
+    return allProducts;
 }
 
 /*

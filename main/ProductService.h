@@ -22,6 +22,7 @@ public:
 
     // Public API methods
     std::vector<Product> getProducts(const std::vector<std::string> &queries, int &out);
+    std::vector<Product> getProductsRetry(const std::vector<std::string> &queries, int &out);
     // bool manageUpdateProduct(Product &product);
     bool addProduct(Product &product);
     bool updateProduct(Product &product);
