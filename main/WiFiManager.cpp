@@ -37,13 +37,13 @@ void WiFiManager::init(const std::string &ssid,
     ESP_LOGI(TAG, "Initializing WiFi, init");
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
-    // // Set UK country (channels 1–13)
-    // wifi_country_t country = {
-    //     .cc = "GB",
-    //     .schan = 1,
-    //     .nchan = 13,
-    //     .policy = WIFI_COUNTRY_POLICY_AUTO};
-    // ESP_ERROR_CHECK(esp_wifi_set_country(&country));
+    // Set UK country (channels 1–13)
+    wifi_country_t country = {
+        .cc = "GB",
+        .schan = 1,
+        .nchan = 13,
+        .policy = WIFI_COUNTRY_POLICY_AUTO};
+    ESP_ERROR_CHECK(esp_wifi_set_country(&country));
 
     ESP_LOGI(TAG, "Initializing WiFi, events");
     // Register events
@@ -70,8 +70,8 @@ void WiFiManager::init(const std::string &ssid,
     strncpy((char *)wifi_config.sta.ssid, ssid.c_str(), sizeof(wifi_config.sta.ssid) - 1);
     strncpy((char *)wifi_config.sta.password, password.c_str(), sizeof(wifi_config.sta.password) - 1);
 
-    wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA_WPA2_PSK;
-    wifi_config.sta.pmf_cfg.capable = false;
+    // wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA_WPA2_PSK;
+    wifi_config.sta.pmf_cfg.capable = true;
     wifi_config.sta.pmf_cfg.required = false;
 
     ESP_LOGI(TAG, "Initializing WiFi, setconfig");

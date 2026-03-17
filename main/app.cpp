@@ -62,7 +62,7 @@ void Application::initTasks()
     // ESP_ERROR_CHECK(product_fetcher->start());
 
     // Task to fetch products expiring today or tomorrow
-    xTaskCreate(Application::fetchProductsTask, "FetchProducts", 8192, this, 5, &fetchTaskHandle);
+    xTaskCreate(Application::fetchProductsTask, "FetchProducts", 8096, this, 5, &fetchTaskHandle);
 
     // ESP_LOGI(TAG, "Tasks started");
 }
@@ -81,6 +81,7 @@ void Application::initHardware()
             .buff_spiram = true,
             .sw_rotate = false,
         }};
+    cfg.lvgl_port_cfg.task_stack = 24576;
     bsp_display_start_with_config(&cfg);
     bsp_display_backlight_on();
 

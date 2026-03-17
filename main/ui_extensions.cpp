@@ -1,84 +1,177 @@
 #include <vector>
 #include <map>
 #include <string>
+#include <algorithm>
 #include "lvgl.h"
-
+#include "esp_log.h"
+#include "esp_err.h"
 #include "ProductService.h"
+
+static const char *TAG = "UIEXTENSIONS";
 
 // Forward declaration of delete callback
 static void delete_btn_cb(lv_event_t *e);
 
+struct GroupUI
+{
+    lv_obj_t *content;
+    lv_obj_t *arrow;
+    bool collapsed;
+};
+
+static void group_toggle_cb(lv_event_t *e)
+{
+    GroupUI *group = (GroupUI *)lv_event_get_user_data(e);
+
+    group->collapsed = !group->collapsed;
+
+    if (group->collapsed)
+    {
+        lv_obj_add_flag(group->content, LV_OBJ_FLAG_HIDDEN);
+        lv_label_set_text(group->arrow, LV_SYMBOL_RIGHT);
+    }
+    else
+    {
+        lv_obj_clear_flag(group->content, LV_OBJ_FLAG_HIDDEN);
+        lv_label_set_text(group->arrow, LV_SYMBOL_DOWN);
+    }
+}
+
+static void free_group_cb(lv_event_t *e)
+{
+    delete (GroupUI *)lv_event_get_user_data(e);
+}
+
+static void free_rowid_cb(lv_event_t *e)
+{
+    delete (std::string *)lv_event_get_user_data(e);
+}
+
 void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
 {
-    // Acquire LVGL lock for thread safety
+    ESP_LOGI(TAG, "START populateProductList");
+    ESP_LOGI(TAG, "start");
+
     lv_lock();
 
-    // Clear existing children
+    ESP_LOGI(TAG, "Cleaning root");
     lv_obj_clean(root);
+    ESP_LOGI(TAG, "after clean");
 
-    // Group products by category
-    std::map<std::string, std::vector<const Product *>> grouped;
+    lv_obj_set_style_pad_all(root, 10, 0);
+    lv_obj_set_flex_flow(root, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_bg_color(root, lv_color_hex(0xF5F5F5), 0);
+
+    ESP_LOGI(TAG, "Preparing sorted list (%d products)", products.size());
+
+    std::vector<const Product *> sorted;
+    sorted.reserve(products.size());
+
     for (const auto &p : products)
+        sorted.push_back(&p);
+
+    ESP_LOGI(TAG, "Sorting...");
+    std::sort(sorted.begin(), sorted.end(),
+              [](const Product *a, const Product *b)
+              {
+                  return a->category < b->category;
+              });
+
+    ESP_LOGI(TAG, "after sort");
+
+    std::string currentCategory;
+    lv_obj_t *content = nullptr;
+
+    int groupCount = 0;
+    int rowCount = 0;
+
+    for (const Product *p : sorted)
     {
-        grouped[p.category].push_back(&p);
-    }
-
-    // Build UI
-    for (const auto &[category, items] : grouped)
-    {
-
-        // --- Group header ---
-        lv_obj_t *header = lv_label_create(root);
-        lv_label_set_text(header, category.c_str());
-        lv_obj_set_width(header, lv_pct(100));
-        lv_obj_set_style_text_color(header, lv_color_hex(0x888888), 0);
-        lv_obj_set_style_pad_top(header, 8, 0);
-        lv_obj_set_style_pad_bottom(header, 4, 0);
-        lv_obj_set_style_pad_left(header, 6, 0);
-
-        // --- Product rows ---
-        for (const Product *p : items)
+        // NEW CATEGORY
+        if (p->category != currentCategory)
         {
+            currentCategory = p->category;
+            groupCount++;
 
-            // Row container
-            lv_obj_t *row = lv_obj_create(root);
-            lv_obj_set_width(row, lv_pct(100));
-            lv_obj_set_height(row, LV_SIZE_CONTENT);
-            lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
-            lv_obj_set_flex_align(row, LV_FLEX_ALIGN_SPACE_BETWEEN,
+            ESP_LOGI(TAG, "Creating group %d: %s", groupCount, currentCategory.c_str());
+            ESP_LOGI(TAG, "before group");
+
+            lv_obj_t *card = lv_obj_create(root);
+            lv_obj_set_width(card, lv_pct(100));
+            lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
+
+            lv_obj_t *header = lv_btn_create(card);
+            lv_obj_set_width(header, lv_pct(100));
+            lv_obj_set_height(header, 40);
+
+            lv_obj_set_flex_flow(header, LV_FLEX_FLOW_ROW);
+            lv_obj_set_flex_align(header,
+                                  LV_FLEX_ALIGN_SPACE_BETWEEN,
                                   LV_FLEX_ALIGN_CENTER,
                                   LV_FLEX_ALIGN_CENTER);
-            lv_obj_set_style_pad_all(row, 6, 0);
-            lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
 
-            // Product name (grows to fill available space)
-            lv_obj_t *name_lbl = lv_label_create(row);
-            lv_label_set_text(name_lbl, p->name.c_str());
-            lv_obj_set_flex_grow(name_lbl, 1);
-            lv_label_set_long_mode(name_lbl, LV_LABEL_LONG_DOT);
+            lv_obj_t *title = lv_label_create(header);
+            lv_label_set_text(title, currentCategory.c_str());
 
-            // Delete button (right-aligned)
-            lv_obj_t *btn_del = lv_btn_create(row);
-            lv_obj_set_size(btn_del, 32, 32);
-            lv_obj_set_style_bg_color(btn_del, lv_color_hex(0xE53935), 0);
-            lv_obj_t *lbl_del = lv_label_create(btn_del);
-            lv_label_set_text(lbl_del, LV_SYMBOL_TRASH);
-            lv_obj_center(lbl_del);
+            lv_obj_t *arrow = lv_label_create(header);
+            lv_label_set_text(arrow, LV_SYMBOL_DOWN);
 
-            // Pass rowId as user_data for the callback
-            // We heap-allocate a copy so it outlives this scope
-            std::string *rowId = new std::string(p->rowId);
-            lv_obj_add_event_cb(btn_del, delete_btn_cb, LV_EVENT_CLICKED,
-                                static_cast<void *>(rowId));
+            content = lv_obj_create(card);
+            lv_obj_set_width(content, lv_pct(100));
+            lv_obj_set_flex_flow(content, LV_FLEX_FLOW_COLUMN);
 
-            // Free the rowId string when the button is deleted
-            lv_obj_add_event_cb(btn_del, [](lv_event_t *e)
-                                { delete static_cast<std::string *>(lv_event_get_user_data(e)); }, LV_EVENT_DELETE, rowId);
+            GroupUI *group = new GroupUI{content, arrow, false};
+            lv_obj_add_event_cb(header, group_toggle_cb, LV_EVENT_CLICKED, group);
+            lv_obj_add_event_cb(header, free_group_cb, LV_EVENT_DELETE, group);
+
+            ESP_LOGI(TAG, "after group");
         }
+
+        // ROW
+        rowCount++;
+
+        if (rowCount % 5 == 0)
+        {
+            ESP_LOGI(TAG, "Created %d rows so far", rowCount);
+            ESP_LOGI(TAG, "rows progress");
+        }
+
+        lv_obj_t *row = lv_obj_create(content);
+        lv_obj_set_width(row, lv_pct(100));
+        lv_obj_set_height(row, 44);
+
+        lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+        lv_obj_set_flex_align(row,
+                              LV_FLEX_ALIGN_SPACE_BETWEEN,
+                              LV_FLEX_ALIGN_CENTER,
+                              LV_FLEX_ALIGN_CENTER);
+
+        lv_obj_t *name = lv_label_create(row);
+        lv_label_set_text(name, p->name.c_str());
+        lv_obj_set_flex_grow(name, 1);
+
+        lv_obj_t *qty = lv_label_create(row);
+        lv_label_set_text_fmt(qty, "- %d +", p->quantity);
+
+        lv_obj_t *btn_del = lv_btn_create(row);
+        lv_obj_set_size(btn_del, 32, 32);
+
+        lv_obj_t *lbl = lv_label_create(btn_del);
+        lv_label_set_text(lbl, LV_SYMBOL_TRASH);
+        lv_obj_center(lbl);
+
+        std::string *rowId = new std::string(p->rowId);
+
+        lv_obj_add_event_cb(btn_del, delete_btn_cb, LV_EVENT_CLICKED, rowId);
+        lv_obj_add_event_cb(btn_del, free_rowid_cb, LV_EVENT_DELETE, rowId);
     }
 
-    // Release LVGL lock
+    ESP_LOGI(TAG, "Finished UI: %d groups, %d rows", groupCount, rowCount);
+    ESP_LOGI(TAG, "end");
+
     lv_unlock();
+
+    ESP_LOGI(TAG, "END populateProductList");
 }
 
 static void delete_btn_cb(lv_event_t *e)
