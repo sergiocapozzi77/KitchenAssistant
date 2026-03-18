@@ -350,6 +350,7 @@ std::vector<Product> ProductService::getProducts(const std::vector<std::string> 
             cJSON *qty = cJSON_GetObjectItem(item, "quantity");
             cJSON *id = cJSON_GetObjectItem(item, "$id");
             cJSON *cat = cJSON_GetObjectItem(item, "category");
+            cJSON *exp = cJSON_GetObjectItem(item, "expiry");
 
             if (name && id && cJSON_IsString(name) && cJSON_IsString(id))
             {
@@ -358,6 +359,7 @@ std::vector<Product> ProductService::getProducts(const std::vector<std::string> 
                 p.rowId = id->valuestring;
                 p.quantity = (qty && cJSON_IsNumber(qty)) ? qty->valueint : 0;
                 p.category = (cat && cJSON_IsString(cat)) ? cat->valuestring : "Uncategorized";
+                p.expiry = (exp && cJSON_IsString(exp)) ? exp->valuestring : "";
                 allProducts.push_back(p);
             }
         }
