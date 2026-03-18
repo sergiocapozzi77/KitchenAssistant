@@ -134,6 +134,9 @@ void Application::fetchProductsTask(void *param)
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 
+    while (!wifiManager.isSntpSynced())
+        vTaskDelay(pdMS_TO_TICKS(500));
+
     ESP_LOGI(TAG, "WiFi connected. Fetching products...");
 
     // Fetch products

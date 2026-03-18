@@ -13,7 +13,11 @@ public:
     static bool isConnected();
     void waitForConnection();
 
+    static bool isSntpSynced();
+
 private:
+    static volatile bool sntp_synced;
+    static void sntpSyncCallback(struct timeval *tv);
     static void eventHandler(void *arg,
                              esp_event_base_t event_base,
                              int32_t event_id,

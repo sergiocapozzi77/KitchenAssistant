@@ -80,6 +80,15 @@ static lv_color_t get_expiry_color(int days)
         return lv_color_hex(0x27AE60); // green
 }
 
+static void row_click_cb(lv_event_t *e)
+{
+    lv_obj_t *checkbox = static_cast<lv_obj_t *>(lv_event_get_user_data(e));
+    if (lv_obj_has_state(checkbox, LV_STATE_CHECKED))
+        lv_obj_clear_state(checkbox, LV_STATE_CHECKED);
+    else
+        lv_obj_add_state(checkbox, LV_STATE_CHECKED);
+}
+
 static void free_group_cb(lv_event_t *e)
 {
     delete (GroupUI *)lv_event_get_user_data(e);
@@ -184,6 +193,8 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
         lv_obj_set_style_border_color(checkbox, lv_color_hex(0x007AFF), LV_PART_INDICATOR);
         lv_obj_set_style_bg_color(checkbox, lv_color_hex(0x007AFF), LV_PART_INDICATOR | LV_STATE_CHECKED);
         lv_obj_set_style_border_color(checkbox, lv_color_hex(0x007AFF), LV_PART_INDICATOR | LV_STATE_CHECKED);
+        // Row click selects the checkbox; buttons are excluded automatically (no bubble)
+        lv_obj_add_event_cb(row, row_click_cb, LV_EVENT_CLICKED, checkbox);
 
         // Product Name
         lv_obj_t *name = lv_label_create(row);
