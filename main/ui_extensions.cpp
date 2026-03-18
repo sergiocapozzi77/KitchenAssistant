@@ -7,11 +7,56 @@
 #include "esp_err.h"
 #include "ProductService.h"
 #include "ui_extensions.h"
+#include <ctime>
+#include <cmath>
 
 static const char *TAG = "UIEXTENSIONS";
 
-#include <ctime>
-#include <cmath>
+// Forward declaration of delete callback
+static void delete_btn_cb(lv_event_t *e);
+static void qty_minus_cb(lv_event_t *e); // ← add
+static void qty_plus_cb(lv_event_t *e);
+
+struct QtyContext
+{
+    lv_obj_t *qty_val;
+    lv_obj_t *row;
+    std::string rowId;
+    int quantity;
+};
+
+static void free_qty_ctx_cb(lv_event_t *e)
+{
+    delete (QtyContext *)lv_event_get_user_data(e);
+}
+
+static void qty_minus_cb(lv_event_t *e)
+{
+    QtyContext *ctx = (QtyContext *)lv_event_get_user_data(e);
+    ctx->quantity--;
+
+    if (ctx->quantity <= 0)
+    {
+        // TODO: call your service to delete product with ctx->rowId
+        LV_LOG_USER("Auto-delete product: %s", ctx->rowId.c_str());
+        // One important note: lv_obj_del inside an LVGL event callback is safe for the row itself, but if you later wire up a real service call (async/network), you'll want to defer the lv_obj_del via lv_async_call to avoid re-entrancy issues.
+        lv_obj_del(ctx->row);
+        return;
+    }
+
+    lv_label_set_text_fmt(ctx->qty_val, "%d", ctx->quantity);
+    // TODO: call your service to update quantity: ctx->rowId, ctx->quantity
+    LV_LOG_USER("Update qty: %s -> %d", ctx->rowId.c_str(), ctx->quantity);
+}
+
+static void qty_plus_cb(lv_event_t *e)
+{
+    QtyContext *ctx = (QtyContext *)lv_event_get_user_data(e);
+    ctx->quantity++;
+    lv_label_set_text_fmt(ctx->qty_val, "%d", ctx->quantity);
+    // TODO: call your service to update quantity: ctx->rowId, ctx->quantity
+    LV_LOG_USER("Update qty: %s -> %d", ctx->rowId.c_str(), ctx->quantity);
+}
 
 static int days_until_expiry(const std::string &isoDate)
 {
@@ -41,9 +86,6 @@ static int days_until_expiry(const std::string &isoDate)
     double diff = difftime(exp_time, now_midnight);
     return (int)round(diff / (60.0 * 60.0 * 24.0)); // round, not ceil
 }
-
-// Forward declaration of delete callback
-static void delete_btn_cb(lv_event_t *e);
 
 struct GroupUI
 {
@@ -270,6 +312,12 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
         lv_obj_set_style_text_color(lbl_plus, lv_color_hex(0x007AFF), 0);
         lv_obj_center(lbl_plus);
 
+        // Shared context — owned by btn_minus, freed on its deletion
+        QtyContext *qty_ctx = new QtyContext{qty_val, row, p->rowId, p->quantity};
+        lv_obj_add_event_cb(btn_minus, qty_minus_cb, LV_EVENT_CLICKED, qty_ctx);
+        lv_obj_add_event_cb(btn_minus, free_qty_ctx_cb, LV_EVENT_DELETE, qty_ctx);
+        lv_obj_add_event_cb(btn_plus, qty_plus_cb, LV_EVENT_CLICKED, qty_ctx);
+
         // Delete Button — now inside qty_cont, after plus
         lv_obj_t *btn_del = lv_btn_create(qty_cont); // ← parent is qty_cont
         lv_obj_set_size(btn_del, 36, 36);
@@ -301,5 +349,7 @@ static void delete_btn_cb(lv_event_t *e)
     lv_obj_t *btn = static_cast<lv_obj_t *>(lv_event_get_target(e));
     lv_obj_t *qty_cont = lv_obj_get_parent(btn); // ← qty_cont
     lv_obj_t *row = lv_obj_get_parent(qty_cont); // ← row
+
+    // One important note: lv_obj_del inside an LVGL event callback is safe for the row itself, but if you later wire up a real service call (async/network), you'll want to defer the lv_obj_del via lv_async_call to avoid re-entrancy issues.
     lv_obj_del(row);
 }
