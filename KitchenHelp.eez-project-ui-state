@@ -1,6 +1,7 @@
 {
   "navigation": {
     "selectedUserPageObject": "[KitchenHelp.eez-project]:/userPages/0",
+    "selectedBitmapObject": "[KitchenHelp.eez-project]:/bitmaps/1",
     "subnavigationSelectedItems": {}
   },
   "layoutModel": {
@@ -21,6 +22,7 @@
           },
           {
             "type": "border",
+            "selected": 2,
             "size": 240,
             "location": "right",
             "children": [
@@ -213,8 +215,7 @@
                   },
                   "icon": "svg:page"
                 }
-              ],
-              "active": true
+              ]
             },
             {
               "type": "row",
@@ -234,7 +235,8 @@
                       "enableClose": false,
                       "icon": "svg:properties"
                     }
-                  ]
+                  ],
+                  "active": true
                 },
                 {
                   "type": "tabset",
@@ -625,7 +627,8 @@
                       "component": "bitmaps",
                       "enableClose": false
                     }
-                  ]
+                  ],
+                  "active": true
                 },
                 {
                   "type": "tabset",
@@ -1092,11 +1095,7 @@
       "selectionBack": {
         "0": {
           "0": {
-            "0": {
-              "0": {
-                "1": {}
-              }
-            }
+            "$selected": true
           }
         }
       }
@@ -1108,6 +1107,7 @@
   "searchMatchWholeWord": false,
   "replaceEnabled": false,
   "replaceText": "",
+  "pageRuntimeFrontFace": true,
   "breakpoints": {},
   "watchExpressions": [],
   "showComponentDescriptions": true,
@@ -1121,5 +1121,6 @@
   "showInactiveFlowsInDebugger": true,
   "globalFlowZoom": true,
   "flowZoom": 0.75,
-  "implementationLanguage": "C"
+  "implementationLanguage": "C",
+  "openDialogDefaultPath": "C:\\Users\\sergi\\Downloads\\chef_hat_24dp_000000_FILL0_wght400_GRAD0_opsz24.png"
 }
