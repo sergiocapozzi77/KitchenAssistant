@@ -179,13 +179,13 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
             lv_obj_set_style_border_width(card, 1, 0);
             lv_obj_set_style_border_color(card, lv_color_hex(0xE0E0E0), 0);
             lv_obj_set_style_pad_all(card, 0, 0);
-            lv_obj_set_style_clip_corner(card, true, 0); // Important for inner content
 
             // Header: Minimalist style
             lv_obj_t *header = lv_btn_create(card);
             lv_obj_set_width(header, lv_pct(100));
             lv_obj_set_height(header, 50);
-            lv_obj_set_style_bg_opa(header, 0, 0); // Transparent button
+            lv_obj_set_style_bg_color(header, lv_color_hex(0xFFFFFF), 0);
+            lv_obj_set_style_bg_opa(header, LV_OPA_COVER, 0);
             lv_obj_set_style_shadow_opa(header, 0, 0);
             lv_obj_set_style_pad_hor(header, 15, 0);
             lv_obj_set_flex_flow(header, LV_FLEX_FLOW_ROW);
@@ -226,7 +226,8 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
         lv_obj_set_style_border_width(row, 1, 0);
         lv_obj_set_style_border_color(row, lv_color_hex(0xF1F3F5), 0);
         lv_obj_set_style_pad_hor(row, 15, 0);
-        lv_obj_set_style_bg_opa(row, 0, 0);
+        lv_obj_set_style_bg_color(row, lv_color_hex(0xFFFFFF), 0);
+        lv_obj_set_style_bg_opa(row, LV_OPA_COVER, 0);
 
         // Checkbox (before product name)
         lv_obj_t *checkbox = lv_checkbox_create(row);
@@ -273,13 +274,13 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
             lv_obj_set_style_text_color(expiry, lv_color_white(), 0);
             lv_obj_set_style_pad_hor(expiry, 8, 0);
             lv_obj_set_style_pad_ver(expiry, 2, 0);
-            lv_obj_set_style_radius(expiry, 10, 0);
+            lv_obj_set_style_radius(expiry, 6, 0);
         }
 
         // Quantity Selector
         lv_obj_t *qty_cont = lv_obj_create(row);
         lv_obj_set_size(qty_cont, 144, 36); // ← wider to fit delete button
-        lv_obj_set_style_radius(qty_cont, 8, 0);
+        lv_obj_set_style_radius(qty_cont, 4, 0);
         lv_obj_set_style_bg_color(qty_cont, lv_color_hex(0xF8F9FA), 0);
         lv_obj_set_style_border_width(qty_cont, 1, 0);
         lv_obj_set_style_border_color(qty_cont, lv_color_hex(0xE9ECEF), 0);
@@ -290,7 +291,8 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
 
         lv_obj_t *btn_minus = lv_btn_create(qty_cont);
         lv_obj_set_size(btn_minus, 30, 36);
-        lv_obj_set_style_bg_opa(btn_minus, 0, 0);
+        lv_obj_set_style_bg_color(btn_minus, lv_color_hex(0xF8F9FA), 0);
+        lv_obj_set_style_bg_opa(btn_minus, LV_OPA_COVER, 0);
         lv_obj_set_style_shadow_opa(btn_minus, 0, 0);
         lv_obj_t *lbl_minus = lv_label_create(btn_minus);
         lv_label_set_text(lbl_minus, LV_SYMBOL_MINUS);
@@ -305,7 +307,8 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
 
         lv_obj_t *btn_plus = lv_btn_create(qty_cont);
         lv_obj_set_size(btn_plus, 30, 36);
-        lv_obj_set_style_bg_opa(btn_plus, 0, 0);
+        lv_obj_set_style_bg_color(btn_plus, lv_color_hex(0xF8F9FA), 0);
+        lv_obj_set_style_bg_opa(btn_plus, LV_OPA_COVER, 0);
         lv_obj_set_style_shadow_opa(btn_plus, 0, 0);
         lv_obj_t *lbl_plus = lv_label_create(btn_plus);
         lv_label_set_text(lbl_plus, LV_SYMBOL_PLUS);
@@ -321,7 +324,8 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
         // Delete Button — now inside qty_cont, after plus
         lv_obj_t *btn_del = lv_btn_create(qty_cont); // ← parent is qty_cont
         lv_obj_set_size(btn_del, 36, 36);
-        lv_obj_set_style_bg_opa(btn_del, 0, 0); // ← transparent to blend in
+        lv_obj_set_style_bg_color(btn_del, lv_color_hex(0xF8F9FA), 0);
+        lv_obj_set_style_bg_opa(btn_del, LV_OPA_COVER, 0);
         lv_obj_set_style_shadow_opa(btn_del, 0, 0);
         lv_obj_set_style_border_width(btn_del, 0, LV_PART_MAIN);
         lv_obj_set_style_border_side(btn_del, LV_BORDER_SIDE_LEFT, 0); // subtle divider

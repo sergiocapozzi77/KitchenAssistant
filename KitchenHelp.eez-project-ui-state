@@ -1,6 +1,7 @@
 {
   "navigation": {
     "selectedUserPageObject": "[KitchenHelp.eez-project]:/userPages/0",
+    "selectedStyleObject": "[KitchenHelp.eez-project]:/lvglStyles/styles/0",
     "selectedBitmapObject": "[KitchenHelp.eez-project]:/bitmaps/1",
     "subnavigationSelectedItems": {}
   },
@@ -22,7 +23,7 @@
           },
           {
             "type": "border",
-            "selected": 2,
+            "selected": 0,
             "size": 240,
             "location": "right",
             "children": [
@@ -855,7 +856,8 @@
                       "component": "styles",
                       "enableClose": false
                     }
-                  ]
+                  ],
+                  "active": true
                 },
                 {
                   "type": "tabset",
@@ -1080,8 +1082,8 @@
       },
       "transform": {
         "translate": {
-          "x": -486.9794776119405,
-          "y": -353.9323953941688
+          "x": -293.6461502125806,
+          "y": -187.26572872750214
         },
         "scale": 0.75
       },
@@ -1095,9 +1097,23 @@
       "selectionBack": {
         "0": {
           "0": {
-            "$selected": true
+            "0": {
+              "0": {
+                "0": {
+                  "0": {}
+                },
+                "1": {
+                  "$selected": true
+                }
+              }
+            }
           }
         }
+      }
+    },
+    "[KitchenHelp.eez-project]:/lvglStyles/styles[tree-state]": {
+      "0": {
+        "$selected": true
       }
     }
   },
@@ -1113,10 +1129,12 @@
   "showComponentDescriptions": true,
   "logsPanelFilter": "all",
   "selectedStylePropertyName": "",
-  "lvglPart": "SCROLLBAR",
+  "lvglPart": "MAIN",
   "lvglState": "DEFAULT",
   "lvglExpandedPropertiesGroup": [
-    "TEXT"
+    "TEXT",
+    "BORDER",
+    "MISCELLANEOUS"
   ],
   "showInactiveFlowsInDebugger": true,
   "globalFlowZoom": true,

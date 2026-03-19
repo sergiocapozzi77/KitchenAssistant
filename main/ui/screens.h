@@ -18,7 +18,10 @@ enum ScreensEnum {
 typedef struct _objects_t {
     lv_obj_t *main;
     lv_obj_t *tabview;
+    lv_obj_t *obj0;
     lv_obj_t *products_list;
+    lv_obj_t *obj1;
+    lv_obj_t *obj2;
 } objects_t;
 
 extern objects_t objects;
@@ -30,6 +33,20 @@ void tick_screen_by_id(enum ScreensEnum screenId);
 void tick_screen(int screen_index);
 
 void create_screens();
+
+// Color themes
+
+enum Themes {
+    THEME_ID_DEFAULT,
+};
+enum Colors {
+    COLOR_ID_ACCENT,
+    COLOR_ID_ACCENT_DARK,
+    COLOR_ID_BORDER,
+};
+void change_color_theme(uint32_t themeIndex);
+extern uint32_t theme_colors[1][3];
+extern uint32_t active_theme_index;
 
 #ifdef __cplusplus
 }
