@@ -3,6 +3,7 @@ idf_component_register(
         main.cpp
         app.cpp
         ProductService.cpp
+        RecipeGoodFoodService.cpp
         WifiManager.cpp
         ui_extensions.cpp
         ui/screens.c
