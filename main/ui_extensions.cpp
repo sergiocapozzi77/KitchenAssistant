@@ -9,7 +9,6 @@
 #include "ui_extensions.h"
 #include <ctime>
 #include <cmath>
-#include "ui.h"
 
 static const char *TAG = "UIEXTENSIONS";
 
@@ -21,6 +20,87 @@ extern lv_obj_t *objects_productSelected_lbl;
 
 // Track selected products (rowId -> Product)
 static std::map<std::string, Product> selected_products;
+
+// === REUSABLE STYLES (created once, applied many times) ===
+static lv_style_t style_card;
+static lv_style_t style_header;
+static lv_style_t style_row;
+static lv_style_t style_qty_cont;
+static lv_style_t style_qty_btn;
+static lv_style_t style_del_btn;
+static lv_style_t style_expiry_badge;
+static lv_style_t style_checkbox_indicator;
+static bool styles_initialized = false;
+
+static void init_styles()
+{
+    if (styles_initialized)
+        return;
+
+    // Card style
+    lv_style_init(&style_card);
+    lv_style_set_bg_color(&style_card, lv_color_hex(0xFFFFFF));
+    lv_style_set_radius(&style_card, 12);
+    lv_style_set_border_width(&style_card, 1);
+    lv_style_set_border_color(&style_card, lv_color_hex(0xE0E0E0));
+    lv_style_set_pad_all(&style_card, 0);
+
+    // Header style
+    lv_style_init(&style_header);
+    lv_style_set_bg_color(&style_header, lv_color_hex(0xFFFFFF));
+    lv_style_set_bg_opa(&style_header, LV_OPA_COVER);
+    lv_style_set_shadow_opa(&style_header, 0);
+    lv_style_set_pad_hor(&style_header, 15);
+
+    // Row style
+    lv_style_init(&style_row);
+    lv_style_set_border_side(&style_row, LV_BORDER_SIDE_TOP);
+    lv_style_set_border_width(&style_row, 1);
+    lv_style_set_border_color(&style_row, lv_color_hex(0xF1F3F5));
+    lv_style_set_pad_hor(&style_row, 15);
+    lv_style_set_bg_color(&style_row, lv_color_hex(0xFFFFFF));
+    lv_style_set_bg_opa(&style_row, LV_OPA_COVER);
+
+    // Quantity container style
+    lv_style_init(&style_qty_cont);
+    lv_style_set_radius(&style_qty_cont, 4);
+    lv_style_set_bg_color(&style_qty_cont, lv_color_hex(0xF8F9FA));
+    lv_style_set_border_width(&style_qty_cont, 1);
+    lv_style_set_border_color(&style_qty_cont, lv_color_hex(0xE9ECEF));
+    lv_style_set_pad_all(&style_qty_cont, 0);
+
+    // Quantity button style
+    lv_style_init(&style_qty_btn);
+    lv_style_set_bg_color(&style_qty_btn, lv_color_hex(0xF8F9FA));
+    lv_style_set_bg_opa(&style_qty_btn, LV_OPA_COVER);
+    lv_style_set_shadow_opa(&style_qty_btn, 0);
+
+    // Delete button style
+    lv_style_init(&style_del_btn);
+    lv_style_set_bg_color(&style_del_btn, lv_color_hex(0xF8F9FA));
+    lv_style_set_bg_opa(&style_del_btn, LV_OPA_COVER);
+    lv_style_set_shadow_opa(&style_del_btn, 0);
+    lv_style_set_border_width(&style_del_btn, 0);
+    lv_style_set_border_side(&style_del_btn, LV_BORDER_SIDE_LEFT);
+    lv_style_set_border_width(&style_del_btn, 1);
+    lv_style_set_border_color(&style_del_btn, lv_color_hex(0xE9ECEF));
+
+    // Expiry badge style
+    lv_style_init(&style_expiry_badge);
+    lv_style_set_bg_opa(&style_expiry_badge, LV_OPA_COVER);
+    lv_style_set_text_color(&style_expiry_badge, lv_color_white());
+    lv_style_set_pad_hor(&style_expiry_badge, 8);
+    lv_style_set_pad_ver(&style_expiry_badge, 2);
+    lv_style_set_radius(&style_expiry_badge, 6);
+
+    // Checkbox indicator style
+    lv_style_init(&style_checkbox_indicator);
+    lv_style_set_border_color(&style_checkbox_indicator, lv_color_hex(0x007AFF));
+    lv_style_set_bg_color(&style_checkbox_indicator, lv_color_hex(0x007AFF));
+
+    styles_initialized = true;
+    ESP_LOGI(TAG, "Styles initialized");
+}
 
 // Forward declarations
 static void delete_btn_cb(lv_event_t *e);
@@ -254,22 +334,19 @@ static void row_click_cb(lv_event_t *e)
     if (!checkbox)
         return;
 
-    ESP_LOGI(TAG, "Row clicked");
-    // Toggle checkbox state - this will trigger LV_EVENT_VALUE_CHANGED
-    // which calls checkbox_changed_cb and updates the selected_products map
+    // Toggle checkbox state
     if (lv_obj_has_state(checkbox, LV_STATE_CHECKED))
         lv_obj_clear_state(checkbox, LV_STATE_CHECKED);
     else
         lv_obj_add_state(checkbox, LV_STATE_CHECKED);
 
     // Manually send VALUE_CHANGED event to trigger checkbox_changed_cb
-    lv_event_send(checkbox, LV_EVENT_VALUE_CHANGED, NULL);
+    lv_obj_send_event(checkbox, LV_EVENT_VALUE_CHANGED, NULL);
 }
 
 static void checkbox_changed_cb(lv_event_t *e)
 {
-    ESP_LOGI(TAG, "Checkbox state changed");
-    lv_obj_t *checkbox = static_cast<lv_obj_t *>(lv_event_get_target(e));
+    lv_obj_t *checkbox = lv_event_get_target(e);
     if (!checkbox)
         return;
 
@@ -281,12 +358,10 @@ static void checkbox_changed_cb(lv_event_t *e)
     if (lv_obj_has_state(checkbox, LV_STATE_CHECKED))
     {
         selected_products[ctx->product.rowId] = ctx->product;
-        ESP_LOGI(TAG, "Product selected: %s (%s)", ctx->product.name.c_str(), ctx->product.rowId.c_str());
     }
     else
     {
         selected_products.erase(ctx->product.rowId);
-        ESP_LOGI(TAG, "Product deselected: %s (%s)", ctx->product.name.c_str(), ctx->product.rowId.c_str());
     }
 
     update_selection_ui();
@@ -297,22 +372,28 @@ static void update_selection_ui()
     int selected_count = selected_products.size();
 
     // Update panel visibility
-    if (selected_count > 0)
+    if (objects_createRecipe_pnl)
     {
-        lv_obj_clear_flag(objects.create_recipe_pnl, LV_OBJ_FLAG_HIDDEN);
-    }
-    else
-    {
-        lv_obj_add_flag(objects.create_recipe_pnl, LV_OBJ_FLAG_HIDDEN);
+        if (selected_count > 0)
+        {
+            lv_obj_clear_flag(objects_createRecipe_pnl, LV_OBJ_FLAG_HIDDEN);
+        }
+        else
+        {
+            lv_obj_add_flag(objects_createRecipe_pnl, LV_OBJ_FLAG_HIDDEN);
+        }
     }
 
     // Update label text
-    char buf[64];
-    if (selected_count == 1)
-        snprintf(buf, sizeof(buf), "1 product selected");
-    else
-        snprintf(buf, sizeof(buf), "%d products selected", selected_count);
-    lv_label_set_text(objects.product_selected_lbl, buf);
+    if (objects_productSelected_lbl)
+    {
+        char buf[64];
+        if (selected_count == 1)
+            snprintf(buf, sizeof(buf), "1 product selected");
+        else
+            snprintf(buf, sizeof(buf), "%d products selected", selected_count);
+        lv_label_set_text(objects_productSelected_lbl, buf);
+    }
 
     ESP_LOGI(TAG, "Selection updated: %d products selected", selected_count);
 }
@@ -328,6 +409,10 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
     }
 
     lv_lock();
+
+    // Initialize styles once
+    init_styles();
+
     lv_obj_clean(root);
 
     // Clear selected products since we're rebuilding the list
@@ -356,27 +441,19 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
         {
             currentCategory = p->category;
 
-            // The Card: White background, subtle border, rounded corners
+            // The Card: Use reusable style
             lv_obj_t *card = lv_obj_create(root);
+            lv_obj_add_style(card, &style_card, 0);
             lv_obj_set_width(card, lv_pct(100));
             lv_obj_set_height(card, LV_SIZE_CONTENT);
             lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
             lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
 
-            lv_obj_set_style_bg_color(card, lv_color_hex(0xFFFFFF), 0);
-            lv_obj_set_style_radius(card, 12, 0);
-            lv_obj_set_style_border_width(card, 1, 0);
-            lv_obj_set_style_border_color(card, lv_color_hex(0xE0E0E0), 0);
-            lv_obj_set_style_pad_all(card, 0, 0);
-
-            // Header: Minimalist style
+            // Header: Use reusable style
             lv_obj_t *header = lv_btn_create(card);
+            lv_obj_add_style(header, &style_header, 0);
             lv_obj_set_width(header, lv_pct(100));
             lv_obj_set_height(header, 50);
-            lv_obj_set_style_bg_color(header, lv_color_hex(0xFFFFFF), 0);
-            lv_obj_set_style_bg_opa(header, LV_OPA_COVER, 0);
-            lv_obj_set_style_shadow_opa(header, 0, 0);
-            lv_obj_set_style_pad_hor(header, 15, 0);
             lv_obj_set_flex_flow(header, LV_FLEX_FLOW_ROW);
             lv_obj_set_flex_align(header, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
@@ -407,27 +484,19 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
 
         // === THE ROW ===
         lv_obj_t *row = lv_obj_create(content);
+        lv_obj_add_style(row, &style_row, 0);
         lv_obj_set_width(row, lv_pct(100));
         lv_obj_set_height(row, 60);
         lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
         lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
-        // Horizontal line separator between rows
-        lv_obj_set_style_border_side(row, LV_BORDER_SIDE_TOP, 0);
-        lv_obj_set_style_border_width(row, 1, 0);
-        lv_obj_set_style_border_color(row, lv_color_hex(0xF1F3F5), 0);
-        lv_obj_set_style_pad_hor(row, 15, 0);
-        lv_obj_set_style_bg_color(row, lv_color_hex(0xFFFFFF), 0);
-        lv_obj_set_style_bg_opa(row, LV_OPA_COVER, 0);
-
         // Checkbox (before product name)
         lv_obj_t *checkbox = lv_checkbox_create(row);
         lv_checkbox_set_text(checkbox, "");
         lv_obj_set_style_pad_right(checkbox, 8, 0);
-        lv_obj_set_style_border_color(checkbox, lv_color_hex(0x007AFF), LV_PART_INDICATOR);
-        lv_obj_set_style_bg_color(checkbox, lv_color_hex(0x007AFF), LV_PART_INDICATOR | LV_STATE_CHECKED);
-        lv_obj_set_style_border_color(checkbox, lv_color_hex(0x007AFF), LV_PART_INDICATOR | LV_STATE_CHECKED);
+        lv_obj_add_style(checkbox, &style_checkbox_indicator, LV_PART_INDICATOR);
+        lv_obj_add_style(checkbox, &style_checkbox_indicator, LV_PART_INDICATOR | LV_STATE_CHECKED);
 
         // Attach product data to checkbox for selection tracking
         CheckboxContext *checkbox_ctx = new CheckboxContext{*p};
@@ -450,6 +519,7 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
         if (days != 9999) // Only show expiry if date is valid
         {
             lv_obj_t *expiry = lv_label_create(row);
+            lv_obj_add_style(expiry, &style_expiry_badge, 0);
 
             char buf[32];
             if (days < 0)
@@ -462,33 +532,21 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
                 snprintf(buf, sizeof(buf), "%dd left", days);
 
             lv_label_set_text(expiry, buf);
-
             lv_obj_set_style_bg_color(expiry, get_expiry_color(days), 0);
-            lv_obj_set_style_bg_opa(expiry, LV_OPA_COVER, 0);
-            lv_obj_set_style_text_color(expiry, lv_color_white(), 0);
-            lv_obj_set_style_pad_hor(expiry, 8, 0);
-            lv_obj_set_style_pad_ver(expiry, 2, 0);
-            lv_obj_set_style_radius(expiry, 6, 0);
         }
 
         // Quantity Selector Container
         lv_obj_t *qty_cont = lv_obj_create(row);
+        lv_obj_add_style(qty_cont, &style_qty_cont, 0);
         lv_obj_set_size(qty_cont, 144, 36);
-        lv_obj_set_style_radius(qty_cont, 4, 0);
-        lv_obj_set_style_bg_color(qty_cont, lv_color_hex(0xF8F9FA), 0);
-        lv_obj_set_style_border_width(qty_cont, 1, 0);
-        lv_obj_set_style_border_color(qty_cont, lv_color_hex(0xE9ECEF), 0);
-        lv_obj_set_style_pad_all(qty_cont, 0, 0);
         lv_obj_clear_flag(qty_cont, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_set_flex_flow(qty_cont, LV_FLEX_FLOW_ROW);
         lv_obj_set_flex_align(qty_cont, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
         // Minus Button
         lv_obj_t *btn_minus = lv_btn_create(qty_cont);
+        lv_obj_add_style(btn_minus, &style_qty_btn, 0);
         lv_obj_set_size(btn_minus, 30, 36);
-        lv_obj_set_style_bg_color(btn_minus, lv_color_hex(0xF8F9FA), 0);
-        lv_obj_set_style_bg_opa(btn_minus, LV_OPA_COVER, 0);
-        lv_obj_set_style_shadow_opa(btn_minus, 0, 0);
         lv_obj_t *lbl_minus = lv_label_create(btn_minus);
         lv_label_set_text(lbl_minus, LV_SYMBOL_MINUS);
         lv_obj_set_style_text_color(lbl_minus, lv_color_hex(0x007AFF), 0);
@@ -503,10 +561,8 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
 
         // Plus Button
         lv_obj_t *btn_plus = lv_btn_create(qty_cont);
+        lv_obj_add_style(btn_plus, &style_qty_btn, 0);
         lv_obj_set_size(btn_plus, 30, 36);
-        lv_obj_set_style_bg_color(btn_plus, lv_color_hex(0xF8F9FA), 0);
-        lv_obj_set_style_bg_opa(btn_plus, LV_OPA_COVER, 0);
-        lv_obj_set_style_shadow_opa(btn_plus, 0, 0);
         lv_obj_t *lbl_plus = lv_label_create(btn_plus);
         lv_label_set_text(lbl_plus, LV_SYMBOL_PLUS);
         lv_obj_set_style_text_color(lbl_plus, lv_color_hex(0x007AFF), 0);
@@ -520,14 +576,8 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
 
         // Delete Button
         lv_obj_t *btn_del = lv_btn_create(qty_cont);
+        lv_obj_add_style(btn_del, &style_del_btn, 0);
         lv_obj_set_size(btn_del, 36, 36);
-        lv_obj_set_style_bg_color(btn_del, lv_color_hex(0xF8F9FA), 0);
-        lv_obj_set_style_bg_opa(btn_del, LV_OPA_COVER, 0);
-        lv_obj_set_style_shadow_opa(btn_del, 0, 0);
-        lv_obj_set_style_border_width(btn_del, 0, LV_PART_MAIN);
-        lv_obj_set_style_border_side(btn_del, LV_BORDER_SIDE_LEFT, 0);
-        lv_obj_set_style_border_width(btn_del, 1, 0);
-        lv_obj_set_style_border_color(btn_del, lv_color_hex(0xE9ECEF), 0);
 
         lv_obj_t *lbl_del = lv_label_create(btn_del);
         lv_label_set_text(lbl_del, LV_SYMBOL_TRASH);
