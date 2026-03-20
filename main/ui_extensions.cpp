@@ -7,6 +7,7 @@
 #include "esp_err.h"
 #include "ProductService.h"
 #include "ui_extensions.h"
+#include "ui.h"
 #include <ctime>
 #include <cmath>
 
@@ -96,7 +97,6 @@ static void init_styles()
     // Checkbox indicator style
     lv_style_init(&style_checkbox_indicator);
     lv_style_set_border_color(&style_checkbox_indicator, lv_color_hex(0x007AFF));
-    lv_style_set_bg_color(&style_checkbox_indicator, lv_color_hex(0x007AFF));
 
     styles_initialized = true;
     ESP_LOGI(TAG, "Styles initialized");
@@ -340,13 +340,12 @@ static void row_click_cb(lv_event_t *e)
     else
         lv_obj_add_state(checkbox, LV_STATE_CHECKED);
 
-    // Manually send VALUE_CHANGED event to trigger checkbox_changed_cb
     lv_obj_send_event(checkbox, LV_EVENT_VALUE_CHANGED, NULL);
 }
 
 static void checkbox_changed_cb(lv_event_t *e)
 {
-    lv_obj_t *checkbox = lv_event_get_target(e);
+    lv_obj_t *checkbox = static_cast<lv_obj_t *>(lv_event_get_target(e));
     if (!checkbox)
         return;
 
@@ -372,28 +371,22 @@ static void update_selection_ui()
     int selected_count = selected_products.size();
 
     // Update panel visibility
-    if (objects_createRecipe_pnl)
+    if (selected_count > 0)
     {
-        if (selected_count > 0)
-        {
-            lv_obj_clear_flag(objects_createRecipe_pnl, LV_OBJ_FLAG_HIDDEN);
-        }
-        else
-        {
-            lv_obj_add_flag(objects_createRecipe_pnl, LV_OBJ_FLAG_HIDDEN);
-        }
+        lv_obj_clear_flag(objects.create_recipe_pnl, LV_OBJ_FLAG_HIDDEN);
+    }
+    else
+    {
+        lv_obj_add_flag(objects.create_recipe_pnl, LV_OBJ_FLAG_HIDDEN);
     }
 
     // Update label text
-    if (objects_productSelected_lbl)
-    {
-        char buf[64];
-        if (selected_count == 1)
-            snprintf(buf, sizeof(buf), "1 product selected");
-        else
-            snprintf(buf, sizeof(buf), "%d products selected", selected_count);
-        lv_label_set_text(objects_productSelected_lbl, buf);
-    }
+    char buf[64];
+    if (selected_count == 1)
+        snprintf(buf, sizeof(buf), "1 product selected");
+    else
+        snprintf(buf, sizeof(buf), "%d products selected", selected_count);
+    lv_label_set_text(objects.product_selected_lbl, buf);
 
     ESP_LOGI(TAG, "Selection updated: %d products selected", selected_count);
 }
