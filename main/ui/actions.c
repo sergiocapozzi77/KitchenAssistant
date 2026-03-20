@@ -33,4 +33,6 @@ void action_screen_loading(lv_event_t *e)
     ESP_LOGI("actions", "Loading screen shown");
     set_tab_icon(objects.tabview, 0, &img_shopping);
     set_tab_icon(objects.tabview, 1, &img_chef);
+
+    lv_obj_add_flag(objects.create_recipe_pnl, LV_OBJ_FLAG_HIDDEN);
 }

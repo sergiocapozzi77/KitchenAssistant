@@ -73,7 +73,9 @@ void create_screen_main() {
                             {
                                 lv_obj_t *parent_obj = obj;
                                 {
+                                    // productsHeader_pnl
                                     lv_obj_t *obj = lv_obj_create(parent_obj);
+                                    objects.products_header_pnl = obj;
                                     lv_obj_set_pos(obj, 0, 0);
                                     lv_obj_set_size(obj, LV_PCT(100), LV_PCT(100));
                                     lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
@@ -125,10 +127,11 @@ void create_screen_main() {
                                     lv_obj_set_style_margin_bottom(obj, 10, LV_PART_MAIN | LV_STATE_DEFAULT);
                                 }
                                 {
+                                    // createRecipe_pnl
                                     lv_obj_t *obj = lv_obj_create(parent_obj);
-                                    objects.obj1 = obj;
-                                    lv_obj_set_pos(obj, 0, 40);
-                                    lv_obj_set_size(obj, LV_PCT(100), 160);
+                                    objects.create_recipe_pnl = obj;
+                                    lv_obj_set_pos(obj, 0, -16);
+                                    lv_obj_set_size(obj, LV_PCT(100), 216);
                                     lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
                                     lv_obj_set_style_radius(obj, 12, LV_PART_MAIN | LV_STATE_DEFAULT);
                                     lv_obj_set_style_border_width(obj, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -142,9 +145,48 @@ void create_screen_main() {
                                     {
                                         lv_obj_t *parent_obj = obj;
                                         {
+                                            // productSelected_lbl
+                                            lv_obj_t *obj = lv_label_create(parent_obj);
+                                            objects.product_selected_lbl = obj;
+                                            lv_obj_set_pos(obj, 19, 6);
+                                            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                                            lv_obj_set_style_text_font(obj, &lv_font_montserrat_24, LV_PART_MAIN | LV_STATE_DEFAULT);
+                                            lv_label_set_text(obj, "Product selected");
+                                        }
+                                        {
+                                            lv_obj_t *obj = lv_dropdown_create(parent_obj);
+                                            lv_obj_set_pos(obj, 19, 62);
+                                            lv_obj_set_size(obj, 203, LV_SIZE_CONTENT);
+                                            lv_dropdown_set_options(obj, "Cuisine\nItalian\nThai\nChinese");
+                                            lv_dropdown_set_dir(obj, LV_DIR_RIGHT);
+                                            lv_dropdown_set_symbol(obj, LV_SYMBOL_RIGHT);
+                                            lv_dropdown_set_selected(obj, 0);
+                                            add_style_drop_down_with_shadow(obj);
+                                        }
+                                        {
+                                            lv_obj_t *obj = lv_dropdown_create(parent_obj);
+                                            lv_obj_set_pos(obj, 242, 62);
+                                            lv_obj_set_size(obj, 221, LV_SIZE_CONTENT);
+                                            lv_dropdown_set_options(obj, "Meal Type\nLunch\nDinner\nSnack");
+                                            lv_dropdown_set_dir(obj, LV_DIR_RIGHT);
+                                            lv_dropdown_set_symbol(obj, LV_SYMBOL_RIGHT);
+                                            lv_dropdown_set_selected(obj, 0);
+                                            add_style_drop_down_with_shadow(obj);
+                                        }
+                                        {
+                                            lv_obj_t *obj = lv_dropdown_create(parent_obj);
+                                            lv_obj_set_pos(obj, 495, 62);
+                                            lv_obj_set_size(obj, 201, LV_SIZE_CONTENT);
+                                            lv_dropdown_set_options(obj, "Difficulty\nLunch\nDinner\nSnack");
+                                            lv_dropdown_set_dir(obj, LV_DIR_RIGHT);
+                                            lv_dropdown_set_symbol(obj, LV_SYMBOL_RIGHT);
+                                            lv_dropdown_set_selected(obj, 0);
+                                            add_style_drop_down_with_shadow(obj);
+                                        }
+                                        {
                                             lv_obj_t *obj = lv_button_create(parent_obj);
-                                            objects.obj2 = obj;
-                                            lv_obj_set_pos(obj, 22, 70);
+                                            objects.obj1 = obj;
+                                            lv_obj_set_pos(obj, 19, 130);
                                             lv_obj_set_size(obj, 333, 50);
                                             lv_obj_set_style_bg_color(obj, lv_color_hex(theme_colors[active_theme_index][0]), LV_PART_MAIN | LV_STATE_DEFAULT);
                                             lv_obj_set_style_text_color(obj, lv_color_hex(0xffffffff), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -163,39 +205,9 @@ void create_screen_main() {
                                             }
                                         }
                                         {
-                                            lv_obj_t *obj = lv_dropdown_create(parent_obj);
-                                            lv_obj_set_pos(obj, 22, 3);
-                                            lv_obj_set_size(obj, 203, LV_SIZE_CONTENT);
-                                            lv_dropdown_set_options(obj, "Cuisine\nItalian\nThai\nChinese");
-                                            lv_dropdown_set_dir(obj, LV_DIR_RIGHT);
-                                            lv_dropdown_set_symbol(obj, LV_SYMBOL_RIGHT);
-                                            lv_dropdown_set_selected(obj, 0);
-                                            add_style_drop_down_with_shadow(obj);
-                                        }
-                                        {
-                                            lv_obj_t *obj = lv_dropdown_create(parent_obj);
-                                            lv_obj_set_pos(obj, 244, 3);
-                                            lv_obj_set_size(obj, 221, LV_SIZE_CONTENT);
-                                            lv_dropdown_set_options(obj, "Meal Type\nLunch\nDinner\nSnack");
-                                            lv_dropdown_set_dir(obj, LV_DIR_RIGHT);
-                                            lv_dropdown_set_symbol(obj, LV_SYMBOL_RIGHT);
-                                            lv_dropdown_set_selected(obj, 0);
-                                            add_style_drop_down_with_shadow(obj);
-                                        }
-                                        {
-                                            lv_obj_t *obj = lv_dropdown_create(parent_obj);
-                                            lv_obj_set_pos(obj, 484, 3);
-                                            lv_obj_set_size(obj, 201, LV_SIZE_CONTENT);
-                                            lv_dropdown_set_options(obj, "Difficulty\nLunch\nDinner\nSnack");
-                                            lv_dropdown_set_dir(obj, LV_DIR_RIGHT);
-                                            lv_dropdown_set_symbol(obj, LV_SYMBOL_RIGHT);
-                                            lv_dropdown_set_selected(obj, 0);
-                                            add_style_drop_down_with_shadow(obj);
-                                        }
-                                        {
                                             lv_obj_t *obj = lv_button_create(parent_obj);
-                                            objects.obj3 = obj;
-                                            lv_obj_set_pos(obj, 364, 70);
+                                            objects.obj2 = obj;
+                                            lv_obj_set_pos(obj, 375, 129);
                                             lv_obj_set_size(obj, 321, 50);
                                             lv_obj_set_style_bg_color(obj, lv_color_hex(theme_colors[active_theme_index][0]), LV_PART_MAIN | LV_STATE_DEFAULT);
                                             lv_obj_set_style_text_color(obj, lv_color_hex(0xffffffff), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -322,11 +334,11 @@ void change_color_theme(uint32_t theme_index) {
     active_theme_index = theme_index;
     
     {
-        lv_obj_set_style_border_color(objects.obj1, lv_color_hex(theme_colors[theme_index][2]), LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_border_color(objects.create_recipe_pnl, lv_color_hex(theme_colors[theme_index][2]), LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_bg_color(objects.obj1, lv_color_hex(theme_colors[theme_index][0]), LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_bg_grad_color(objects.obj1, lv_color_hex(theme_colors[theme_index][1]), LV_PART_MAIN | LV_STATE_DEFAULT);
         lv_obj_set_style_bg_color(objects.obj2, lv_color_hex(theme_colors[theme_index][0]), LV_PART_MAIN | LV_STATE_DEFAULT);
         lv_obj_set_style_bg_grad_color(objects.obj2, lv_color_hex(theme_colors[theme_index][1]), LV_PART_MAIN | LV_STATE_DEFAULT);
-        lv_obj_set_style_bg_color(objects.obj3, lv_color_hex(theme_colors[theme_index][0]), LV_PART_MAIN | LV_STATE_DEFAULT);
-        lv_obj_set_style_bg_grad_color(objects.obj3, lv_color_hex(theme_colors[theme_index][1]), LV_PART_MAIN | LV_STATE_DEFAULT);
     }
     lv_style_set_border_color(get_style_drop_down_with_shadow_MAIN_DEFAULT(), lv_color_hex(theme_colors[theme_index][2]));
     lv_obj_invalidate(objects.main);

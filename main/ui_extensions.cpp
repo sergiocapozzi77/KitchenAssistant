@@ -9,8 +9,18 @@
 #include "ui_extensions.h"
 #include <ctime>
 #include <cmath>
+#include "ui.h"
 
 static const char *TAG = "UIEXTENSIONS";
+
+// External UI objects (declare in your main UI code or EEZ-generated files):
+// lv_obj_t *objects_createRecipe_pnl;    // Panel to show when products selected
+// lv_obj_t *objects_productSelected_lbl; // Label showing selection count
+extern lv_obj_t *objects_createRecipe_pnl;
+extern lv_obj_t *objects_productSelected_lbl;
+
+// Track selected products (rowId -> Product)
+static std::map<std::string, Product> selected_products;
 
 // Forward declarations
 static void delete_btn_cb(lv_event_t *e);
@@ -18,6 +28,8 @@ static void qty_minus_cb(lv_event_t *e);
 static void qty_plus_cb(lv_event_t *e);
 static void group_toggle_cb(lv_event_t *e);
 static void row_click_cb(lv_event_t *e);
+static void checkbox_changed_cb(lv_event_t *e);
+static void update_selection_ui();
 
 // === STRUCTS ===
 
@@ -41,6 +53,11 @@ struct DeleteCtx
     lv_obj_t *obj;
 };
 
+struct CheckboxContext
+{
+    Product product;
+};
+
 // === CLEANUP CALLBACKS ===
 
 static void free_qty_ctx_cb(lv_event_t *e)
@@ -56,6 +73,11 @@ static void free_group_cb(lv_event_t *e)
 static void free_rowid_cb(lv_event_t *e)
 {
     delete (std::string *)lv_event_get_user_data(e);
+}
+
+static void free_checkbox_ctx_cb(lv_event_t *e)
+{
+    delete (CheckboxContext *)lv_event_get_user_data(e);
 }
 
 static void deferred_delete_cb(void *user_data)
@@ -232,10 +254,67 @@ static void row_click_cb(lv_event_t *e)
     if (!checkbox)
         return;
 
+    ESP_LOGI(TAG, "Row clicked");
+    // Toggle checkbox state - this will trigger LV_EVENT_VALUE_CHANGED
+    // which calls checkbox_changed_cb and updates the selected_products map
     if (lv_obj_has_state(checkbox, LV_STATE_CHECKED))
         lv_obj_clear_state(checkbox, LV_STATE_CHECKED);
     else
         lv_obj_add_state(checkbox, LV_STATE_CHECKED);
+
+    // Manually send VALUE_CHANGED event to trigger checkbox_changed_cb
+    lv_event_send(checkbox, LV_EVENT_VALUE_CHANGED, NULL);
+}
+
+static void checkbox_changed_cb(lv_event_t *e)
+{
+    ESP_LOGI(TAG, "Checkbox state changed");
+    lv_obj_t *checkbox = static_cast<lv_obj_t *>(lv_event_get_target(e));
+    if (!checkbox)
+        return;
+
+    CheckboxContext *ctx = (CheckboxContext *)lv_event_get_user_data(e);
+    if (!ctx)
+        return;
+
+    // Add or remove product from selected set
+    if (lv_obj_has_state(checkbox, LV_STATE_CHECKED))
+    {
+        selected_products[ctx->product.rowId] = ctx->product;
+        ESP_LOGI(TAG, "Product selected: %s (%s)", ctx->product.name.c_str(), ctx->product.rowId.c_str());
+    }
+    else
+    {
+        selected_products.erase(ctx->product.rowId);
+        ESP_LOGI(TAG, "Product deselected: %s (%s)", ctx->product.name.c_str(), ctx->product.rowId.c_str());
+    }
+
+    update_selection_ui();
+}
+
+static void update_selection_ui()
+{
+    int selected_count = selected_products.size();
+
+    // Update panel visibility
+    if (selected_count > 0)
+    {
+        lv_obj_clear_flag(objects.create_recipe_pnl, LV_OBJ_FLAG_HIDDEN);
+    }
+    else
+    {
+        lv_obj_add_flag(objects.create_recipe_pnl, LV_OBJ_FLAG_HIDDEN);
+    }
+
+    // Update label text
+    char buf[64];
+    if (selected_count == 1)
+        snprintf(buf, sizeof(buf), "1 product selected");
+    else
+        snprintf(buf, sizeof(buf), "%d products selected", selected_count);
+    lv_label_set_text(objects.product_selected_lbl, buf);
+
+    ESP_LOGI(TAG, "Selection updated: %d products selected", selected_count);
 }
 
 // === MAIN POPULATE FUNCTION ===
@@ -250,6 +329,9 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
 
     lv_lock();
     lv_obj_clean(root);
+
+    // Clear selected products since we're rebuilding the list
+    selected_products.clear();
 
     // Root setup: Light gray background
     lv_obj_set_style_bg_color(root, lv_color_hex(0xF8F9FA), 0);
@@ -346,6 +428,11 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
         lv_obj_set_style_border_color(checkbox, lv_color_hex(0x007AFF), LV_PART_INDICATOR);
         lv_obj_set_style_bg_color(checkbox, lv_color_hex(0x007AFF), LV_PART_INDICATOR | LV_STATE_CHECKED);
         lv_obj_set_style_border_color(checkbox, lv_color_hex(0x007AFF), LV_PART_INDICATOR | LV_STATE_CHECKED);
+
+        // Attach product data to checkbox for selection tracking
+        CheckboxContext *checkbox_ctx = new CheckboxContext{*p};
+        lv_obj_add_event_cb(checkbox, checkbox_changed_cb, LV_EVENT_VALUE_CHANGED, checkbox_ctx);
+        lv_obj_add_event_cb(checkbox, free_checkbox_ctx_cb, LV_EVENT_DELETE, checkbox_ctx);
 
         // Row click selects the checkbox
         lv_obj_add_event_cb(row, row_click_cb, LV_EVENT_CLICKED, checkbox);
@@ -452,5 +539,31 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
         lv_obj_add_event_cb(btn_del, free_rowid_cb, LV_EVENT_DELETE, rowId);
     }
 
+    // Initialize selection UI to correct state (panel hidden, count = 0)
+    update_selection_ui();
+
     lv_unlock();
+}
+
+// Helper function to get selected products
+std::vector<Product> getSelectedProducts()
+{
+    std::vector<Product> result;
+    result.reserve(selected_products.size());
+
+    for (const auto &pair : selected_products)
+    {
+        result.push_back(pair.second);
+    }
+
+    ESP_LOGI(TAG, "Retrieved %d selected products", result.size());
+    return result;
+}
+
+// Helper function to clear selected products
+void clearSelectedProducts()
+{
+    selected_products.clear();
+    update_selection_ui();
+    ESP_LOGI(TAG, "Cleared all selected products");
 }
