@@ -87,29 +87,20 @@ std::vector<RecipeSuggestion> RecipeGoodFoodService::fetchPage(
 {
     std::vector<RecipeSuggestion> pageSuggestions;
     std::string url = "https://www.bbcgoodfood.com/search?q=" + query + "&mealType=" + dishType + "&page=" + std::to_string(page);
-    if (!difficulty.empty())
-        url += "&difficulty=" + urlEncode(difficulty);
-    if (!totalTime.empty())
-        url += "&totalTime=" + urlEncode(totalTime);
 
     int status = -1;
-    // httpGet now returns ONLY the JSON text!
     std::string jsonText = httpGet(url, status);
 
     if (status != 200 || jsonText.empty())
     {
-        ESP_LOGE(TAG, "Failed to fetch/extract JSON for page %d", page);
+        ESP_LOGE(TAG, "Failed to fetch JSON for page %d", page);
         return pageSuggestions;
     }
 
     cJSON *root = cJSON_Parse(jsonText.c_str());
     if (!root)
-    {
-        ESP_LOGE(TAG, "JSON parse failed on page %d", page);
         return pageSuggestions;
-    }
 
-    // JSON Navigation (Simplified for brevity)
     cJSON *props = cJSON_GetObjectItem(root, "props");
     cJSON *pageProps = props ? cJSON_GetObjectItem(props, "pageProps") : nullptr;
     cJSON *searchRes = pageProps ? cJSON_GetObjectItem(pageProps, "searchResults") : nullptr;
@@ -121,15 +112,73 @@ std::vector<RecipeSuggestion> RecipeGoodFoodService::fetchPage(
         cJSON_ArrayForEach(item, items)
         {
             RecipeSuggestion r;
-            cJSON *title = cJSON_GetObjectItem(item, "title");
-            r.name = (title && cJSON_IsString(title)) ? title->valuestring : "No Title";
 
+            // Simple Strings & IDs
+            cJSON *title = cJSON_GetObjectItem(item, "title");
+            r.name = (title && cJSON_IsString(title)) ? title->valuestring : "";
+
+            cJSON *id = cJSON_GetObjectItem(item, "id");
+            r.id = (id && cJSON_IsString(id)) ? id->valuestring : "";
+
+            cJSON *cType = cJSON_GetObjectItem(item, "contentType");
+            r.contentType = (cType && cJSON_IsString(cType)) ? cType->valuestring : "";
+
+            cJSON *author = cJSON_GetObjectItem(item, "authorName");
+            r.author = (author && cJSON_IsString(author)) ? author->valuestring : "";
+
+            cJSON *desc = cJSON_GetObjectItem(item, "description");
+            r.description = (desc && cJSON_IsString(desc)) ? desc->valuestring : "";
+
+            // Boolean
+            cJSON *premium = cJSON_GetObjectItem(item, "isPremium");
+            r.isPremium = cJSON_IsTrue(premium);
+
+            // URL
             cJSON *relUrl = cJSON_GetObjectItem(item, "url");
             if (relUrl && cJSON_IsString(relUrl))
             {
                 std::string u = relUrl->valuestring;
                 r.url = (u.find("http") == 0) ? u : ("https://www.bbcgoodfood.com" + u);
             }
+
+            // Image Object
+            cJSON *imgObj = cJSON_GetObjectItem(item, "image");
+            if (imgObj)
+            {
+                cJSON *imgUrl = cJSON_GetObjectItem(imgObj, "url");
+                r.imageUrl = (imgUrl && cJSON_IsString(imgUrl)) ? imgUrl->valuestring : "";
+            }
+
+            // Rating Object
+            cJSON *ratObj = cJSON_GetObjectItem(item, "rating");
+            if (ratObj)
+            {
+                cJSON *rv = cJSON_GetObjectItem(ratObj, "ratingValue");
+                cJSON *rc = cJSON_GetObjectItem(ratObj, "ratingCount");
+                r.ratingValue = (rv && cJSON_IsNumber(rv)) ? rv->valuedouble : 0.0;
+                r.ratingCount = (rc && cJSON_IsNumber(rc)) ? rc->valueint : 0;
+            }
+
+            // Terms Array (Time and Difficulty)
+            cJSON *terms = cJSON_GetObjectItem(item, "terms");
+            if (terms && cJSON_IsArray(terms))
+            {
+                cJSON *term;
+                cJSON_ArrayForEach(term, terms)
+                {
+                    cJSON *slug = cJSON_GetObjectItem(term, "slug");
+                    cJSON *disp = cJSON_GetObjectItem(term, "display");
+                    if (slug && disp && cJSON_IsString(slug) && cJSON_IsString(disp))
+                    {
+                        std::string s = slug->valuestring;
+                        if (s == "time")
+                            r.totalTime = disp->valuestring;
+                        else if (s == "skillLevel")
+                            r.difficulty = disp->valuestring;
+                    }
+                }
+            }
+
             r.recipeSource = "goodfood";
             pageSuggestions.push_back(r);
         }
@@ -207,11 +256,13 @@ std::string RecipeGoodFoodService::httpGet(const std::string &url, int &status)
             }
         }
 
-        if (jsonTarget.length() > 40000)
-            break; // Emergency OOM cap
+        // if (jsonTarget.length() > 40000)
+        //     break; // Emergency OOM cap
 
         vTaskDelay(1);
     }
+
+    //  ESP_LOGI(TAG, "JSON: %s", jsonTarget.c_str());
 
     esp_http_client_cleanup(client);
     return jsonTarget;

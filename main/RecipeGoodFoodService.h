@@ -10,10 +10,17 @@ struct RecipeSuggestion
 {
     std::string name;
     std::string url;
+    std::string description;
     std::string imageUrl;
-    int prepTime = 0;
-    std::string difficulty;
     std::string recipeSource;
+    std::string author;
+    std::string difficulty; // From "skillLevel"
+    std::string totalTime;  // From "time"
+    double ratingValue = 0.0;
+    int ratingCount = 0;
+    bool isPremium = false;
+    std::string contentType;
+    std::string id;
 };
 
 class RecipeGoodFoodService

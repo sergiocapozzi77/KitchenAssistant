@@ -72,10 +72,10 @@ void fetchRecipesTask(void *param)
     for (const auto &r : suggestions)
     {
         ESP_LOGI("App",
-                 "  [%s] %s (%d min) -> %s",
+                 "  [%s] %s (%s) -> %s",
                  r.difficulty.c_str(),
                  r.name.c_str(),
-                 r.prepTime,
+                 r.totalTime.c_str(),
                  r.url.c_str());
     }
 
