@@ -10,17 +10,10 @@
 #include "ui.h"
 #include <ctime>
 #include <cmath>
+#include "ProductsManager.h"
+#include "models.h"
 
 static const char *TAG = "UIEXTENSIONS";
-
-// External UI objects (declare in your main UI code or EEZ-generated files):
-// lv_obj_t *objects_createRecipe_pnl;    // Panel to show when products selected
-// lv_obj_t *objects_productSelected_lbl; // Label showing selection count
-extern lv_obj_t *objects_createRecipe_pnl;
-extern lv_obj_t *objects_productSelected_lbl;
-
-// Track selected products (rowId -> Product)
-static std::map<std::string, Product> selected_products;
 
 // === REUSABLE STYLES (created once, applied many times) ===
 static lv_style_t style_card;
@@ -356,11 +349,11 @@ static void checkbox_changed_cb(lv_event_t *e)
     // Add or remove product from selected set
     if (lv_obj_has_state(checkbox, LV_STATE_CHECKED))
     {
-        selected_products[ctx->product.rowId] = ctx->product;
+        productsManager.addSelectedProduct(ctx->product);
     }
     else
     {
-        selected_products.erase(ctx->product.rowId);
+        productsManager.removeSelectedProduct(ctx->product.rowId);
     }
 
     update_selection_ui();
@@ -368,7 +361,7 @@ static void checkbox_changed_cb(lv_event_t *e)
 
 static void update_selection_ui()
 {
-    int selected_count = selected_products.size();
+    int selected_count = productsManager.getSelectedCount();
 
     // Update panel visibility
     if (selected_count > 0)
@@ -407,9 +400,6 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
     init_styles();
 
     lv_obj_clean(root);
-
-    // Clear selected products since we're rebuilding the list
-    selected_products.clear();
 
     // Root setup: Light gray background
     lv_obj_set_style_bg_color(root, lv_color_hex(0xF8F9FA), 0);
@@ -590,25 +580,117 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
     lv_unlock();
 }
 
-// Helper function to get selected products
-std::vector<Product> getSelectedProducts()
+void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &recipes)
 {
-    std::vector<Product> result;
-    result.reserve(selected_products.size());
-
-    for (const auto &pair : selected_products)
+    if (!root)
     {
-        result.push_back(pair.second);
+        ESP_LOGE(TAG, "Root object is NULL");
+        return;
     }
 
-    ESP_LOGI(TAG, "Retrieved %d selected products", result.size());
-    return result;
-}
+    lv_lock();
+    init_styles();
+    lv_obj_clean(root);
 
-// Helper function to clear selected products
-void clearSelectedProducts()
-{
-    selected_products.clear();
-    update_selection_ui();
-    ESP_LOGI(TAG, "Cleared all selected products");
+    lv_obj_set_style_bg_color(root, lv_color_hex(0xF8F9FA), 0);
+    lv_obj_set_style_pad_all(root, 15, 0);
+    lv_obj_set_flex_flow(root, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_row(root, 12, 0);
+
+    for (const auto &r : recipes)
+    {
+        // === CARD ===
+        lv_obj_t *card = lv_obj_create(root);
+        lv_obj_add_style(card, &style_card, 0);
+        lv_obj_set_width(card, lv_pct(100));
+        lv_obj_set_height(card, LV_SIZE_CONTENT);
+        lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_flex_flow(card, LV_FLEX_FLOW_ROW);
+        lv_obj_set_flex_align(card, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        lv_obj_set_style_pad_all(card, 12, 0);
+        lv_obj_set_style_pad_column(card, 12, 0);
+
+        // === THUMBNAIL PLACEHOLDER ===
+        // Replace lv_img_set_src once you have decoded image data
+        lv_obj_t *thumb = lv_obj_create(card);
+        lv_obj_set_size(thumb, 90, 90);
+        lv_obj_clear_flag(thumb, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_style_bg_color(thumb, lv_color_hex(0xDEE2E6), 0);
+        lv_obj_set_style_radius(thumb, 8, 0);
+        lv_obj_set_style_border_width(thumb, 0, 0);
+        // When you have image data: lv_img_set_src(thumb, &your_decoded_img);
+
+        // === RIGHT COLUMN ===
+        lv_obj_t *info = lv_obj_create(card);
+        lv_obj_set_flex_grow(info, 1);
+        lv_obj_set_height(info, LV_SIZE_CONTENT);
+        lv_obj_clear_flag(info, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_flex_flow(info, LV_FLEX_FLOW_COLUMN);
+        lv_obj_set_style_pad_all(info, 0, 0);
+        lv_obj_set_style_border_width(info, 0, 0);
+        lv_obj_set_style_bg_opa(info, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_pad_row(info, 4, 0);
+
+        // Title
+        lv_obj_t *title = lv_label_create(info);
+        lv_label_set_text(title, r.name.c_str());
+        lv_label_set_long_mode(title, LV_LABEL_LONG_WRAP);
+        lv_obj_set_width(title, lv_pct(100));
+        lv_obj_set_style_text_color(title, lv_color_hex(0x212529), 0);
+        lv_obj_set_style_text_font(title, &lv_font_montserrat_20, 0);
+
+        // Description
+        if (!r.description.empty())
+        {
+            lv_obj_t *desc = lv_label_create(info);
+            lv_label_set_text(desc, r.description.c_str());
+            lv_label_set_long_mode(desc, LV_LABEL_LONG_WRAP);
+            lv_obj_set_width(desc, lv_pct(100));
+            lv_obj_set_style_text_color(desc, lv_color_hex(0x6C757D), 0);
+            lv_obj_set_style_text_font(desc, &lv_font_montserrat_14, 0);
+        }
+
+        // === BADGES ROW (time + difficulty) ===
+        lv_obj_t *badges = lv_obj_create(info);
+        lv_obj_set_width(badges, lv_pct(100));
+        lv_obj_set_height(badges, LV_SIZE_CONTENT);
+        lv_obj_clear_flag(badges, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_flex_flow(badges, LV_FLEX_FLOW_ROW);
+        lv_obj_set_flex_align(badges, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        lv_obj_set_style_pad_all(badges, 0, 0);
+        lv_obj_set_style_border_width(badges, 0, 0);
+        lv_obj_set_style_bg_opa(badges, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_pad_column(badges, 10, 0);
+
+        auto make_badge = [&](lv_obj_t *parent, const char *symbol, const std::string &text)
+        {
+            if (text.empty())
+                return;
+            lv_obj_t *wrap = lv_obj_create(parent);
+            lv_obj_set_height(wrap, LV_SIZE_CONTENT);
+            lv_obj_set_width(wrap, LV_SIZE_CONTENT);
+            lv_obj_clear_flag(wrap, LV_OBJ_FLAG_SCROLLABLE);
+            lv_obj_set_flex_flow(wrap, LV_FLEX_FLOW_ROW);
+            lv_obj_set_flex_align(wrap, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+            lv_obj_set_style_pad_all(wrap, 0, 0);
+            lv_obj_set_style_border_width(wrap, 0, 0);
+            lv_obj_set_style_bg_opa(wrap, LV_OPA_TRANSP, 0);
+            lv_obj_set_style_pad_column(wrap, 4, 0);
+
+            lv_obj_t *ico = lv_label_create(wrap);
+            lv_label_set_text(ico, symbol);
+            lv_obj_set_style_text_color(ico, lv_color_hex(0x212529), 0);
+            lv_obj_set_style_text_font(ico, &lv_font_montserrat_14, 0);
+
+            lv_obj_t *lbl = lv_label_create(wrap);
+            lv_label_set_text(lbl, text.c_str());
+            lv_obj_set_style_text_color(lbl, lv_color_hex(0x495057), 0);
+            lv_obj_set_style_text_font(lbl, &lv_font_montserrat_14, 0);
+        };
+
+        make_badge(badges, LV_SYMBOL_LOOP, r.totalTime); // clock-like symbol
+        make_badge(badges, LV_SYMBOL_EDIT, r.difficulty);
+    }
+
+    lv_unlock();
 }

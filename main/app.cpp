@@ -14,6 +14,7 @@
 #include "WiFiManager.h"
 #include "ProductService.h"
 #include "ui_extensions.h"
+#include "ProductsManager.h"
 
 static const char *TAG = "APP";
 
@@ -153,8 +154,9 @@ void Application::fetchProductsTask(void *param)
     else
     {
         ESP_LOGI(TAG, "Fetched %d products", products.size());
+        productsManager.addProducts(products);
         // LVGLManager::updateStatusLabel("Fetched " + std::to_string(products.size()) + " expiring products");
-        populateProductList(objects.products_list, products);
+        populateProductList(objects.products_list, productsManager.getAllProducts());
     }
 
     self->fetchTaskHandle = NULL;

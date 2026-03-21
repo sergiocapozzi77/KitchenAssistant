@@ -5,15 +5,7 @@
 #include "esp_http_client.h"
 #include "cJSON.h"
 #include "secrets.h"
-
-struct Product
-{
-    std::string name;
-    int quantity = 0;
-    std::string category;
-    std::string rowId;
-    std::string expiry;
-};
+#include "models.h"
 
 class ProductService
 {

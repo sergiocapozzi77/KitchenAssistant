@@ -6,6 +6,8 @@
 #include "vars.h"
 #include "images.h"
 #include "RecipeGoodFoodService.h"
+#include "ProductsManager.h"
+#include "ui_extensions.h"
 
 void set_tab_icon(lv_obj_t *tabview, uint32_t index, const void *img_src)
 {
@@ -78,6 +80,8 @@ void fetchRecipesTask(void *param)
                  r.totalTime.c_str(),
                  r.url.c_str());
     }
+
+    populateRecipeList(objects.recipes_list, suggestions);
 
     // TODO: pass results to UI, e.g.:
     // populateRecipeList(objects.recipe_list, suggestions);

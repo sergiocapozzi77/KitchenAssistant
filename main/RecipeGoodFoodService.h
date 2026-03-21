@@ -5,23 +5,7 @@
 #include <random>
 #include "esp_http_client.h"
 #include "cJSON.h"
-
-struct RecipeSuggestion
-{
-    std::string name;
-    std::string url;
-    std::string description;
-    std::string imageUrl;
-    std::string recipeSource;
-    std::string author;
-    std::string difficulty; // From "skillLevel"
-    std::string totalTime;  // From "time"
-    double ratingValue = 0.0;
-    int ratingCount = 0;
-    bool isPremium = false;
-    std::string contentType;
-    std::string id;
-};
+#include "models.h"
 
 class RecipeGoodFoodService
 {
