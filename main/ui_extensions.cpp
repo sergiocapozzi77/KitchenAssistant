@@ -580,6 +580,8 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
         std::string *rowId = new std::string(p->rowId);
         lv_obj_add_event_cb(btn_del, delete_btn_cb, LV_EVENT_CLICKED, rowId);
         lv_obj_add_event_cb(btn_del, free_rowid_cb, LV_EVENT_DELETE, rowId);
+
+        // lv_obj_add_flag(qty_cont, LV_OBJ_FLAG_HIDDEN);
     }
 
     // Initialize selection UI to correct state (panel hidden, count = 0)

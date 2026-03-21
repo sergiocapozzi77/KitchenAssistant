@@ -158,8 +158,8 @@ void create_screen_main() {
                                             lv_obj_set_pos(obj, 19, 62);
                                             lv_obj_set_size(obj, 203, LV_SIZE_CONTENT);
                                             lv_dropdown_set_options(obj, "Cuisine\nItalian\nThai\nChinese");
-                                            lv_dropdown_set_dir(obj, LV_DIR_RIGHT);
-                                            lv_dropdown_set_symbol(obj, LV_SYMBOL_RIGHT);
+                                            lv_dropdown_set_dir(obj, LV_DIR_TOP);
+                                            lv_dropdown_set_symbol(obj, LV_SYMBOL_UP);
                                             lv_dropdown_set_selected(obj, 0);
                                             add_style_drop_down_with_shadow(obj);
                                         }
@@ -168,8 +168,8 @@ void create_screen_main() {
                                             lv_obj_set_pos(obj, 242, 62);
                                             lv_obj_set_size(obj, 221, LV_SIZE_CONTENT);
                                             lv_dropdown_set_options(obj, "Meal Type\nLunch\nDinner\nSnack");
-                                            lv_dropdown_set_dir(obj, LV_DIR_RIGHT);
-                                            lv_dropdown_set_symbol(obj, LV_SYMBOL_RIGHT);
+                                            lv_dropdown_set_dir(obj, LV_DIR_TOP);
+                                            lv_dropdown_set_symbol(obj, LV_SYMBOL_UP);
                                             lv_dropdown_set_selected(obj, 0);
                                             add_style_drop_down_with_shadow(obj);
                                         }
@@ -178,8 +178,8 @@ void create_screen_main() {
                                             lv_obj_set_pos(obj, 495, 62);
                                             lv_obj_set_size(obj, 201, LV_SIZE_CONTENT);
                                             lv_dropdown_set_options(obj, "Difficulty\nLunch\nDinner\nSnack");
-                                            lv_dropdown_set_dir(obj, LV_DIR_RIGHT);
-                                            lv_dropdown_set_symbol(obj, LV_SYMBOL_RIGHT);
+                                            lv_dropdown_set_dir(obj, LV_DIR_TOP);
+                                            lv_dropdown_set_symbol(obj, LV_SYMBOL_UP);
                                             lv_dropdown_set_selected(obj, 0);
                                             add_style_drop_down_with_shadow(obj);
                                         }
@@ -205,10 +205,12 @@ void create_screen_main() {
                                             }
                                         }
                                         {
+                                            // generate_recipe_btn
                                             lv_obj_t *obj = lv_button_create(parent_obj);
-                                            objects.obj2 = obj;
+                                            objects.generate_recipe_btn = obj;
                                             lv_obj_set_pos(obj, 375, 129);
                                             lv_obj_set_size(obj, 321, 50);
+                                            lv_obj_add_event_cb(obj, action_generate_recipe_click, LV_EVENT_CLICKED, (void *)0);
                                             lv_obj_set_style_bg_color(obj, lv_color_hex(theme_colors[active_theme_index][0]), LV_PART_MAIN | LV_STATE_DEFAULT);
                                             lv_obj_set_style_text_color(obj, lv_color_hex(0xffffffff), LV_PART_MAIN | LV_STATE_DEFAULT);
                                             lv_obj_set_style_text_font(obj, &lv_font_montserrat_26, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -337,8 +339,8 @@ void change_color_theme(uint32_t theme_index) {
         lv_obj_set_style_border_color(objects.create_recipe_pnl, lv_color_hex(theme_colors[theme_index][2]), LV_PART_MAIN | LV_STATE_DEFAULT);
         lv_obj_set_style_bg_color(objects.obj1, lv_color_hex(theme_colors[theme_index][0]), LV_PART_MAIN | LV_STATE_DEFAULT);
         lv_obj_set_style_bg_grad_color(objects.obj1, lv_color_hex(theme_colors[theme_index][1]), LV_PART_MAIN | LV_STATE_DEFAULT);
-        lv_obj_set_style_bg_color(objects.obj2, lv_color_hex(theme_colors[theme_index][0]), LV_PART_MAIN | LV_STATE_DEFAULT);
-        lv_obj_set_style_bg_grad_color(objects.obj2, lv_color_hex(theme_colors[theme_index][1]), LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_bg_color(objects.generate_recipe_btn, lv_color_hex(theme_colors[theme_index][0]), LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_bg_grad_color(objects.generate_recipe_btn, lv_color_hex(theme_colors[theme_index][1]), LV_PART_MAIN | LV_STATE_DEFAULT);
     }
     lv_style_set_border_color(get_style_drop_down_with_shadow_MAIN_DEFAULT(), lv_color_hex(theme_colors[theme_index][2]));
     lv_obj_invalidate(objects.main);

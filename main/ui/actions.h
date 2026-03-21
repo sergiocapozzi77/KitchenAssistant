@@ -8,6 +8,7 @@ extern "C" {
 #endif
 
 extern void action_screen_loading(lv_event_t * e);
+extern void action_generate_recipe_click(lv_event_t * e);
 
 #ifdef __cplusplus
 }

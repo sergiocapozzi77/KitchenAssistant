@@ -9,7 +9,7 @@ idf_component_register(
         ui/screens.c
         ui/styles.c
         ui/images.c
-        ui/actions.c
+        ui/actions.cpp
         ui/ui.c
         ui/ui_image_shopping.c
         ui/ui_image_chef.c

@@ -119,6 +119,15 @@
       "componentGroups": [],
       "userProperties": [],
       "name": "ScreenLoading"
+    },
+    {
+      "objID": "3a41f764-9cb5-4725-f84b-cd80a1e6a144",
+      "components": [],
+      "connectionLines": [],
+      "localVariables": [],
+      "componentGroups": [],
+      "userProperties": [],
+      "name": "GenerateRecipeClick"
     }
   ],
   "userPages": [
@@ -394,7 +403,7 @@
                           "widthUnit": "%",
                           "heightUnit": "%",
                           "children": [],
-                          "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+                          "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE",
                           "hiddenFlagType": "literal",
                           "clickableFlag": true,
                           "clickableFlagType": "literal",
@@ -542,7 +551,7 @@
                               "optionsType": "literal",
                               "selected": 0,
                               "selectedType": "literal",
-                              "direction": "right"
+                              "direction": "top"
                             },
                             {
                               "objID": "623f397d-1a88-477f-87a8-42612dfec905",
@@ -587,7 +596,7 @@
                               "optionsType": "literal",
                               "selected": 0,
                               "selectedType": "literal",
-                              "direction": "right"
+                              "direction": "top"
                             },
                             {
                               "objID": "12d9541f-b401-4be7-fdbd-f76465e790bc",
@@ -632,7 +641,7 @@
                               "optionsType": "literal",
                               "selected": 0,
                               "selectedType": "literal",
-                              "direction": "right"
+                              "direction": "top"
                             },
                             {
                               "objID": "c9c5926f-67bc-4d18-854a-cce777ff184a",
@@ -750,7 +759,16 @@
                                 "childStyles": []
                               },
                               "timeline": [],
-                              "eventHandlers": [],
+                              "eventHandlers": [
+                                {
+                                  "objID": "e1e6fb00-efd0-4a72-a075-d0bfde99112b",
+                                  "eventName": "CLICKED",
+                                  "handlerType": "action",
+                                  "action": "GenerateRecipeClick",
+                                  "userData": 0
+                                }
+                              ],
+                              "identifier": "generate_recipe_btn",
                               "leftUnit": "px",
                               "topUnit": "px",
                               "widthUnit": "px",
