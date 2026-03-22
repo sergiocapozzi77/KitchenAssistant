@@ -10,11 +10,6 @@ void ProductsManager::addProducts(const std::vector<Product> &products)
 {
     std::lock_guard<std::mutex> lock(_productMutex);
 
-    // Clear old data and pre-allocate PSRAM to avoid fragmentation
-    _allProducts.clear();
-    _allProducts.reserve(products.size());
-
-    // Efficiently move/copy products into storage
     _allProducts = products;
 
     ESP_LOGI(TAG, "Stored %d products in Manager memory", (int)_allProducts.size());

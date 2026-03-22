@@ -8,6 +8,7 @@
 #include "RecipeGoodFoodService.h"
 #include "ProductsManager.h"
 #include "ui_extensions.h"
+#include "RecipeSuggestionsManager.h"
 
 void set_tab_icon(lv_obj_t *tabview, uint32_t index, const void *img_src)
 {
@@ -47,44 +48,46 @@ void action_generate_recipe_click(lv_event_t *e)
     ESP_LOGI("actions", "Generate Recipe button clicked");
 
     // Somewhere in initTasks() or after WiFi connects:
-    xTaskCreate(fetchRecipesTask, "FetchRecipes", 16384, nullptr, 5, nullptr);
+    // xTaskCreate(fetchRecipesTask, "FetchRecipes", 16384, nullptr, 5, nullptr);
+    recipeSuggestionsManager.reset();
+    recipeSuggestionsManager.loadCurrentPage();
 }
 
-void fetchRecipesTask(void *param)
-{
-    std::vector<std::string> ingredients = {
-        "chicken",
-        "lemon",
-        "garlic"};
+// void fetchRecipesTask(void *param)
+// {
+//     std::vector<std::string> ingredients = {
+//         "chicken",
+//         "lemon",
+//         "garlic"};
 
-    std::vector<std::string> keywords = {
-        "healthy",
-        "quick"};
+//     std::vector<std::string> keywords = {
+//         "healthy",
+//         "quick"};
 
-    auto suggestions = recipeGoodFoodService.getRecipeSuggestions(
-        ingredients,
-        "main-course", // dishType
-        keywords,
-        "easy",      // difficulty (pass "" to skip the filter)
-        "30-minutes" // totalTime  (pass "" to skip the filter)
-    );
+//     auto suggestions = recipeGoodFoodService.getRecipeSuggestions(
+//         ingredients,
+//         "main-course", // dishType
+//         keywords,
+//         "easy",      // difficulty (pass "" to skip the filter)
+//         "30-minutes" // totalTime  (pass "" to skip the filter)
+//     );
 
-    ESP_LOGI("App", "Got %d recipe suggestions", suggestions.size());
+//     ESP_LOGI("App", "Got %d recipe suggestions", suggestions.size());
 
-    for (const auto &r : suggestions)
-    {
-        ESP_LOGI("App",
-                 "  [%s] %s (%s) -> %s",
-                 r.difficulty.c_str(),
-                 r.name.c_str(),
-                 r.totalTime.c_str(),
-                 r.url.c_str());
-    }
+//     for (const auto &r : suggestions)
+//     {
+//         ESP_LOGI("App",
+//                  "  [%s] %s (%s) -> %s",
+//                  r.difficulty.c_str(),
+//                  r.name.c_str(),
+//                  r.totalTime.c_str(),
+//                  r.url.c_str());
+//     }
 
-    populateRecipeList(objects.recipes_list, suggestions);
+//     populateRecipeList(objects.recipes_list, suggestions);
 
-    // TODO: pass results to UI, e.g.:
-    // populateRecipeList(objects.recipe_list, suggestions);
+//     // TODO: pass results to UI, e.g.:
+//     // populateRecipeList(objects.recipe_list, suggestions);
 
-    vTaskDelete(nullptr);
-}
+//     vTaskDelete(nullptr);
+// }

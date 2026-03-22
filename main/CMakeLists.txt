@@ -5,6 +5,7 @@ idf_component_register(
         ProductService.cpp
         ProductsManager.cpp
         RecipeGoodFoodService.cpp
+        RecipeSuggestionsManager.cpp
         WifiManager.cpp
         ui_extensions.cpp
         ui/screens.c

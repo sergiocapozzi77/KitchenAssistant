@@ -624,8 +624,13 @@ static int tjpgd_out_cb(JDEC *jd, void *bitmap, JRECT *rect)
     int cols = rect->right - rect->left + 1;
     for (int y = rect->top; y <= rect->bottom; y++)
     {
-        memcpy(io->dst + (y * io->out_w + rect->left) * 3, src, cols * 3);
-        src += cols * 3;
+        uint8_t *dst = io->dst + (y * io->out_w + rect->left) * 3;
+        for (int x = 0; x < cols; x++, src += 3, dst += 3)
+        {
+            dst[0] = src[2]; // B
+            dst[1] = src[1]; // G
+            dst[2] = src[0]; // R
+        }
     }
     return 1;
 }

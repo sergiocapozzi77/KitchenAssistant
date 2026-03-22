@@ -63,7 +63,8 @@ xTaskCreate(fetchRecipesTask, "FetchRecipes", 16384, nullptr, 5, nullptr);      
         const std::string &dishType,
         const std::vector<std::string> &keywords,
         const std::string &difficulty,
-        const std::string &totalTime);
+        const std::string &totalTime,
+        int page);
 
 private:
     std::vector<RecipeSuggestion> fetchPage(

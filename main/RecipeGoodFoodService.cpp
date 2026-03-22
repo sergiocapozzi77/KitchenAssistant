@@ -26,7 +26,8 @@ std::vector<RecipeSuggestion> RecipeGoodFoodService::getRecipeSuggestions(
     const std::string &dishType,
     const std::vector<std::string> &keywords,
     const std::string &difficulty,
-    const std::string &totalTime)
+    const std::string &totalTime,
+    int page)
 {
     std::vector<std::string> shuffledIngredients = ingredients;
     std::shuffle(shuffledIngredients.begin(), shuffledIngredients.end(), _rng);
@@ -58,25 +59,21 @@ std::vector<RecipeSuggestion> RecipeGoodFoodService::getRecipeSuggestions(
 
     std::vector<RecipeSuggestion> all;
 
-    for (int page = 1; page <= 2; page++)
+    // Log available memory before each high-intensity TLS call
+    ESP_LOGI(TAG, "Free Block: %d bytes. Starting Page %d",
+             (int)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT), page);
+
+    // Scope the results to ensure they are cleaned up immediately
     {
-        // Log available memory before each high-intensity TLS call
-        ESP_LOGI(TAG, "Free Block: %d bytes. Starting Page %d",
-                 (int)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT), page);
-
-        // Scope the results to ensure they are cleaned up immediately
-        {
-            auto pageResults = fetchPage(encodedQuery, urlEncode(dishTypeLower), difficulty, totalTime, page);
-            all.insert(all.end(), pageResults.begin(), pageResults.end());
-        }
-
-        // Mandatory gap to let the network stack close sockets and free DMA memory
-        vTaskDelay(pdMS_TO_TICKS(500));
+        auto pageResults = fetchPage(encodedQuery, urlEncode(dishTypeLower), difficulty, totalTime, page);
+        all.insert(all.end(), pageResults.begin(), pageResults.end());
     }
 
-    std::shuffle(all.begin(), all.end(), _rng);
-    if (all.size() > 5)
-        all.resize(5);
+    // Mandatory gap to let the network stack close sockets and free DMA memory
+    vTaskDelay(pdMS_TO_TICKS(500));
+
+    if (all.size() > 10)
+        all.resize(10);
 
     return all;
 }
