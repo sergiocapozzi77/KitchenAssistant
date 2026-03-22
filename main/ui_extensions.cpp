@@ -4,6 +4,7 @@
 #include <algorithm>
 #include "lvgl.h"
 #include "esp_log.h"
+#include "esp_heap_caps.h"
 #include "esp_err.h"
 #include "ProductService.h"
 #include "ui_extensions.h"
@@ -701,30 +702,44 @@ static bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H
     }
 
     uint8_t *work = (uint8_t *)heap_caps_malloc(3100, MALLOC_CAP_INTERNAL);
-    uint8_t *px = (uint8_t *)heap_caps_malloc(W * H * 3, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    if (!work || !px)
+    if (!work)
     {
-        ESP_LOGE(TAG, "work/px malloc failed");
+        ESP_LOGE(TAG, "work malloc failed");
         free(jpeg_buf);
-        if (work)
-            free(work);
-        if (px)
-            free(px);
         return false;
     }
 
-    JpegIo io = {jpeg_buf, total, 0, px, W};
+    JpegIo io = {jpeg_buf, total, 0, nullptr, 0};
     JDEC jd;
     JRESULT res = jd_prepare(&jd, tjpgd_in_cb, work, 3100, &io);
     ESP_LOGI(TAG, "jd_prepare: %d  img size: %ux%u", res, jd.width, jd.height);
 
+    uint8_t *px = nullptr;
     if (res == JDR_OK)
     {
-        uint8_t scale = 1;
-        if (jd.width >= W * 4)
-            scale = 4;
-        else if (jd.width >= W * 2)
+        uint8_t scale = 0;
+        if (jd.width >= W * 8)
+            scale = 3;
+        else if (jd.width >= W * 4)
             scale = 2;
+        else if (jd.width >= W * 2)
+            scale = 1;
+
+        uint16_t decoded_w = jd.width >> scale;
+        uint16_t decoded_h = jd.height >> scale;
+        px = (uint8_t *)heap_caps_malloc(decoded_w * decoded_h * 3, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        if (!px)
+        {
+            ESP_LOGE(TAG, "px malloc failed (%ux%u)", decoded_w, decoded_h);
+            free(jpeg_buf);
+            free(work);
+            return false;
+        }
+        io.dst = px;
+        io.out_w = decoded_w;
+        W = decoded_w;
+        H = decoded_h;
+
         res = jd_decomp(&jd, tjpgd_out_cb, scale);
         ESP_LOGI(TAG, "jd_decomp: %d", res);
     }
@@ -816,6 +831,8 @@ void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &rec
     lv_obj_set_flex_flow(root, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_row(root, 12, 0);
 
+    std::vector<ThumbContext *> pending_thumbs;
+
     for (const auto &r : recipes)
     {
         // === CARD ===
@@ -842,21 +859,11 @@ void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &rec
         {
             ESP_LOGI(TAG, "Scheduling thumb fetch for recipe: %s", r.name.c_str());
             ThumbContext *tctx = new ThumbContext{thumb, r.imageUrl};
-            lv_obj_add_event_cb(thumb, thumb_obj_deleted_cb, LV_EVENT_DELETE, tctx);
+
             ESP_LOGI(TAG, ">>> about to create task, internal heap: %" PRIu32,
                      heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
 
-            BaseType_t ret = xTaskCreatePinnedToCore(
-                fetch_thumb_task, "thumb_fetch", 16384, tctx, 5, NULL, 1);
-
-            ESP_LOGI(TAG, ">>> xTaskCreate returned: %d", (int)ret);
-
-            if (ret != pdPASS)
-            {
-                ESP_LOGE(TAG, "Failed to create task");
-                lv_obj_remove_event_cb_with_user_data(thumb, thumb_obj_deleted_cb, tctx);
-                delete tctx;
-            }
+            pending_thumbs.push_back(tctx);
         }
         else
         {
@@ -936,4 +943,16 @@ void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &rec
     }
 
     lv_unlock();
+
+    for (auto *tctx : pending_thumbs)
+    {
+        BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
+            fetch_thumb_task, "thumb_fetch", 8192, tctx, 5, NULL, 1,
+            MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        if (ret != pdPASS)
+        {
+            ESP_LOGE(TAG, "Failed to create task");
+            delete tctx;
+        }
+    }
 }
