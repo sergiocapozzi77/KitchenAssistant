@@ -4,7 +4,9 @@
       "Bash(grep -E \"\\\\.\\(c|cpp\\)$\")",
       "Bash(rm \"C:/Users/sergi/source/repos/KitchenAssistant/sdkconfig\")",
       "Bash(idf.py build:*)",
-      "Bash(grep -r RecipeSuggestion C:/Users/sergi/source/repos/KitchenAssistant --include=*.h --include=*.cpp)"
+      "Bash(grep -r RecipeSuggestion C:/Users/sergi/source/repos/KitchenAssistant --include=*.h --include=*.cpp)",
+      "Bash(xargs grep:*)",
+      "Bash(xargs ls:*)"
     ]
   }
 }

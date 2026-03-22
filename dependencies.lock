@@ -155,6 +155,16 @@ dependencies:
     targets:
     - esp32p4
     version: 0.2.0
+  espressif/esp_jpeg:
+    component_hash: defb83669293cbf86d0fa86b475ba5517aceed04ed70db435388c151ab37b5d7
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=5.0'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.3.1
   espressif/esp_lcd_ek79007:
     component_hash: 8005700b7f10c7136b6e2a3f19a48f972aa1d13ed107ed298574e8d24d17ea83
     dependencies:
@@ -298,6 +308,7 @@ direct_dependencies:
 - espressif/esp_h264
 - espressif/esp_hosted
 - espressif/esp_ipa
+- espressif/esp_jpeg
 - espressif/esp_lcd_ek79007
 - espressif/esp_lcd_ili9881c
 - espressif/esp_lcd_touch
@@ -307,6 +318,6 @@ direct_dependencies:
 - espressif/esp_wifi_remote
 - idf
 - lvgl/lvgl
-manifest_hash: 182e36f84e951f1fe537136a18eed8b47cd2936680311c93d4d3795cd4d45219
+manifest_hash: 3e220164b3a4d23b5915c9dbba31ac5317cac6cfa16d07a2d5ab9816e96521ac
 target: esp32p4
 version: 2.0.0

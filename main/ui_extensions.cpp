@@ -12,8 +12,20 @@
 #include <cmath>
 #include "ProductsManager.h"
 #include "models.h"
+#include "tjpgd.h"
+#include "esp_http_client.h"
+#include "esp_crt_bundle.h"
 
 static const char *TAG = "UIEXTENSIONS";
+
+static SemaphoreHandle_t s_thumb_sem = nullptr;
+
+// Call once at startup, e.g. from app_main or init_styles
+void init_thumb_semaphore()
+{
+    if (!s_thumb_sem)
+        s_thumb_sem = xSemaphoreCreateCounting(2, 2); // max 2 concurrent fetches
+}
 
 // === REUSABLE STYLES (created once, applied many times) ===
 static lv_style_t style_card;
@@ -153,16 +165,6 @@ static void free_checkbox_ctx_cb(lv_event_t *e)
     delete (CheckboxContext *)lv_event_get_user_data(e);
 }
 
-static void deferred_delete_cb(void *user_data)
-{
-    DeleteCtx *ctx = (DeleteCtx *)user_data;
-    if (ctx && ctx->obj)
-    {
-        lv_obj_del(ctx->obj);
-    }
-    delete ctx;
-}
-
 // === HELPER FUNCTIONS ===
 
 static int days_until_expiry(const std::string &isoDate)
@@ -243,8 +245,8 @@ static void qty_minus_cb(lv_event_t *e)
         // Deferred deletion to avoid re-entrancy issues
         if (ctx->row)
         {
-            DeleteCtx *del_ctx = new DeleteCtx{ctx->row};
-            lv_async_call(deferred_delete_cb, del_ctx);
+            if (ctx->row)
+                lv_obj_delete_async(ctx->row);
         }
         return;
     }
@@ -297,8 +299,8 @@ static void delete_btn_cb(lv_event_t *e)
         return;
 
     // Deferred deletion to avoid re-entrancy issues
-    DeleteCtx *del_ctx = new DeleteCtx{row};
-    lv_async_call(deferred_delete_cb, del_ctx);
+    if (row)
+        lv_obj_delete_async(row);
 }
 
 static void group_toggle_cb(lv_event_t *e)
@@ -580,6 +582,221 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
     lv_unlock();
 }
 
+// === THUMBNAIL FETCH/DECODE ===
+
+struct ThumbContext
+{
+    lv_obj_t *thumb; // nulled under lv_lock if object deleted before task finishes
+    std::string url;
+};
+
+struct ThumbDataCtx
+{
+    lv_image_dsc_t *dsc;
+    uint8_t *px;
+};
+
+struct JpegIo
+{
+    const uint8_t *src;
+    size_t src_len;
+    size_t src_pos;
+    uint8_t *dst; // RGB888 output
+    uint16_t out_w;
+};
+
+static size_t tjpgd_in_cb(JDEC *jd, uint8_t *buf, size_t n)
+{
+    JpegIo *io = (JpegIo *)jd->device;
+    size_t avail = io->src_len - io->src_pos;
+    n = (n < avail) ? n : avail;
+    if (buf)
+        memcpy(buf, io->src + io->src_pos, n);
+    io->src_pos += n;
+    return n;
+}
+
+static int tjpgd_out_cb(JDEC *jd, void *bitmap, JRECT *rect)
+{
+    JpegIo *io = (JpegIo *)jd->device;
+    const uint8_t *src = (const uint8_t *)bitmap;
+    int cols = rect->right - rect->left + 1;
+    for (int y = rect->top; y <= rect->bottom; y++)
+    {
+        memcpy(io->dst + (y * io->out_w + rect->left) * 3, src, cols * 3);
+        src += cols * 3;
+    }
+    return 1;
+}
+
+// Fired under lv_lock if thumb is deleted while task is still running
+static void thumb_obj_deleted_cb(lv_event_t *e)
+{
+    ThumbContext *ctx = (ThumbContext *)lv_event_get_user_data(e);
+    if (ctx)
+        ctx->thumb = nullptr;
+}
+
+// Fired under lv_lock when thumb is deleted after image data was set
+static void free_thumb_data_cb(lv_event_t *e)
+{
+    ThumbDataCtx *d = (ThumbDataCtx *)lv_event_get_user_data(e);
+    if (!d)
+        return;
+    free((void *)d->dsc->data);
+    delete d->dsc;
+    delete d;
+}
+
+static bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
+                                  lv_image_dsc_t **out_dsc, uint8_t **out_px)
+{
+    esp_http_client_config_t cfg = {};
+    cfg.url = url.c_str();
+    cfg.crt_bundle_attach = esp_crt_bundle_attach;
+    cfg.buffer_size = 4096;
+
+    esp_http_client_handle_t client = esp_http_client_init(&cfg);
+    if (!client)
+    {
+        ESP_LOGE(TAG, "http_client_init failed");
+        return false;
+    }
+
+    if (esp_http_client_open(client, 0) != ESP_OK)
+    {
+        ESP_LOGE(TAG, "http_client_open failed");
+        esp_http_client_cleanup(client);
+        return false;
+    }
+
+    int content_len = esp_http_client_fetch_headers(client);
+    int status = esp_http_client_get_status_code(client);
+    ESP_LOGI(TAG, "HTTP status: %d, content-length: %d", status, content_len);
+
+    size_t buf_sz = (content_len > 0) ? (size_t)content_len : 64 * 1024;
+    uint8_t *jpeg_buf = (uint8_t *)heap_caps_malloc(buf_sz, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (!jpeg_buf)
+    {
+        ESP_LOGE(TAG, "jpeg_buf malloc failed, requested: %u", buf_sz);
+        esp_http_client_close(client);
+        esp_http_client_cleanup(client);
+        return false;
+    }
+
+    size_t total = 0;
+    int n;
+    while ((n = esp_http_client_read(client, (char *)jpeg_buf + total, buf_sz - total)) > 0)
+        total += (size_t)n;
+    ESP_LOGI(TAG, "Downloaded %u bytes", total);
+
+    esp_http_client_close(client);
+    esp_http_client_cleanup(client);
+
+    if (total == 0)
+    {
+        ESP_LOGE(TAG, "No data received");
+        free(jpeg_buf);
+        return false;
+    }
+
+    uint8_t *work = (uint8_t *)heap_caps_malloc(3100, MALLOC_CAP_INTERNAL);
+    uint8_t *px = (uint8_t *)heap_caps_malloc(W * H * 3, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (!work || !px)
+    {
+        ESP_LOGE(TAG, "work/px malloc failed");
+        free(jpeg_buf);
+        if (work)
+            free(work);
+        if (px)
+            free(px);
+        return false;
+    }
+
+    JpegIo io = {jpeg_buf, total, 0, px, W};
+    JDEC jd;
+    JRESULT res = jd_prepare(&jd, tjpgd_in_cb, work, 3100, &io);
+    ESP_LOGI(TAG, "jd_prepare: %d  img size: %ux%u", res, jd.width, jd.height);
+
+    if (res == JDR_OK)
+    {
+        uint8_t scale = 1;
+        if (jd.width >= W * 4)
+            scale = 4;
+        else if (jd.width >= W * 2)
+            scale = 2;
+        res = jd_decomp(&jd, tjpgd_out_cb, scale);
+        ESP_LOGI(TAG, "jd_decomp: %d", res);
+    }
+
+    free(jpeg_buf);
+    free(work);
+
+    if (res != JDR_OK)
+    {
+        ESP_LOGE(TAG, "JPEG decode failed: %d", res);
+        free(px);
+        return false;
+    }
+
+    lv_image_dsc_t *dsc = new lv_image_dsc_t{};
+    dsc->header.cf = LV_COLOR_FORMAT_RGB888;
+    dsc->header.w = W;
+    dsc->header.h = H;
+    dsc->header.stride = W * 3;
+    dsc->data_size = W * H * 3;
+    dsc->data = px;
+
+    *out_dsc = dsc;
+    *out_px = px;
+    return true;
+}
+
+static void fetch_thumb_task(void *arg)
+{
+    ThumbContext *ctx = (ThumbContext *)arg;
+    ESP_LOGI(TAG, "Fetching thumb: %s", ctx->url.c_str());
+
+    // Block until a slot is free
+    xSemaphoreTake(s_thumb_sem, portMAX_DELAY);
+
+    lv_image_dsc_t *dsc = nullptr;
+    uint8_t *px = nullptr;
+
+    if (fetch_and_decode_jpeg(ctx->url, 90, 90, &dsc, &px))
+    {
+        lv_lock();
+        lv_obj_t *thumb = ctx->thumb;
+        if (thumb && lv_obj_is_valid(thumb))
+        {
+            lv_image_set_src(thumb, dsc);
+            lv_obj_set_size(thumb, 90, 90);
+            lv_obj_remove_event_cb_with_user_data(thumb, thumb_obj_deleted_cb, ctx);
+            ThumbDataCtx *data_ctx = new ThumbDataCtx{dsc, px};
+            lv_obj_add_event_cb(thumb, free_thumb_data_cb, LV_EVENT_DELETE, data_ctx);
+        }
+        else
+        {
+            free(px);
+            delete dsc;
+        }
+        lv_unlock();
+    }
+    else
+    {
+        lv_lock();
+        lv_obj_t *thumb = ctx->thumb;
+        if (thumb && lv_obj_is_valid(thumb))
+            lv_obj_remove_event_cb_with_user_data(thumb, thumb_obj_deleted_cb, ctx);
+        lv_unlock();
+        ESP_LOGW(TAG, "Thumb fetch failed: %s", ctx->url.c_str());
+    }
+
+    xSemaphoreGive(s_thumb_sem);
+    delete ctx;
+    vTaskDelete(NULL);
+}
+
 void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &recipes)
 {
     if (!root)
@@ -587,6 +804,8 @@ void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &rec
         ESP_LOGE(TAG, "Root object is NULL");
         return;
     }
+
+    init_thumb_semaphore();
 
     lv_lock();
     init_styles();
@@ -611,14 +830,38 @@ void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &rec
         lv_obj_set_style_pad_column(card, 12, 0);
 
         // === THUMBNAIL PLACEHOLDER ===
-        // Replace lv_img_set_src once you have decoded image data
-        lv_obj_t *thumb = lv_obj_create(card);
+        lv_obj_t *thumb = lv_image_create(card);
         lv_obj_set_size(thumb, 90, 90);
-        lv_obj_clear_flag(thumb, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_set_style_bg_color(thumb, lv_color_hex(0xDEE2E6), 0);
+        lv_obj_set_style_bg_color(thumb, lv_color_hex(0xDEE2E6), 0); // grey until loaded
+        lv_obj_set_style_bg_opa(thumb, LV_OPA_COVER, 0);
         lv_obj_set_style_radius(thumb, 8, 0);
         lv_obj_set_style_border_width(thumb, 0, 0);
-        // When you have image data: lv_img_set_src(thumb, &your_decoded_img);
+        lv_image_set_inner_align(thumb, LV_IMAGE_ALIGN_COVER);
+
+        if (!r.imageUrl.empty())
+        {
+            ESP_LOGI(TAG, "Scheduling thumb fetch for recipe: %s", r.name.c_str());
+            ThumbContext *tctx = new ThumbContext{thumb, r.imageUrl};
+            lv_obj_add_event_cb(thumb, thumb_obj_deleted_cb, LV_EVENT_DELETE, tctx);
+            ESP_LOGI(TAG, ">>> about to create task, internal heap: %" PRIu32,
+                     heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
+
+            BaseType_t ret = xTaskCreatePinnedToCore(
+                fetch_thumb_task, "thumb_fetch", 16384, tctx, 5, NULL, 1);
+
+            ESP_LOGI(TAG, ">>> xTaskCreate returned: %d", (int)ret);
+
+            if (ret != pdPASS)
+            {
+                ESP_LOGE(TAG, "Failed to create task");
+                lv_obj_remove_event_cb_with_user_data(thumb, thumb_obj_deleted_cb, tctx);
+                delete tctx;
+            }
+        }
+        else
+        {
+            ESP_LOGI(TAG, "No image URL for recipe: %s", r.name.c_str());
+        }
 
         // === RIGHT COLUMN ===
         lv_obj_t *info = lv_obj_create(card);

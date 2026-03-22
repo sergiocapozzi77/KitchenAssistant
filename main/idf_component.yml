@@ -9,3 +9,5 @@ dependencies:
 
   espressif/esp_hosted:
     version: '2.*'
+  espressif/esp_jpeg:
+    version: '1.*'
