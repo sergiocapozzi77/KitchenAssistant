@@ -47,10 +47,24 @@ void action_generate_recipe_click(lv_event_t *e)
 {
     ESP_LOGI("actions", "Generate Recipe button clicked");
 
+    lv_lock();
+    lv_tabview_set_active(objects.tabview, 1, LV_ANIM_OFF);
+    lv_unlock();
+
     // Somewhere in initTasks() or after WiFi connects:
     // xTaskCreate(fetchRecipesTask, "FetchRecipes", 16384, nullptr, 5, nullptr);
     recipeSuggestionsManager.reset();
     recipeSuggestionsManager.loadCurrentPage();
+}
+
+void action_recipe_suggestion_next(lv_event_t *e)
+{
+    recipeSuggestionsManager.loadNextPage();
+}
+
+void action_recipe_suggestion_prev(lv_event_t *e)
+{
+    recipeSuggestionsManager.loadPrevPage();
 }
 
 // void fetchRecipesTask(void *param)

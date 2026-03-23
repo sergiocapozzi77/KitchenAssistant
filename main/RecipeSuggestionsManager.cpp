@@ -1,5 +1,6 @@
 
 #include "RecipeSuggestionsManager.h"
+#include "esp_heap_caps.h"
 #include "RecipeGoodFoodService.h"
 #include "esp_log.h"
 #include "lvgl.h"
@@ -23,10 +24,33 @@ void RecipeSuggestionsManager::reset()
     currentPage = 1;
 }
 
+void RecipeSuggestionsManager::loadNextPage()
+{
+    currentPage++;
+    loadCurrentPage();
+}
+
+void RecipeSuggestionsManager::loadPrevPage()
+{
+    if (currentPage > 1)
+    {
+        currentPage--;
+    }
+    else
+    {
+        return;
+    }
+
+    loadCurrentPage();
+}
+
 void RecipeSuggestionsManager::loadCurrentPage()
 {
     int start = (currentPage - 1) * pageSize;
     int end = start + pageSize;
+
+    ESP_LOGI("ShowRecipesTask", "Current page is %d", currentPage);
+    ESP_LOGI("ShowRecipesTask", "Showing recipes from %d to %d", start, end);
 
     std::lock_guard<std::mutex> lock(_suggestionMutex);
     // If start is beyond the end of the vector, return an empty page
@@ -40,12 +64,16 @@ void RecipeSuggestionsManager::loadCurrentPage()
     if (hasRange)
     {
         ESP_LOGI("ShowRecipesTask", "Recipes available, showing them");
-        xTaskCreate(showRecipesTask, "ShowRecipes", 16384, this, 5, nullptr);
+        BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(showRecipesTask, "ShowRecipes", 16384, this, 5, nullptr, tskNO_AFFINITY, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        if (ret != pdPASS)
+            ESP_LOGE("ShowRecipesTask", "Failed to create ShowRecipes task");
     }
     else
     {
         ESP_LOGI("ShowRecipesTask", "No recipes available, fetching them");
-        xTaskCreate(fetchRecipesTask, "FetchRecipes", 16384, this, 5, nullptr);
+        BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(fetchRecipesTask, "FetchRecipes", 16384, this, 5, nullptr, tskNO_AFFINITY, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        if (ret != pdPASS)
+            ESP_LOGE("ShowRecipesTask", "Failed to create FetchRecipes task");
     }
 }
 
@@ -73,53 +101,12 @@ int RecipeSuggestionsManager::getSuggestionSize()
     return allSuggestions.size();
 }
 
-void fetchRecipesTask(void *param)
+void RecipeSuggestionsManager::showCurrentPageRecipes()
 {
-    RecipeSuggestionsManager *manager = (RecipeSuggestionsManager *)param;
-    std::vector<std::string> ingredients = {
-        "chicken",
-        "lemon",
-        "garlic"};
+    std::vector<RecipeSuggestion> suggestions = getSuggestions();
 
-    std::vector<std::string> keywords = {
-        "healthy",
-        "quick"};
-
-    manager->appendSuggestions(recipeGoodFoodService.getRecipeSuggestions(
-        ingredients,
-        "main-course", // dishType
-        keywords,
-        "easy",       // difficulty (pass "" to skip the filter)
-        "30-minutes", // totalTime  (pass "" to skip the filter)
-        1));
-
-    ESP_LOGI("ShowRecipesTask", "Got %d recipe suggestions", manager->getSuggestionSize());
-
-    std::vector<RecipeSuggestion> suggestions = manager->getSuggestions();
-    for (const auto &r : suggestions)
-    {
-        ESP_LOGI("ShowRecipesTask",
-                 "  [%s] %s (%s) -> %s",
-                 r.difficulty.c_str(),
-                 r.name.c_str(),
-                 r.totalTime.c_str(),
-                 r.url.c_str());
-    }
-
-    // xTaskCreate(showRecipesTask, "ShowRecipes", 16384, manager, 5, nullptr);
-    populateRecipeList(objects.recipes_list, suggestions);
-
-    vTaskDelete(nullptr);
-}
-
-void showRecipesTask(void *param)
-{
-    RecipeSuggestionsManager *manager = (RecipeSuggestionsManager *)param;
-    ESP_LOGI("ShowRecipesTask", "Updating UI with fetched recipes...");
-    std::vector<RecipeSuggestion> suggestions = manager->getSuggestions();
-
-    int start = (manager->currentPage - 1) * manager->pageSize;
-    int end = start + manager->pageSize;
+    int start = (currentPage - 1) * pageSize;
+    int end = start + pageSize;
     // If start is beyond the end of the vector, return an empty page
     bool hasRange =
         start >= 0 &&
@@ -140,6 +127,59 @@ void showRecipesTask(void *param)
 
     ESP_LOGI("ShowRecipesTask", "Passing %d recipes to UI", pageItems.size());
     populateRecipeList(objects.recipes_list, pageItems);
+}
+
+void fetchRecipesTask(void *param)
+{
+    lv_lock();
+    lv_obj_clear_flag(objects.spinner, LV_OBJ_FLAG_HIDDEN);
+    lv_unlock();
+
+    RecipeSuggestionsManager *manager = (RecipeSuggestionsManager *)param;
+    std::vector<std::string> ingredients = {
+        "chicken",
+        "lemon",
+        "garlic"};
+
+    std::vector<std::string> keywords = {
+        "healthy",
+        "quick"};
+
+    manager->appendSuggestions(recipeGoodFoodService.getRecipeSuggestions(
+        ingredients,
+        "main-course", // dishType
+        keywords,
+        "easy",       // difficulty (pass "" to skip the filter)
+        "30-minutes", // totalTime  (pass "" to skip the filter)
+        1));
+
+    lv_lock();
+    lv_obj_add_flag(objects.spinner, LV_OBJ_FLAG_HIDDEN);
+    lv_unlock();
+
+    ESP_LOGI("ShowRecipesTask", "Got %d recipe suggestions", manager->getSuggestionSize());
+
+    std::vector<RecipeSuggestion> suggestions = manager->getSuggestions();
+    for (const auto &r : suggestions)
+    {
+        ESP_LOGI("ShowRecipesTask",
+                 "  [%s] %s (%s) -> %s",
+                 r.difficulty.c_str(),
+                 r.name.c_str(),
+                 r.totalTime.c_str(),
+                 r.url.c_str());
+    }
+
+    manager->showCurrentPageRecipes();
+
+    vTaskDelete(nullptr);
+}
+
+void showRecipesTask(void *param)
+{
+    RecipeSuggestionsManager *manager = (RecipeSuggestionsManager *)param;
+    ESP_LOGI("ShowRecipesTask", "Updating UI with fetched recipes...");
+    manager->showCurrentPageRecipes();
 
     vTaskDelete(nullptr);
 }

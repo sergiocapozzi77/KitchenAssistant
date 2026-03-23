@@ -23,11 +23,13 @@ typedef struct _objects_t {
     lv_obj_t *products_list;
     lv_obj_t *create_recipe_pnl;
     lv_obj_t *product_selected_lbl;
-    lv_obj_t *obj1;
     lv_obj_t *generate_recipe_btn;
     lv_obj_t *recipes_header_pnl;
-    lv_obj_t *obj2;
+    lv_obj_t *obj1;
+    lv_obj_t *recipe_suggestion_prev_btn;
+    lv_obj_t *recipe_suggestion_next_btn;
     lv_obj_t *recipes_list;
+    lv_obj_t *spinner;
 } objects_t;
 
 extern objects_t objects;

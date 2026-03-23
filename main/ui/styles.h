@@ -17,6 +17,11 @@ lv_style_t *get_style_drop_down_with_shadow_MAIN_DEFAULT();
 void add_style_drop_down_with_shadow(lv_obj_t *obj);
 void remove_style_drop_down_with_shadow(lv_obj_t *obj);
 
+// Style: MainButton
+lv_style_t *get_style_main_button_MAIN_DEFAULT();
+void add_style_main_button(lv_obj_t *obj);
+void remove_style_main_button(lv_obj_t *obj);
+
 #ifdef __cplusplus
 }
 #endif

@@ -19,14 +19,7 @@
 
 static const char *TAG = "UIEXTENSIONS";
 
-static SemaphoreHandle_t s_thumb_sem = nullptr;
-
-// Call once at startup, e.g. from app_main or init_styles
-void init_thumb_semaphore()
-{
-    if (!s_thumb_sem)
-        s_thumb_sem = xSemaphoreCreateCounting(2, 2); // max 2 concurrent fetches
-}
+static uint32_t s_thumb_generation = 0;
 
 // === REUSABLE STYLES (created once, applied many times) ===
 static lv_style_t style_card;
@@ -589,6 +582,12 @@ struct ThumbContext
 {
     lv_obj_t *thumb; // nulled under lv_lock if object deleted before task finishes
     std::string url;
+    uint32_t generation;
+};
+
+struct ThumbWorkerCtx
+{
+    std::vector<ThumbContext *> items;
 };
 
 struct ThumbDataCtx
@@ -772,48 +771,60 @@ static bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H
     return true;
 }
 
-static void fetch_thumb_task(void *arg)
+static void thumb_worker_task(void *arg)
 {
-    ThumbContext *ctx = (ThumbContext *)arg;
-    ESP_LOGI(TAG, "Fetching thumb: %s", ctx->url.c_str());
+    ThumbWorkerCtx *wctx = (ThumbWorkerCtx *)arg;
 
-    // Block until a slot is free
-    xSemaphoreTake(s_thumb_sem, portMAX_DELAY);
-
-    lv_image_dsc_t *dsc = nullptr;
-    uint8_t *px = nullptr;
-
-    if (fetch_and_decode_jpeg(ctx->url, 90, 90, &dsc, &px))
+    for (ThumbContext *ctx : wctx->items)
     {
-        lv_lock();
-        lv_obj_t *thumb = ctx->thumb;
-        if (thumb && lv_obj_is_valid(thumb))
+        if (ctx->generation != s_thumb_generation)
         {
-            lv_image_set_src(thumb, dsc);
-            lv_obj_set_size(thumb, 90, 90);
-            lv_obj_remove_event_cb_with_user_data(thumb, thumb_obj_deleted_cb, ctx);
-            ThumbDataCtx *data_ctx = new ThumbDataCtx{dsc, px};
-            lv_obj_add_event_cb(thumb, free_thumb_data_cb, LV_EVENT_DELETE, data_ctx);
+            lv_lock();
+            lv_obj_t *thumb = ctx->thumb;
+            if (thumb && lv_obj_is_valid(thumb))
+                lv_obj_remove_event_cb_with_user_data(thumb, thumb_obj_deleted_cb, ctx);
+            lv_unlock();
+            delete ctx;
+            continue;
+        }
+
+        ESP_LOGI(TAG, "Fetching thumb: %s", ctx->url.c_str());
+        lv_image_dsc_t *dsc = nullptr;
+        uint8_t *px = nullptr;
+
+        if (fetch_and_decode_jpeg(ctx->url, 90, 90, &dsc, &px))
+        {
+            lv_lock();
+            lv_obj_t *thumb = ctx->thumb;
+            if (thumb && lv_obj_is_valid(thumb))
+            {
+                lv_image_set_src(thumb, dsc);
+                lv_obj_set_size(thumb, 90, 90);
+                lv_obj_remove_event_cb_with_user_data(thumb, thumb_obj_deleted_cb, ctx);
+                ThumbDataCtx *data_ctx = new ThumbDataCtx{dsc, px};
+                lv_obj_add_event_cb(thumb, free_thumb_data_cb, LV_EVENT_DELETE, data_ctx);
+            }
+            else
+            {
+                free(px);
+                delete dsc;
+            }
+            lv_unlock();
         }
         else
         {
-            free(px);
-            delete dsc;
+            lv_lock();
+            lv_obj_t *thumb = ctx->thumb;
+            if (thumb && lv_obj_is_valid(thumb))
+                lv_obj_remove_event_cb_with_user_data(thumb, thumb_obj_deleted_cb, ctx);
+            lv_unlock();
+            ESP_LOGW(TAG, "Thumb fetch failed: %s", ctx->url.c_str());
         }
-        lv_unlock();
-    }
-    else
-    {
-        lv_lock();
-        lv_obj_t *thumb = ctx->thumb;
-        if (thumb && lv_obj_is_valid(thumb))
-            lv_obj_remove_event_cb_with_user_data(thumb, thumb_obj_deleted_cb, ctx);
-        lv_unlock();
-        ESP_LOGW(TAG, "Thumb fetch failed: %s", ctx->url.c_str());
+
+        delete ctx;
     }
 
-    xSemaphoreGive(s_thumb_sem);
-    delete ctx;
+    delete wctx;
     vTaskDelete(NULL);
 }
 
@@ -825,7 +836,7 @@ void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &rec
         return;
     }
 
-    init_thumb_semaphore();
+    s_thumb_generation++;
 
     lv_lock();
     init_styles();
@@ -863,7 +874,7 @@ void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &rec
         if (!r.imageUrl.empty())
         {
             ESP_LOGI(TAG, "Scheduling thumb fetch for recipe: %s", r.name.c_str());
-            ThumbContext *tctx = new ThumbContext{thumb, r.imageUrl};
+            ThumbContext *tctx = new ThumbContext{thumb, r.imageUrl, s_thumb_generation};
 
             ESP_LOGI(TAG, ">>> about to create task, internal heap: %" PRIu32,
                      heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
@@ -949,15 +960,18 @@ void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &rec
 
     lv_unlock();
 
-    for (auto *tctx : pending_thumbs)
+    if (!pending_thumbs.empty())
     {
+        ThumbWorkerCtx *wctx = new ThumbWorkerCtx{pending_thumbs};
         BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
-            fetch_thumb_task, "thumb_fetch", 8192, tctx, 5, NULL, 1,
+            thumb_worker_task, "thumb_worker", 8192, wctx, 5, NULL, 1,
             MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
         if (ret != pdPASS)
         {
-            ESP_LOGE(TAG, "Failed to create task");
-            delete tctx;
+            ESP_LOGE(TAG, "Failed to create thumb worker task");
+            for (auto *tctx : pending_thumbs)
+                delete tctx;
+            delete wctx;
         }
     }
 }

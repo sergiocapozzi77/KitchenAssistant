@@ -12,11 +12,14 @@ public:
     void loadCurrentPage();
     void appendSuggestions(const std::vector<RecipeSuggestion> &suggestions);
     void reset();
+    void loadNextPage();
+    void loadPrevPage();
 
     int getSuggestionSize();
     std::vector<RecipeSuggestion> getSuggestions();
     int currentPage = 1;
     const int pageSize = 10;
+    void showCurrentPageRecipes();
 
 private:
     std::vector<RecipeSuggestion> allSuggestions;

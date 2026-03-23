@@ -186,14 +186,9 @@ void create_screen_main() {
                                         }
                                         {
                                             lv_obj_t *obj = lv_button_create(parent_obj);
-                                            objects.obj1 = obj;
                                             lv_obj_set_pos(obj, 19, 130);
                                             lv_obj_set_size(obj, 333, 50);
-                                            lv_obj_set_style_bg_color(obj, lv_color_hex(theme_colors[active_theme_index][0]), LV_PART_MAIN | LV_STATE_DEFAULT);
-                                            lv_obj_set_style_text_color(obj, lv_color_hex(0xffffffff), LV_PART_MAIN | LV_STATE_DEFAULT);
-                                            lv_obj_set_style_text_font(obj, &lv_font_montserrat_26, LV_PART_MAIN | LV_STATE_DEFAULT);
-                                            lv_obj_set_style_bg_grad_dir(obj, LV_GRAD_DIR_VER, LV_PART_MAIN | LV_STATE_DEFAULT);
-                                            lv_obj_set_style_bg_grad_color(obj, lv_color_hex(theme_colors[active_theme_index][1]), LV_PART_MAIN | LV_STATE_DEFAULT);
+                                            add_style_main_button(obj);
                                             {
                                                 lv_obj_t *parent_obj = obj;
                                                 {
@@ -212,11 +207,7 @@ void create_screen_main() {
                                             lv_obj_set_pos(obj, 375, 129);
                                             lv_obj_set_size(obj, 321, 50);
                                             lv_obj_add_event_cb(obj, action_generate_recipe_click, LV_EVENT_CLICKED, (void *)0);
-                                            lv_obj_set_style_bg_color(obj, lv_color_hex(theme_colors[active_theme_index][0]), LV_PART_MAIN | LV_STATE_DEFAULT);
-                                            lv_obj_set_style_text_color(obj, lv_color_hex(0xffffffff), LV_PART_MAIN | LV_STATE_DEFAULT);
-                                            lv_obj_set_style_text_font(obj, &lv_font_montserrat_26, LV_PART_MAIN | LV_STATE_DEFAULT);
-                                            lv_obj_set_style_bg_grad_dir(obj, LV_GRAD_DIR_VER, LV_PART_MAIN | LV_STATE_DEFAULT);
-                                            lv_obj_set_style_bg_grad_color(obj, lv_color_hex(theme_colors[active_theme_index][1]), LV_PART_MAIN | LV_STATE_DEFAULT);
+                                            add_style_main_button(obj);
                                             {
                                                 lv_obj_t *parent_obj = obj;
                                                 {
@@ -287,12 +278,52 @@ void create_screen_main() {
                                                 lv_obj_t *parent_obj = obj;
                                                 {
                                                     lv_obj_t *obj = lv_label_create(parent_obj);
-                                                    objects.obj2 = obj;
+                                                    objects.obj1 = obj;
                                                     lv_obj_set_pos(obj, 0, 0);
                                                     lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
                                                     lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
                                                     lv_obj_set_style_text_color(obj, lv_color_hex(0xff0d0c0c), LV_PART_MAIN | LV_STATE_DEFAULT);
                                                     lv_label_set_text(obj, "\uF078");
+                                                }
+                                            }
+                                        }
+                                        {
+                                            // recipe_suggestion_prev_btn
+                                            lv_obj_t *obj = lv_button_create(parent_obj);
+                                            objects.recipe_suggestion_prev_btn = obj;
+                                            lv_obj_set_pos(obj, 45, -7);
+                                            lv_obj_set_size(obj, 156, 50);
+                                            lv_obj_add_event_cb(obj, action_recipe_suggestion_prev, LV_EVENT_CLICKED, (void *)0);
+                                            add_style_main_button(obj);
+                                            {
+                                                lv_obj_t *parent_obj = obj;
+                                                {
+                                                    lv_obj_t *obj = lv_label_create(parent_obj);
+                                                    lv_obj_set_pos(obj, 0, 0);
+                                                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                                                    lv_label_set_long_mode(obj, LV_LABEL_LONG_CLIP);
+                                                    lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+                                                    lv_label_set_text(obj, "PREV");
+                                                }
+                                            }
+                                        }
+                                        {
+                                            // recipe_suggestion_next_btn
+                                            lv_obj_t *obj = lv_button_create(parent_obj);
+                                            objects.recipe_suggestion_next_btn = obj;
+                                            lv_obj_set_pos(obj, 211, -6);
+                                            lv_obj_set_size(obj, 156, 50);
+                                            lv_obj_add_event_cb(obj, action_recipe_suggestion_next, LV_EVENT_CLICKED, (void *)0);
+                                            add_style_main_button(obj);
+                                            {
+                                                lv_obj_t *parent_obj = obj;
+                                                {
+                                                    lv_obj_t *obj = lv_label_create(parent_obj);
+                                                    lv_obj_set_pos(obj, 0, 0);
+                                                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                                                    lv_label_set_long_mode(obj, LV_LABEL_LONG_CLIP);
+                                                    lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+                                                    lv_label_set_text(obj, "NEXT");
                                                 }
                                             }
                                         }
@@ -325,6 +356,14 @@ void create_screen_main() {
                     }
                 }
             }
+        }
+        {
+            // spinner
+            lv_obj_t *obj = lv_spinner_create(parent_obj);
+            objects.spinner = obj;
+            lv_obj_set_pos(obj, 360, 600);
+            lv_obj_set_size(obj, 80, 80);
+            lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
         }
     }
     
@@ -425,12 +464,10 @@ void change_color_theme(uint32_t theme_index) {
     
     {
         lv_obj_set_style_border_color(objects.create_recipe_pnl, lv_color_hex(theme_colors[theme_index][2]), LV_PART_MAIN | LV_STATE_DEFAULT);
-        lv_obj_set_style_bg_color(objects.obj1, lv_color_hex(theme_colors[theme_index][0]), LV_PART_MAIN | LV_STATE_DEFAULT);
-        lv_obj_set_style_bg_grad_color(objects.obj1, lv_color_hex(theme_colors[theme_index][1]), LV_PART_MAIN | LV_STATE_DEFAULT);
-        lv_obj_set_style_bg_color(objects.generate_recipe_btn, lv_color_hex(theme_colors[theme_index][0]), LV_PART_MAIN | LV_STATE_DEFAULT);
-        lv_obj_set_style_bg_grad_color(objects.generate_recipe_btn, lv_color_hex(theme_colors[theme_index][1]), LV_PART_MAIN | LV_STATE_DEFAULT);
     }
     lv_style_set_border_color(get_style_drop_down_with_shadow_MAIN_DEFAULT(), lv_color_hex(theme_colors[theme_index][2]));
+    lv_style_set_bg_color(get_style_main_button_MAIN_DEFAULT(), lv_color_hex(theme_colors[theme_index][0]));
+    lv_style_set_bg_grad_color(get_style_main_button_MAIN_DEFAULT(), lv_color_hex(theme_colors[theme_index][1]));
     lv_obj_invalidate(objects.main);
 }
 uint32_t theme_colors[1][3] = {

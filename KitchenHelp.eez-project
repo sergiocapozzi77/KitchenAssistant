@@ -128,6 +128,24 @@
       "componentGroups": [],
       "userProperties": [],
       "name": "GenerateRecipeClick"
+    },
+    {
+      "objID": "4bf7856d-45d5-437c-d5b1-4ac1c4b9ae2c",
+      "components": [],
+      "connectionLines": [],
+      "localVariables": [],
+      "componentGroups": [],
+      "userProperties": [],
+      "name": "RecipeSuggestionNext"
+    },
+    {
+      "objID": "06afd4d9-bf08-49b9-b994-b07380c2d879",
+      "components": [],
+      "connectionLines": [],
+      "localVariables": [],
+      "componentGroups": [],
+      "userProperties": [],
+      "name": "RecipeSuggestionPrev"
     }
   ],
   "userPages": [
@@ -1104,7 +1122,15 @@
                                 "childStyles": []
                               },
                               "timeline": [],
-                              "eventHandlers": [],
+                              "eventHandlers": [
+                                {
+                                  "objID": "a22b5f43-32f9-4c29-ccb4-976c8f49570d",
+                                  "eventName": "CLICKED",
+                                  "handlerType": "action",
+                                  "action": "RecipeSuggestionPrev",
+                                  "userData": 0
+                                }
+                              ],
                               "identifier": "recipe_suggestion_prev_btn",
                               "leftUnit": "px",
                               "topUnit": "px",
@@ -1195,7 +1221,15 @@
                                 "childStyles": []
                               },
                               "timeline": [],
-                              "eventHandlers": [],
+                              "eventHandlers": [
+                                {
+                                  "objID": "e399cfcb-d875-404a-987f-0afe8df666fb",
+                                  "eventName": "CLICKED",
+                                  "handlerType": "action",
+                                  "action": "RecipeSuggestionNext",
+                                  "userData": 0
+                                }
+                              ],
                               "identifier": "recipe_suggestion_next_btn",
                               "leftUnit": "px",
                               "topUnit": "px",
@@ -1437,6 +1471,46 @@
               "tabviewSize": 60,
               "selectedTab": 0,
               "selectedTabType": "literal"
+            },
+            {
+              "objID": "57b5509f-66c3-4083-fc79-9b27060fd90b",
+              "type": "LVGLSpinnerWidget",
+              "left": 360,
+              "top": 600,
+              "width": 80,
+              "height": 80,
+              "customInputs": [],
+              "customOutputs": [],
+              "style": {
+                "objID": "6b45ba6e-7946-4bb4-900c-bdaeb74c9328",
+                "useStyle": "default",
+                "conditionalStyles": [],
+                "childStyles": []
+              },
+              "timeline": [],
+              "eventHandlers": [],
+              "identifier": "spinner",
+              "leftUnit": "px",
+              "topUnit": "px",
+              "widthUnit": "px",
+              "heightUnit": "px",
+              "children": [],
+              "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+              "hiddenFlag": true,
+              "hiddenFlagType": "literal",
+              "clickableFlagType": "literal",
+              "flagScrollbarMode": "",
+              "flagScrollDirection": "",
+              "scrollSnapX": "",
+              "scrollSnapY": "",
+              "checkedStateType": "literal",
+              "disabledStateType": "literal",
+              "states": "",
+              "localStyles": {
+                "objID": "b3f66c55-e677-4bd1-e485-387564ea06a6"
+              },
+              "group": "",
+              "groupIndex": 0
             }
           ],
           "widgetFlags": "CLICKABLE|PRESS_LOCK|CLICK_FOCUSABLE|GESTURE_BUBBLE|SNAPPABLE|SCROLLABLE|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER",
