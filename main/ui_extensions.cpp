@@ -1269,6 +1269,15 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
     }
 }
 
+// Add this helper above populateRecipeList
+static void make_children_bubble(lv_obj_t *obj)
+{
+    lv_obj_add_flag(obj, LV_OBJ_FLAG_EVENT_BUBBLE);
+    uint32_t count = lv_obj_get_child_count(obj);
+    for (uint32_t i = 0; i < count; i++)
+        make_children_bubble(lv_obj_get_child(obj, i));
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 
 void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &recipes)
@@ -1403,6 +1412,7 @@ void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &rec
         // Click handler — open detail screen
         RecipeClickCtx *rctx = new RecipeClickCtx{r};
         lv_obj_add_flag(card, LV_OBJ_FLAG_CLICKABLE);
+        make_children_bubble(card);
         lv_obj_add_event_cb(card, recipe_card_click_cb, LV_EVENT_CLICKED, rctx);
         lv_obj_add_event_cb(card, free_recipe_click_ctx_cb, LV_EVENT_DELETE, rctx);
 
