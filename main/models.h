@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <vector>
 
 struct RecipeSuggestion
 {
@@ -16,6 +17,14 @@ struct RecipeSuggestion
     bool isPremium = false;
     std::string contentType;
     std::string id;
+
+    // Full recipe details (populated on demand)
+    std::vector<std::string> ingredients;
+    std::vector<std::string> methodSteps;
+    std::string prepTime;
+    std::string cookTime;
+    std::string servings;
+    bool detailsFetched = false;
 };
 
 struct Product
