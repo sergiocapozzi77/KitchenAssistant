@@ -1038,7 +1038,7 @@ static void fetch_recipe_detail_task(void *arg)
                 lv_obj_set_size(num_cont, 32, 32);
                 lv_obj_clear_flag(num_cont, LV_OBJ_FLAG_SCROLLABLE);
                 lv_obj_set_style_radius(num_cont, LV_RADIUS_CIRCLE, 0);
-                lv_obj_set_style_bg_color(num_cont, lv_color_hex(0x4CAF50), 0);
+                lv_obj_set_style_bg_color(num_cont, lv_color_hex(theme_colors[active_theme_index][0]), 0);
                 lv_obj_set_style_bg_opa(num_cont, LV_OPA_COVER, 0);
                 lv_obj_set_style_border_width(num_cont, 0, 0);
                 lv_obj_set_style_pad_all(num_cont, 0, 0);
