@@ -18,7 +18,7 @@ public:
     int getSuggestionSize();
     std::vector<RecipeSuggestion> getSuggestions();
     int currentPage = 1;
-    const int pageSize = 10;
+    const int pageSize = 6;
     void showCurrentPageRecipes();
 
 private:
