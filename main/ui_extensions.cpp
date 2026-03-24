@@ -6,6 +6,7 @@
 #include "esp_log.h"
 #include "esp_heap_caps.h"
 #include "esp_err.h"
+#include "esp_task_wdt.h"
 #include "ProductService.h"
 #include "ui_extensions.h"
 #include "ui.h"
@@ -527,7 +528,7 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
         lv_checkbox_set_text(checkbox, "");
         lv_obj_set_style_pad_right(checkbox, 8, 0);
         lv_obj_add_style(checkbox, &style_checkbox_indicator, LV_PART_INDICATOR);
-        lv_obj_add_style(checkbox, &style_checkbox_indicator, LV_PART_INDICATOR | LV_STATE_CHECKED);
+        lv_obj_add_style(checkbox, &style_checkbox_indicator, 0);
 
         // Attach product data to checkbox for selection tracking
         CheckboxContext *checkbox_ctx = new CheckboxContext{*p};
@@ -567,57 +568,57 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
         }
 
         // Quantity Selector Container
-        lv_obj_t *qty_cont = lv_obj_create(row);
-        lv_obj_add_style(qty_cont, &style_qty_cont, 0);
-        lv_obj_set_size(qty_cont, 144, 36);
-        lv_obj_clear_flag(qty_cont, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_set_flex_flow(qty_cont, LV_FLEX_FLOW_ROW);
-        lv_obj_set_flex_align(qty_cont, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        // lv_obj_t *qty_cont = lv_obj_create(row);
+        // lv_obj_add_style(qty_cont, &style_qty_cont, 0);
+        // lv_obj_set_size(qty_cont, 144, 36);
+        // lv_obj_clear_flag(qty_cont, LV_OBJ_FLAG_SCROLLABLE);
+        // lv_obj_set_flex_flow(qty_cont, LV_FLEX_FLOW_ROW);
+        // lv_obj_set_flex_align(qty_cont, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
-        // Minus Button
-        lv_obj_t *btn_minus = lv_btn_create(qty_cont);
-        lv_obj_add_style(btn_minus, &style_qty_btn, 0);
-        lv_obj_set_size(btn_minus, 30, 36);
-        lv_obj_t *lbl_minus = lv_label_create(btn_minus);
-        lv_label_set_text(lbl_minus, LV_SYMBOL_MINUS);
-        lv_obj_set_style_text_color(lbl_minus, lv_color_hex(0x007AFF), 0);
-        lv_obj_center(lbl_minus);
+        // // Minus Button
+        // lv_obj_t *btn_minus = lv_btn_create(qty_cont);
+        // lv_obj_add_style(btn_minus, &style_qty_btn, 0);
+        // lv_obj_set_size(btn_minus, 30, 36);
+        // lv_obj_t *lbl_minus = lv_label_create(btn_minus);
+        // lv_label_set_text(lbl_minus, LV_SYMBOL_MINUS);
+        // lv_obj_set_style_text_color(lbl_minus, lv_color_hex(0x007AFF), 0);
+        // lv_obj_center(lbl_minus);
 
-        // Quantity Label
-        lv_obj_t *qty_val = lv_label_create(qty_cont);
-        lv_label_set_text_fmt(qty_val, "%d", p->quantity);
-        lv_obj_set_style_bg_color(qty_val, lv_color_hex(0xFFFFFF), 0);
-        lv_obj_set_style_text_font(qty_val, &lv_font_montserrat_14, 0);
-        lv_obj_set_style_pad_hor(qty_val, 5, 0);
+        // // Quantity Label
+        // lv_obj_t *qty_val = lv_label_create(qty_cont);
+        // lv_label_set_text_fmt(qty_val, "%d", p->quantity);
+        // lv_obj_set_style_bg_color(qty_val, lv_color_hex(0xFFFFFF), 0);
+        // lv_obj_set_style_text_font(qty_val, &lv_font_montserrat_14, 0);
+        // lv_obj_set_style_pad_hor(qty_val, 5, 0);
 
-        // Plus Button
-        lv_obj_t *btn_plus = lv_btn_create(qty_cont);
-        lv_obj_add_style(btn_plus, &style_qty_btn, 0);
-        lv_obj_set_size(btn_plus, 30, 36);
-        lv_obj_t *lbl_plus = lv_label_create(btn_plus);
-        lv_label_set_text(lbl_plus, LV_SYMBOL_PLUS);
-        lv_obj_set_style_text_color(lbl_plus, lv_color_hex(0x007AFF), 0);
-        lv_obj_center(lbl_plus);
+        // // Plus Button
+        // lv_obj_t *btn_plus = lv_btn_create(qty_cont);
+        // lv_obj_add_style(btn_plus, &style_qty_btn, 0);
+        // lv_obj_set_size(btn_plus, 30, 36);
+        // lv_obj_t *lbl_plus = lv_label_create(btn_plus);
+        // lv_label_set_text(lbl_plus, LV_SYMBOL_PLUS);
+        // lv_obj_set_style_text_color(lbl_plus, lv_color_hex(0x007AFF), 0);
+        // lv_obj_center(lbl_plus);
 
-        // Shared QtyContext — owned by btn_minus, freed on its deletion
-        QtyContext *qty_ctx = new QtyContext{qty_val, row, p->rowId, p->quantity};
-        lv_obj_add_event_cb(btn_minus, qty_minus_cb, LV_EVENT_CLICKED, qty_ctx);
-        lv_obj_add_event_cb(btn_minus, free_qty_ctx_cb, LV_EVENT_DELETE, qty_ctx);
-        lv_obj_add_event_cb(btn_plus, qty_plus_cb, LV_EVENT_CLICKED, qty_ctx);
+        // // Shared QtyContext — owned by btn_minus, freed on its deletion
+        // QtyContext *qty_ctx = new QtyContext{qty_val, row, p->rowId, p->quantity};
+        // lv_obj_add_event_cb(btn_minus, qty_minus_cb, LV_EVENT_CLICKED, qty_ctx);
+        // lv_obj_add_event_cb(btn_minus, free_qty_ctx_cb, LV_EVENT_DELETE, qty_ctx);
+        // lv_obj_add_event_cb(btn_plus, qty_plus_cb, LV_EVENT_CLICKED, qty_ctx);
 
-        // Delete Button
-        lv_obj_t *btn_del = lv_btn_create(qty_cont);
-        lv_obj_add_style(btn_del, &style_del_btn, 0);
-        lv_obj_set_size(btn_del, 36, 36);
+        // // Delete Button
+        // lv_obj_t *btn_del = lv_btn_create(qty_cont);
+        // lv_obj_add_style(btn_del, &style_del_btn, 0);
+        // lv_obj_set_size(btn_del, 36, 36);
 
-        lv_obj_t *lbl_del = lv_label_create(btn_del);
-        lv_label_set_text(lbl_del, LV_SYMBOL_TRASH);
-        lv_obj_set_style_text_color(lbl_del, lv_color_hex(0xE74C3C), 0);
-        lv_obj_center(lbl_del);
+        // lv_obj_t *lbl_del = lv_label_create(btn_del);
+        // lv_label_set_text(lbl_del, LV_SYMBOL_TRASH);
+        // lv_obj_set_style_text_color(lbl_del, lv_color_hex(0xE74C3C), 0);
+        // lv_obj_center(lbl_del);
 
-        std::string *rowId = new std::string(p->rowId);
-        lv_obj_add_event_cb(btn_del, delete_btn_cb, LV_EVENT_CLICKED, rowId);
-        lv_obj_add_event_cb(btn_del, free_rowid_cb, LV_EVENT_DELETE, rowId);
+        // std::string *rowId = new std::string(p->rowId);
+        // lv_obj_add_event_cb(btn_del, delete_btn_cb, LV_EVENT_CLICKED, rowId);
+        // lv_obj_add_event_cb(btn_del, free_rowid_cb, LV_EVENT_DELETE, rowId);
 
         // lv_obj_add_flag(qty_cont, LV_OBJ_FLAG_HIDDEN);
     }
@@ -829,6 +830,7 @@ static void thumb_worker_task(void *arg)
 
     for (ThumbContext *ctx : wctx->items)
     {
+        // esp_task_wdt_reset();
         if (ctx->generation != s_thumb_generation)
         {
             lv_lock();

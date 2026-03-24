@@ -5,6 +5,7 @@
 #include "esp_err.h"
 #include "esp_check.h"
 #include "esp_memory_utils.h"
+#include "esp_task_wdt.h"
 #include "lvgl.h"
 #include "bsp/esp-bsp.h"
 #include "bsp/display.h"
@@ -106,7 +107,8 @@ void Application::mainLoop()
         ui_tick();
         bsp_display_unlock();
 
-        // vTaskDelay(pdMS_TO_TICKS(10)); // ~100Hz update rate
+        //   esp_task_wdt_reset();
+        vTaskDelay(pdMS_TO_TICKS(10)); // ~100Hz update rate
     }
 }
 
