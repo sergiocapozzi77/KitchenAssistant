@@ -976,17 +976,21 @@ static void fetch_recipe_detail_task(void *arg)
                 lv_obj_set_style_pad_right(checkbox, 8, 0);
                 lv_obj_add_style(checkbox, &style_checkbox_indicator, LV_PART_INDICATOR);
                 lv_obj_add_style(checkbox, &style_checkbox_indicator, LV_PART_INDICATOR | LV_STATE_CHECKED);
-                // Set explicit size for checkbox indicator to match product list
-                lv_obj_set_style_width(checkbox, 24, LV_PART_INDICATOR);
-                lv_obj_set_style_height(checkbox, 24, LV_PART_INDICATOR);
+                // Set explicit size for checkbox indicator (larger for recipe details)
+                lv_obj_set_style_width(checkbox, 32, LV_PART_INDICATOR);
+                lv_obj_set_style_height(checkbox, 32, LV_PART_INDICATOR);
 
                 // Ingredient label - bigger font
                 lv_obj_t *lbl = lv_label_create(row);
                 lv_label_set_text(lbl, ing.c_str());
                 lv_label_set_long_mode(lbl, LV_LABEL_LONG_WRAP);
                 lv_obj_set_flex_grow(lbl, 1);
-                lv_obj_set_style_text_font(lbl, &lv_font_montserrat_18, 0);
+                lv_obj_set_style_text_font(lbl, &lv_font_montserrat_20, 0);
                 lv_obj_set_style_text_color(lbl, lv_color_hex(0x212529), 0);
+
+                // Make row clickable to toggle checkbox
+                lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE);
+                lv_obj_add_event_cb(row, row_click_cb, LV_EVENT_CLICKED, checkbox);
 
                 // Context to connect checkbox with label
                 IngredientCheckboxContext *ctx = new IngredientCheckboxContext{lbl, nullptr};

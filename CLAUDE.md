@@ -20,6 +20,7 @@ idf.py fullclean              # clean all build artifacts
 ```
 
 WiFi credentials and other settings are configured via:
+
 ```bash
 idf.py menuconfig  # look under "Kitchen Assistant Configuration"
 ```
@@ -27,6 +28,7 @@ idf.py menuconfig  # look under "Kitchen Assistant Configuration"
 ## Architecture
 
 ### Layer Stack
+
 ```
 LVGL UI (EEZ Studio generated: main/ui/)
     ↕
@@ -40,6 +42,7 @@ ESP-IDF HTTP client + cJSON + FreeRTOS
 ### Key Components
 
 **`main/app.cpp`** — Initialization pipeline and main loop:
+
 1. `initNVS()` → NVS storage
 2. `initHardware()` → WiFi, display, LVGL port
 3. `initTasks()` → spawns `fetchProductsTask` FreeRTOS background task
@@ -63,11 +66,11 @@ ESP-IDF HTTP client + cJSON + FreeRTOS
 
 ### Flash Partitions (`partitions.csv`)
 
-| Name    | Size  | Purpose           |
-|---------|-------|-------------------|
-| NVS     | 24KB  | Key-value storage |
-| factory | 8MB   | Application binary|
-| storage | 7MB   | SPIFFS filesystem |
+| Name    | Size | Purpose            |
+| ------- | ---- | ------------------ |
+| NVS     | 24KB | Key-value storage  |
+| factory | 8MB  | Application binary |
+| storage | 7MB  | SPIFFS filesystem  |
 
 ### Managed vs Local Components
 
@@ -76,10 +79,16 @@ ESP-IDF HTTP client + cJSON + FreeRTOS
 
 ## Important Files
 
-| File | Purpose |
-|------|---------|
-| `main/secrets.h` | Appwrite API key — not in git, must create manually |
-| `main/models.h` | `Product` and `RecipeSuggestion` structs |
-| `sdkconfig` | Active SDK config (WiFi creds embedded here) |
-| `sdkconfig.defaults` | Template for fresh setups |
-| `KitchenHelp.eez-project` | EEZ Studio UI project file |
+| File                      | Purpose                                             |
+| ------------------------- | --------------------------------------------------- |
+| `main/secrets.h`          | Appwrite API key — not in git, must create manually |
+| `main/models.h`           | `Product` and `RecipeSuggestion` structs            |
+| `sdkconfig`               | Active SDK config (WiFi creds embedded here)        |
+| `sdkconfig.defaults`      | Template for fresh setups                           |
+| `KitchenHelp.eez-project` | EEZ Studio UI project file                          |
+
+# Project Rules
+
+- **CRITICAL**: Never run `idf.py build` or any ESP-IDF build commands.
+- Do not attempt to compile or build the firmware.
+- Focus only on code modifications; I will handle all builds manually.
