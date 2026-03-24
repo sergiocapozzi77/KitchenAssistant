@@ -43,8 +43,8 @@ void remove_style_flat_button(lv_obj_t *obj) {
 //
 
 void init_style_drop_down_with_shadow_MAIN_DEFAULT(lv_style_t *style) {
-    lv_style_set_shadow_width(style, 30);
-    lv_style_set_shadow_opa(style, 50);
+    lv_style_set_shadow_width(style, 15);
+    lv_style_set_shadow_opa(style, 30);
     lv_style_set_border_color(style, lv_color_hex(theme_colors[active_theme_index][2]));
     lv_style_set_border_width(style, 1);
 };

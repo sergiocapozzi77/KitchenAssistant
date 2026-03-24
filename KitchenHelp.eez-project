@@ -1488,8 +1488,8 @@
           "definition": {
             "MAIN": {
               "DEFAULT": {
-                "shadow_width": 30,
-                "shadow_opa": 50,
+                "shadow_width": 15,
+                "shadow_opa": 30,
                 "border_color": "Border",
                 "border_width": 1
               }
