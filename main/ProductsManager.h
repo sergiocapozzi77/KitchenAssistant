@@ -18,6 +18,7 @@ public:
     void addSelectedProduct(const Product &product);
     void removeSelectedProduct(const std::string &id);
     int getSelectedCount() const;
+    std::vector<Product> getSelectedProducts() const;
 
 private:
     std::vector<Product> _allProducts;

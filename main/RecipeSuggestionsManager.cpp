@@ -6,6 +6,8 @@
 #include "lvgl.h"
 #include "ui_extensions.h"
 #include "ui.h"
+#include "filters_ui.h"
+#include "ProductsManager.h"
 
 RecipeSuggestionsManager recipeSuggestionsManager;
 
@@ -136,21 +138,27 @@ void fetchRecipesTask(void *param)
     lv_unlock();
 
     RecipeSuggestionsManager *manager = (RecipeSuggestionsManager *)param;
-    std::vector<std::string> ingredients = {
-        "chicken",
-        "lemon",
-        "garlic"};
 
-    std::vector<std::string> keywords = {
-        "healthy",
-        "quick"};
+    filter_state_t *filterState = get_filter_state();
+
+    std::vector<Product> selectedProducts = productsManager.getSelectedProducts();
+    std::vector<std::string> ingredients;
+    for (const auto &product : selectedProducts) {
+        ingredients.push_back(product.name);
+    }
+
+    std::vector<std::string> keywords = {};
 
     manager->appendSuggestions(recipeGoodFoodService.getRecipeSuggestions(
         ingredients,
-        "main-course", // dishType
+        filterState->meal_type,
         keywords,
-        "easy",       // difficulty (pass "" to skip the filter)
-        "30-minutes", // totalTime  (pass "" to skip the filter)
+        filterState->difficulty, // difficulty (pass "" to skip the filter)
+        filterState->total_time, // totalTime  (pass "" to skip the filter)
+        filterState->diet,       // diet
+        filterState->cuisine,    // cuisine
+        "",                      // ratings
+        "",                      // calories
         1));
 
     lv_lock();

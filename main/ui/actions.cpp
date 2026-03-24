@@ -5,10 +5,10 @@
 #include "esp_log.h"
 #include "vars.h"
 #include "images.h"
-#include "RecipeGoodFoodService.h"
 #include "ProductsManager.h"
 #include "ui_extensions.h"
 #include "RecipeSuggestionsManager.h"
+#include "filters_ui.h"
 
 void set_tab_icon(lv_obj_t *tabview, uint32_t index, const void *img_src)
 {
@@ -39,6 +39,7 @@ void action_screen_loading(lv_event_t *e)
     set_tab_icon(objects.tabview, 1, &img_chef);
 
     lv_obj_add_flag(objects.create_recipe_pnl, LV_OBJ_FLAG_HIDDEN);
+    create_filter_panel(objects.filters_container);
 }
 
 void fetchRecipesTask(void *param);
@@ -46,6 +47,7 @@ void fetchRecipesTask(void *param);
 void action_generate_recipe_click(lv_event_t *e)
 {
     ESP_LOGI("actions", "Generate Recipe button clicked");
+    log_filter_state();
 
     lv_lock();
     lv_tabview_set_active(objects.tabview, 1, LV_ANIM_OFF);
@@ -66,42 +68,3 @@ void action_recipe_suggestion_prev(lv_event_t *e)
 {
     recipeSuggestionsManager.loadPrevPage();
 }
-
-// void fetchRecipesTask(void *param)
-// {
-//     std::vector<std::string> ingredients = {
-//         "chicken",
-//         "lemon",
-//         "garlic"};
-
-//     std::vector<std::string> keywords = {
-//         "healthy",
-//         "quick"};
-
-//     auto suggestions = recipeGoodFoodService.getRecipeSuggestions(
-//         ingredients,
-//         "main-course", // dishType
-//         keywords,
-//         "easy",      // difficulty (pass "" to skip the filter)
-//         "30-minutes" // totalTime  (pass "" to skip the filter)
-//     );
-
-//     ESP_LOGI("App", "Got %d recipe suggestions", suggestions.size());
-
-//     for (const auto &r : suggestions)
-//     {
-//         ESP_LOGI("App",
-//                  "  [%s] %s (%s) -> %s",
-//                  r.difficulty.c_str(),
-//                  r.name.c_str(),
-//                  r.totalTime.c_str(),
-//                  r.url.c_str());
-//     }
-
-//     populateRecipeList(objects.recipes_list, suggestions);
-
-//     // TODO: pass results to UI, e.g.:
-//     // populateRecipeList(objects.recipe_list, suggestions);
-
-//     vTaskDelete(nullptr);
-// }

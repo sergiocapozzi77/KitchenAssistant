@@ -9,6 +9,7 @@ idf_component_register(
         RecipeDetailService.cpp
         WifiManager.cpp
         ui_extensions.cpp
+        filters_ui.cpp
         ui/screens.c
         ui/styles.c
         ui/images.c

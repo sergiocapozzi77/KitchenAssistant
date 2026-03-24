@@ -23,10 +23,14 @@ RecipeGoodFoodService::RecipeGoodFoodService()
 
 std::vector<RecipeSuggestion> RecipeGoodFoodService::getRecipeSuggestions(
     const std::vector<std::string> &ingredients,
-    const std::string &dishType,
+    const std::string &mealType,
     const std::vector<std::string> &keywords,
     const std::string &difficulty,
     const std::string &totalTime,
+    const std::string &diet,
+    const std::string &cuisine,
+    const std::string &ratings,
+    const std::string &calories,
     int page)
 {
     std::vector<std::string> shuffledIngredients = ingredients;
@@ -53,9 +57,6 @@ std::vector<RecipeSuggestion> RecipeGoodFoodService::getRecipeSuggestions(
     }
 
     std::string encodedQuery = urlEncode(rawQuery);
-    std::string dishTypeLower = dishType;
-    std::transform(dishTypeLower.begin(), dishTypeLower.end(), dishTypeLower.begin(), ::tolower);
-    std::replace(dishTypeLower.begin(), dishTypeLower.end(), ' ', '-');
 
     std::vector<RecipeSuggestion> all;
 
@@ -65,7 +66,7 @@ std::vector<RecipeSuggestion> RecipeGoodFoodService::getRecipeSuggestions(
 
     // Scope the results to ensure they are cleaned up immediately
     {
-        auto pageResults = fetchPage(encodedQuery, urlEncode(dishTypeLower), difficulty, totalTime, page);
+        auto pageResults = fetchPage(encodedQuery, mealType, difficulty, totalTime, diet, cuisine, ratings, calories, page);
         all.insert(all.end(), pageResults.begin(), pageResults.end());
     }
 
@@ -79,11 +80,28 @@ std::vector<RecipeSuggestion> RecipeGoodFoodService::getRecipeSuggestions(
 }
 
 std::vector<RecipeSuggestion> RecipeGoodFoodService::fetchPage(
-    const std::string &query, const std::string &dishType,
-    const std::string &difficulty, const std::string &totalTime, int page)
+    const std::string &query, const std::string &mealType,
+    const std::string &difficulty, const std::string &totalTime,
+    const std::string &diet, const std::string &cuisine,
+    const std::string &ratings, const std::string &calories, int page)
 {
     std::vector<RecipeSuggestion> pageSuggestions;
-    std::string url = "https://www.bbcgoodfood.com/search?q=" + query + "&mealType=" + dishType + "&page=" + std::to_string(page);
+    std::string url = "https://www.bbcgoodfood.com/search?q=" + query;
+    if (!difficulty.empty())
+        url += "&mealType=" + urlEncode(mealType);
+    if (!difficulty.empty())
+        url += "&difficulty=" + urlEncode(difficulty);
+    if (!totalTime.empty())
+        url += "&totalTime=" + urlEncode(totalTime);
+    if (!diet.empty())
+        url += "&diet=" + urlEncode(diet);
+    if (!cuisine.empty())
+        url += "&cuisine=" + urlEncode(cuisine);
+    if (!ratings.empty())
+        url += "&ratings=" + urlEncode(ratings);
+    if (!calories.empty())
+        url += "&calories=" + urlEncode(calories);
+    url += "&page=" + std::to_string(page);
 
     int status = -1;
     std::string jsonText = httpGet(url, status);

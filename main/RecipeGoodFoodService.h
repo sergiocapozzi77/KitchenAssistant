@@ -32,8 +32,13 @@ void fetchRecipesTask(void *param)
         "main-course",   // dishType
         keywords,
         "easy",          // difficulty (pass "" to skip the filter)
-        "30-minutes"     // totalTime  (pass "" to skip the filter)
-    );
+        "30-minutes",    // totalTime  (pass "" to skip the filter)
+        "",              // diet
+        "",              // cuisine
+        "",              // ratings
+        "",              // calories
+        1,               // page
+        );
 
     ESP_LOGI("App", "Got %d recipe suggestions", suggestions.size());
 
@@ -60,18 +65,26 @@ xTaskCreate(fetchRecipesTask, "FetchRecipes", 16384, nullptr, 5, nullptr);      
 
     std::vector<RecipeSuggestion> getRecipeSuggestions(
         const std::vector<std::string> &ingredients,
-        const std::string &dishType,
-        const std::vector<std::string> &keywords,
-        const std::string &difficulty,
-        const std::string &totalTime,
-        int page);
+        const std::string &mealType = "",
+        const std::vector<std::string> &keywords = {},
+        const std::string &difficulty = "",
+        const std::string &totalTime = "",
+        const std::string &diet = "",
+        const std::string &cuisine = "",
+        const std::string &ratings = "",
+        const std::string &calories = "",
+        int page = 1);
 
 private:
     std::vector<RecipeSuggestion> fetchPage(
         const std::string &query,
-        const std::string &dishType,
+        const std::string &mealType,
         const std::string &difficulty,
         const std::string &totalTime,
+        const std::string &diet,
+        const std::string &cuisine,
+        const std::string &ratings,
+        const std::string &calories,
         int page);
 
     std::string httpGet(const std::string &url, int &status);

@@ -49,3 +49,12 @@ int ProductsManager::getSelectedCount() const
     std::lock_guard<std::mutex> lock(_productMutex);
     return _selectedProducts.size();
 }
+
+std::vector<Product> ProductsManager::getSelectedProducts() const
+{
+    std::lock_guard<std::mutex> lock(_productMutex);
+
+    // Returning a copy ensures the UI task has a stable "snapshot"
+    // even if the WiFi task starts a new sync mid-scroll.
+    return _selectedProducts;
+}

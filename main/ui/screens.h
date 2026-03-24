@@ -24,6 +24,7 @@ typedef struct _objects_t {
     lv_obj_t *create_recipe_pnl;
     lv_obj_t *product_selected_lbl;
     lv_obj_t *generate_recipe_btn;
+    lv_obj_t *filters_container;
     lv_obj_t *recipes_header_pnl;
     lv_obj_t *obj1;
     lv_obj_t *recipe_suggestion_prev_btn;

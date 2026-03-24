@@ -106,7 +106,7 @@ void Application::mainLoop()
         ui_tick();
         bsp_display_unlock();
 
-        vTaskDelay(pdMS_TO_TICKS(10)); // ~100Hz update rate
+        // vTaskDelay(pdMS_TO_TICKS(10)); // ~100Hz update rate
     }
 }
 
