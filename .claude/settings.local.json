@@ -6,7 +6,13 @@
       "Bash(idf.py build:*)",
       "Bash(grep -r RecipeSuggestion C:/Users/sergi/source/repos/KitchenAssistant --include=*.h --include=*.cpp)",
       "Bash(xargs grep:*)",
-      "Bash(xargs ls:*)"
+      "Bash(xargs ls:*)",
+      "Bash(source \"C:\\\\Users\\\\sergi\\\\esp\\\\v5.5.2\\\\esp-idf/export.sh\")",
+      "Bash(grep -r lv_line_set_points C:UserssergisourcereposKitchenAssistantmanaged_componentslvgl__lvgl --include=*.h)",
+      "Bash(grep -r 'struct lv_point' C:UserssergisourcereposKitchenAssistantmanaged_componentslvgl__lvgl --include=*.h)",
+      "Bash(grep -r typedef.*lv_point_t C:UserssergisourcereposKitchenAssistantmanaged_componentslvgl__lvgl)",
+      "Bash(grep -r typedef.*lv_value_precise_t C:UserssergisourcereposKitchenAssistantmanaged_componentslvgl__lvgl)",
+      "Bash(grep -r typedef.*lv_coord_t C:UserssergisourcereposKitchenAssistantmanaged_componentslvgl__lvgl)"
     ]
   }
 }

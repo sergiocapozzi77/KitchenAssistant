@@ -109,6 +109,8 @@ static void qty_plus_cb(lv_event_t *e);
 static void group_toggle_cb(lv_event_t *e);
 static void row_click_cb(lv_event_t *e);
 static void checkbox_changed_cb(lv_event_t *e);
+static void ingredient_checkbox_cb(lv_event_t *e);
+static void free_ingredient_checkbox_ctx_cb(lv_event_t *e);
 static void update_selection_ui();
 static void recipe_card_click_cb(lv_event_t *e);
 static void recipe_detail_back_cb(lv_event_t *e);
@@ -139,6 +141,12 @@ struct DeleteCtx
 struct CheckboxContext
 {
     Product product;
+};
+
+struct IngredientCheckboxContext
+{
+    lv_obj_t *label;
+    lv_obj_t *line;
 };
 
 struct RecipeClickCtx
@@ -369,6 +377,35 @@ static void checkbox_changed_cb(lv_event_t *e)
     update_selection_ui();
 }
 
+static void ingredient_checkbox_cb(lv_event_t *e)
+{
+    lv_obj_t *checkbox = static_cast<lv_obj_t *>(lv_event_get_target(e));
+    if (!checkbox)
+        return;
+
+    IngredientCheckboxContext *ctx = static_cast<IngredientCheckboxContext *>(lv_event_get_user_data(e));
+    if (!ctx || !ctx->label)
+        return;
+
+    if (lv_obj_has_state(checkbox, LV_STATE_CHECKED))
+    {
+        // Apply strikethrough: gray color and text decoration
+        lv_obj_set_style_text_color(ctx->label, lv_color_hex(0x6C757D), 0);
+        lv_obj_set_style_text_decor(ctx->label, LV_TEXT_DECOR_STRIKETHROUGH, 0);
+    }
+    else
+    {
+        // Restore normal
+        lv_obj_set_style_text_color(ctx->label, lv_color_hex(0x212529), 0);
+        lv_obj_set_style_text_decor(ctx->label, LV_TEXT_DECOR_NONE, 0);
+    }
+}
+
+static void free_ingredient_checkbox_ctx_cb(lv_event_t *e)
+{
+    delete (IngredientCheckboxContext *)lv_event_get_user_data(e);
+}
+
 static void update_selection_ui()
 {
     int selected_count = productsManager.getSelectedCount();
@@ -504,7 +541,7 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
         lv_label_set_text(name, p->name.c_str());
         lv_obj_set_flex_grow(name, 1);
         lv_obj_set_style_text_color(name, lv_color_hex(0x495057), 0);
-        lv_obj_set_style_text_font(name, &lv_font_montserrat_16, 0);
+        lv_obj_set_style_text_font(name, &lv_font_montserrat_18, 0);
 
         // Expiry badge
         int days = days_until_expiry(p->expiry);
@@ -931,17 +968,30 @@ static void fetch_recipe_detail_task(void *arg)
                 lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
                 lv_obj_set_style_pad_column(row, 8, 0);
 
-                lv_obj_t *dot = lv_label_create(row);
-                lv_label_set_text(dot, LV_SYMBOL_BULLET);
-                lv_obj_set_style_text_color(dot, lv_color_hex(0x4CAF50), 0);
-                lv_obj_set_style_text_font(dot, &lv_font_montserrat_16, 0);
+                // In fetch_recipe_detail_task, update the ingredients section:
 
+                // Checkbox for ingredient
+                lv_obj_t *checkbox = lv_checkbox_create(row);
+                lv_checkbox_set_text(checkbox, "");
+                lv_obj_set_style_pad_right(checkbox, 8, 0);
+                lv_obj_add_style(checkbox, &style_checkbox_indicator, LV_PART_INDICATOR);
+                lv_obj_add_style(checkbox, &style_checkbox_indicator, LV_PART_INDICATOR | LV_STATE_CHECKED);
+                // Set explicit size for checkbox indicator to match product list
+                lv_obj_set_style_width(checkbox, 24, LV_PART_INDICATOR);
+                lv_obj_set_style_height(checkbox, 24, LV_PART_INDICATOR);
+
+                // Ingredient label - bigger font
                 lv_obj_t *lbl = lv_label_create(row);
                 lv_label_set_text(lbl, ing.c_str());
                 lv_label_set_long_mode(lbl, LV_LABEL_LONG_WRAP);
                 lv_obj_set_flex_grow(lbl, 1);
-                lv_obj_set_style_text_font(lbl, &lv_font_montserrat_16, 0);
+                lv_obj_set_style_text_font(lbl, &lv_font_montserrat_18, 0);
                 lv_obj_set_style_text_color(lbl, lv_color_hex(0x212529), 0);
+
+                // Context to connect checkbox with label
+                IngredientCheckboxContext *ctx = new IngredientCheckboxContext{lbl, nullptr};
+                lv_obj_add_event_cb(checkbox, ingredient_checkbox_cb, LV_EVENT_VALUE_CHANGED, ctx);
+                lv_obj_add_event_cb(checkbox, free_ingredient_checkbox_ctx_cb, LV_EVENT_DELETE, ctx);
             }
         }
         else
@@ -998,7 +1048,7 @@ static void fetch_recipe_detail_task(void *arg)
                 lv_label_set_text(text_lbl, step.c_str());
                 lv_label_set_long_mode(text_lbl, LV_LABEL_LONG_WRAP);
                 lv_obj_set_flex_grow(text_lbl, 1);
-                lv_obj_set_style_text_font(text_lbl, &lv_font_montserrat_16, 0);
+                lv_obj_set_style_text_font(text_lbl, &lv_font_montserrat_18, 0); // Increased from 16 to 18
                 lv_obj_set_style_text_color(text_lbl, lv_color_hex(0x212529), 0);
             }
         }
@@ -1210,7 +1260,7 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
     lv_obj_clear_flag(ing_cont, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_flex_flow(ing_cont, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_all(ing_cont, 12, 0);
-    lv_obj_set_style_pad_row(ing_cont, 8, 0);
+    lv_obj_set_style_pad_row(ing_cont, 8, 0); // Reduced row padding for checkboxes
     lv_obj_set_style_bg_color(ing_cont, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_bg_opa(ing_cont, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(ing_cont, 1, 0);
