@@ -8,6 +8,8 @@
 #include "ui.h"
 #include "filters_ui.h"
 #include "ProductsManager.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 RecipeSuggestionsManager recipeSuggestionsManager;
 
@@ -66,14 +68,14 @@ void RecipeSuggestionsManager::loadCurrentPage()
     if (hasRange)
     {
         ESP_LOGI("ShowRecipesTask", "Recipes available, showing them");
-        BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(showRecipesTask, "ShowRecipes", 16384, this, 5, nullptr, tskNO_AFFINITY, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(showRecipesTask, "ShowRecipes", 32768, this, 5, nullptr, tskNO_AFFINITY, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
         if (ret != pdPASS)
             ESP_LOGE("ShowRecipesTask", "Failed to create ShowRecipes task");
     }
     else
     {
         ESP_LOGI("ShowRecipesTask", "No recipes available, fetching them");
-        BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(fetchRecipesTask, "FetchRecipes", 16384, this, 5, nullptr, tskNO_AFFINITY, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(fetchRecipesTask, "FetchRecipes", 32768, this, 5, nullptr, tskNO_AFFINITY, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
         if (ret != pdPASS)
             ESP_LOGE("ShowRecipesTask", "Failed to create FetchRecipes task");
     }
@@ -143,22 +145,42 @@ void fetchRecipesTask(void *param)
 
     std::vector<Product> selectedProducts = productsManager.getSelectedProducts();
     std::vector<std::string> ingredients;
-    for (const auto &product : selectedProducts) {
+    ingredients.reserve(selectedProducts.size());
+    ESP_LOGI("ShowRecipesTask", "Free heap: %lu", (unsigned long)esp_get_free_heap_size());
+    ESP_LOGI("ShowRecipesTask", "Selected products: %d", (int)selectedProducts.size());
+
+    heap_caps_check_integrity_all(true);
+    ESP_LOGI("ShowRecipesTask", "Heap OK before building ingredients");
+
+    for (const auto &product : selectedProducts)
+    {
         ingredients.push_back(product.name);
     }
 
+    heap_caps_check_integrity_all(true);
+    ESP_LOGI("ShowRecipesTask", "Heap OK after building ingredients");
+
     std::vector<std::string> keywords = {};
+
+    ESP_LOGI("ShowRecipesTask", "Largest free block: %d bytes", (int)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+
+    // Convert filter state to strings safely (NULL -> "")
+    std::string mealType = filterState->meal_type ? filterState->meal_type : "";
+    std::string difficulty = filterState->difficulty ? filterState->difficulty : "";
+    std::string totalTime = filterState->total_time ? filterState->total_time : "";
+    std::string diet = filterState->diet ? filterState->diet : "";
+    std::string cuisine = filterState->cuisine ? filterState->cuisine : "";
 
     manager->appendSuggestions(recipeGoodFoodService.getRecipeSuggestions(
         ingredients,
-        filterState->meal_type,
+        mealType,
         keywords,
-        filterState->difficulty, // difficulty (pass "" to skip the filter)
-        filterState->total_time, // totalTime  (pass "" to skip the filter)
-        filterState->diet,       // diet
-        filterState->cuisine,    // cuisine
-        "",                      // ratings
-        "",                      // calories
+        difficulty,
+        totalTime,
+        diet,
+        cuisine,
+        "", // ratings
+        "", // calories
         1));
 
     lv_lock();

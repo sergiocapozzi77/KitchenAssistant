@@ -213,7 +213,7 @@ std::string RecipeGoodFoodService::httpGet(const std::string &url, int &status)
     esp_http_client_config_t cfg = {};
     cfg.url = url.c_str();
     cfg.timeout_ms = 20000;
-    cfg.buffer_size = 4096; // Smaller buffer = successful DMA allocation
+    cfg.buffer_size = 2048; // Smaller buffer = successful DMA allocation
     cfg.crt_bundle_attach = esp_crt_bundle_attach;
     cfg.use_global_ca_store = false;
 
