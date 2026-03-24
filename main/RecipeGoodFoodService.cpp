@@ -87,7 +87,7 @@ std::vector<RecipeSuggestion> RecipeGoodFoodService::fetchPage(
 {
     std::vector<RecipeSuggestion> pageSuggestions;
     std::string url = "https://www.bbcgoodfood.com/search?q=" + query;
-    if (!difficulty.empty())
+    if (!mealType.empty())
         url += "&mealType=" + urlEncode(mealType);
     if (!difficulty.empty())
         url += "&difficulty=" + urlEncode(difficulty);
