@@ -11,7 +11,8 @@
       "Bash(grep -r 'struct lv_point' C:UserssergisourcereposKitchenAssistantmanaged_componentslvgl__lvgl --include=*.h)",
       "Bash(grep -r typedef.*lv_point_t C:UserssergisourcereposKitchenAssistantmanaged_componentslvgl__lvgl)",
       "Bash(grep -r typedef.*lv_value_precise_t C:UserssergisourcereposKitchenAssistantmanaged_componentslvgl__lvgl)",
-      "Bash(grep -r typedef.*lv_coord_t C:UserssergisourcereposKitchenAssistantmanaged_componentslvgl__lvgl)"
+      "Bash(grep -r typedef.*lv_coord_t C:UserssergisourcereposKitchenAssistantmanaged_componentslvgl__lvgl)",
+      "Bash(find /c/Users/sergi/source/repos/KitchenAssistant/managed_components -type f -name *font* -o -name *Font*)"
     ],
     "deny": [
       "Bash(idf.py build *)",

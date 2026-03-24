@@ -9,6 +9,7 @@
 #include "ProductService.h"
 #include "ui_extensions.h"
 #include "ui.h"
+#include "fonts.h"
 #include <ctime>
 #include <cmath>
 #include "ProductsManager.h"
@@ -541,7 +542,7 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
         lv_label_set_text(name, p->name.c_str());
         lv_obj_set_flex_grow(name, 1);
         lv_obj_set_style_text_color(name, lv_color_hex(0x495057), 0);
-        lv_obj_set_style_text_font(name, &lv_font_montserrat_18, 0);
+        lv_obj_set_style_text_font(name, &ui_font_ext_font_montserrat_18, 0);
 
         // Expiry badge
         int days = days_until_expiry(p->expiry);
@@ -843,14 +844,14 @@ static void thumb_worker_task(void *arg)
         lv_image_dsc_t *dsc = nullptr;
         uint8_t *px = nullptr;
 
-        if (fetch_and_decode_jpeg(ctx->url, 90, 90, &dsc, &px))
+        if (fetch_and_decode_jpeg(ctx->url, 112, 112, &dsc, &px))
         {
             lv_lock();
             lv_obj_t *thumb = ctx->thumb;
             if (thumb && lv_obj_is_valid(thumb))
             {
                 lv_image_set_src(thumb, dsc);
-                lv_obj_set_size(thumb, 90, 90);
+                lv_obj_set_size(thumb, 112, 112);
                 lv_obj_remove_event_cb_with_user_data(thumb, thumb_obj_deleted_cb, ctx);
                 ThumbDataCtx *data_ctx = new ThumbDataCtx{dsc, px};
                 lv_obj_add_event_cb(thumb, free_thumb_data_cb, LV_EVENT_DELETE, data_ctx);
@@ -963,7 +964,10 @@ static void fetch_recipe_detail_task(void *arg)
                 lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
                 lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
                 lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-                lv_obj_set_style_pad_all(row, 0, 0);
+                lv_obj_set_style_pad_top(row, 8, 0);
+                lv_obj_set_style_pad_bottom(row, 8, 0);
+                lv_obj_set_style_pad_left(row, 0, 0);
+                lv_obj_set_style_pad_right(row, 0, 0);
                 lv_obj_set_style_border_width(row, 0, 0);
                 lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
                 lv_obj_set_style_pad_column(row, 8, 0);
@@ -985,7 +989,7 @@ static void fetch_recipe_detail_task(void *arg)
                 lv_label_set_text(lbl, ing.c_str());
                 lv_label_set_long_mode(lbl, LV_LABEL_LONG_WRAP);
                 lv_obj_set_flex_grow(lbl, 1);
-                lv_obj_set_style_text_font(lbl, &lv_font_montserrat_20, 0);
+                lv_obj_set_style_text_font(lbl, &ui_font_ext_font_montserrat_18, 0);
                 lv_obj_set_style_text_color(lbl, lv_color_hex(0x212529), 0);
 
                 // Make row clickable to toggle checkbox
@@ -1052,7 +1056,7 @@ static void fetch_recipe_detail_task(void *arg)
                 lv_label_set_text(text_lbl, step.c_str());
                 lv_label_set_long_mode(text_lbl, LV_LABEL_LONG_WRAP);
                 lv_obj_set_flex_grow(text_lbl, 1);
-                lv_obj_set_style_text_font(text_lbl, &lv_font_montserrat_18, 0); // Increased from 16 to 18
+                lv_obj_set_style_text_font(text_lbl, &ui_font_ext_font_montserrat_18, 0); // Increased from 16 to 18
                 lv_obj_set_style_text_color(text_lbl, lv_color_hex(0x212529), 0);
             }
         }
@@ -1264,7 +1268,7 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
     lv_obj_clear_flag(ing_cont, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_flex_flow(ing_cont, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_all(ing_cont, 12, 0);
-    lv_obj_set_style_pad_row(ing_cont, 8, 0); // Reduced row padding for checkboxes
+    lv_obj_set_style_pad_row(ing_cont, 16, 0); // Increased row padding for better spacing
     lv_obj_set_style_bg_color(ing_cont, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_bg_opa(ing_cont, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(ing_cont, 1, 0);
@@ -1351,7 +1355,7 @@ void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &rec
     lv_obj_set_style_bg_color(root, lv_color_hex(0xF8F9FA), 0);
     lv_obj_set_style_pad_all(root, 15, 0);
     lv_obj_set_flex_flow(root, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_row(root, 12, 0);
+    lv_obj_set_style_pad_row(root, 16, 0);
 
     std::vector<ThumbContext *> pending_thumbs;
 
@@ -1365,12 +1369,12 @@ void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &rec
         lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_set_flex_flow(card, LV_FLEX_FLOW_ROW);
         lv_obj_set_flex_align(card, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-        lv_obj_set_style_pad_all(card, 12, 0);
+        lv_obj_set_style_pad_all(card, 16, 0);
         lv_obj_set_style_pad_column(card, 12, 0);
 
         // === THUMBNAIL PLACEHOLDER ===
         lv_obj_t *thumb = lv_image_create(card);
-        lv_obj_set_size(thumb, 90, 90);
+        lv_obj_set_size(thumb, 112, 112);
         lv_obj_set_style_bg_color(thumb, lv_color_hex(0xDEE2E6), 0); // grey until loaded
         lv_obj_set_style_bg_opa(thumb, LV_OPA_COVER, 0);
         lv_obj_set_style_radius(thumb, 8, 0);
@@ -1401,7 +1405,7 @@ void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &rec
         lv_obj_set_style_pad_all(info, 0, 0);
         lv_obj_set_style_border_width(info, 0, 0);
         lv_obj_set_style_bg_opa(info, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_pad_row(info, 4, 0);
+        lv_obj_set_style_pad_row(info, 8, 0);
 
         // Title
         lv_obj_t *title = lv_label_create(info);
@@ -1409,17 +1413,25 @@ void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &rec
         lv_label_set_long_mode(title, LV_LABEL_LONG_WRAP);
         lv_obj_set_width(title, lv_pct(100));
         lv_obj_set_style_text_color(title, lv_color_hex(0x212529), 0);
-        lv_obj_set_style_text_font(title, &lv_font_montserrat_20, 0);
+        lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
 
         // Description
         if (!r.description.empty())
         {
+            std::string cleaned = r.description;
+            // Remove <p> and </p> tags
+            size_t pos = 0;
+            while ((pos = cleaned.find("<p>", pos)) != std::string::npos)
+                cleaned.erase(pos, 3);
+            pos = 0;
+            while ((pos = cleaned.find("</p>", pos)) != std::string::npos)
+                cleaned.erase(pos, 4);
             lv_obj_t *desc = lv_label_create(info);
-            lv_label_set_text(desc, r.description.c_str());
+            lv_label_set_text(desc, cleaned.c_str());
             lv_label_set_long_mode(desc, LV_LABEL_LONG_WRAP);
             lv_obj_set_width(desc, lv_pct(100));
             lv_obj_set_style_text_color(desc, lv_color_hex(0x6C757D), 0);
-            lv_obj_set_style_text_font(desc, &lv_font_montserrat_14, 0);
+            lv_obj_set_style_text_font(desc, &ui_font_ext_font_montserrat_18, 0);
         }
 
         // === BADGES ROW (time + difficulty) ===
