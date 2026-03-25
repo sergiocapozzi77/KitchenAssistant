@@ -64,8 +64,6 @@ void action_screen_loading(lv_event_t *e)
     lv_obj_add_event_cb(objects.tabview, tabview_tab_changed_cb, LV_EVENT_VALUE_CHANGED, nullptr);
 }
 
-void fetchRecipesTask(void *param);
-
 void action_generate_recipe_click(lv_event_t *e)
 {
     ESP_LOGI("actions", "Generate Recipe button clicked");
@@ -76,9 +74,13 @@ void action_generate_recipe_click(lv_event_t *e)
     lv_unlock();
 
     // Somewhere in initTasks() or after WiFi connects:
-    // xTaskCreate(fetchRecipesTask, "FetchRecipes", 16384, nullptr, 5, nullptr);
     recipeSuggestionsManager.reset();
     recipeSuggestionsManager.loadCurrentPage();
+}
+
+void action_snack_bar_hide_clicked(lv_event_t *e)
+{
+    lv_obj_add_flag(objects.snackbar, LV_OBJ_FLAG_HIDDEN);
 }
 
 void action_recipe_suggestion_next(lv_event_t *e)
@@ -89,4 +91,9 @@ void action_recipe_suggestion_next(lv_event_t *e)
 void action_recipe_suggestion_prev(lv_event_t *e)
 {
     recipeSuggestionsManager.loadPrevPage();
+}
+
+void action_products_reload_click(lv_event_t *e)
+{
+    productsManager.fetchProducts();
 }

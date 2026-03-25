@@ -9,14 +9,11 @@
 class Application
 {
 private:
-    TaskHandle_t fetchTaskHandle;
     // Initialization steps
     void initNVS();
     void initHardware();
     void initQueues();
     void initTasks();
-
-    static void fetchProductsTask(void *param);
     void mainLoop();
 
 public:

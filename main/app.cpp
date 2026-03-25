@@ -63,8 +63,7 @@ void Application::initTasks()
     //     &product_cache);
     // ESP_ERROR_CHECK(product_fetcher->start());
 
-    // Task to fetch products expiring today or tomorrow
-    xTaskCreate(Application::fetchProductsTask, "FetchProducts", 8096, this, 5, &fetchTaskHandle);
+    productsManager.fetchProducts();
 
     // ESP_LOGI(TAG, "Tasks started");
 }
@@ -126,41 +125,4 @@ void Application::run()
     initTasks();
 
     mainLoop();
-}
-
-// Task to fetch products expiring today or tomorrow
-void Application::fetchProductsTask(void *param)
-{
-    Application *self = (Application *)param;
-    while (!wifiManager.isConnected())
-    {
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
-
-    while (!wifiManager.isSntpSynced())
-        vTaskDelay(pdMS_TO_TICKS(500));
-
-    ESP_LOGI(TAG, "WiFi connected. Fetching products...");
-
-    // Fetch products
-    int out;
-    auto products = productService.getProductsRetry({}, out);
-    if (products.empty())
-    {
-        ESP_LOGI(TAG, "No products found");
-        //  LVGLManager::updateStatusLabel("No products expiring soon");
-        self->fetchTaskHandle = NULL;
-        vTaskDelete(NULL);
-        return;
-    }
-    else
-    {
-        ESP_LOGI(TAG, "Fetched %d products", products.size());
-        productsManager.addProducts(products);
-        // LVGLManager::updateStatusLabel("Fetched " + std::to_string(products.size()) + " expiring products");
-        populateProductList(objects.products_list, productsManager.getAllProducts());
-    }
-
-    self->fetchTaskHandle = NULL;
-    vTaskDelete(NULL);
 }

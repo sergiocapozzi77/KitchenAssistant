@@ -1,6 +1,14 @@
+
 #include "ProductsManager.h"
+#include "freertos/FreeRTOS.h" // MUST be first FreeRTOS header
+#include "freertos/task.h"
+#include "freertos/queue.h"
 #include "esp_log.h"
 #include <algorithm>
+#include "ui_extensions.h"
+#include "WiFiManager.h"
+#include "ProductService.h"
+#include "ui.h"
 
 static const char *TAG = "ProductsManager";
 
@@ -57,4 +65,46 @@ std::vector<Product> ProductsManager::getSelectedProducts() const
     // Returning a copy ensures the UI task has a stable "snapshot"
     // even if the WiFi task starts a new sync mid-scroll.
     return _selectedProducts;
+}
+
+void ProductsManager::fetchProducts()
+{
+    // Task to fetch products expiring today or tomorrow
+    xTaskCreate(ProductsManager::fetchProductsTask, "FetchProducts", 8096, this, 5, NULL);
+}
+
+// Task to fetch products expiring today or tomorrow
+void ProductsManager::fetchProductsTask(void *param)
+{
+    showSpinner();
+    while (!wifiManager.isConnected())
+    {
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+
+    while (!wifiManager.isSntpSynced())
+        vTaskDelay(pdMS_TO_TICKS(500));
+
+    ESP_LOGI(TAG, "WiFi connected. Fetching products...");
+
+    // Fetch products
+    int out;
+    auto products = productService.getProductsRetry({}, out);
+    hideSpinner();
+    if (products.empty())
+    {
+        ESP_LOGI(TAG, "No products found");
+        //  LVGLManager::updateStatusLabel("No products expiring soon");
+        vTaskDelete(NULL);
+        return;
+    }
+    else
+    {
+        ESP_LOGI(TAG, "Fetched %d products", products.size());
+        productsManager.addProducts(products);
+        // LVGLManager::updateStatusLabel("Fetched " + std::to_string(products.size()) + " expiring products");
+        populateProductList(objects.products_list, productsManager.getAllProducts());
+    }
+
+    vTaskDelete(NULL);
 }

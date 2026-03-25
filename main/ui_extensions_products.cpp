@@ -79,10 +79,13 @@ static void qty_minus_cb(lv_event_t *e)
         ESP_LOGI(TAG, "Auto-delete product: %s", ctx->rowId.c_str());
         // Call service to delete product
         bool success = productService.deleteProduct(ctx->rowId);
-        if (success) {
+        if (success)
+        {
             ESP_LOGI(TAG, "Product deleted successfully");
             showSnackbar("Product deleted", 5000);
-        } else {
+        }
+        else
+        {
             ESP_LOGE(TAG, "Failed to delete product");
             showSnackbar("Failed to delete product", 5000);
             // Still delete UI row; product will reappear on next sync if deletion failed
@@ -132,10 +135,13 @@ static void delete_btn_cb(lv_event_t *e)
     ESP_LOGI(TAG, "Delete product: %s", rowId->c_str());
     // Call service to delete product
     bool success = productService.deleteProduct(*rowId);
-    if (success) {
+    if (success)
+    {
         ESP_LOGI(TAG, "Product deleted successfully");
         showSnackbar("Product deleted", 5000);
-    } else {
+    }
+    else
+    {
         ESP_LOGE(TAG, "Failed to delete product");
         showSnackbar("Failed to delete product", 5000);
         // Still delete UI row; product will reappear on next sync if deletion failed
@@ -286,6 +292,8 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
             lv_obj_t *arrow = lv_label_create(header);
             lv_label_set_text(arrow, LV_SYMBOL_DOWN);
             lv_obj_set_style_text_color(arrow, lv_color_hex(0xADB5BD), 0);
+            lv_obj_set_style_translate_y(title, 5, 0);
+            lv_obj_set_style_translate_y(arrow, 5, 0);
 
             content = lv_obj_create(card);
             lv_obj_set_width(content, lv_pct(100));
@@ -318,7 +326,7 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
         lv_obj_set_style_pad_right(checkbox, 8, 0);
         lv_obj_add_style(checkbox, &style_checkbox_indicator, LV_PART_INDICATOR);
         lv_obj_add_style(checkbox, &style_checkbox_indicator, 0);
-
+        lv_obj_set_style_translate_y(checkbox, 5, 0);
         // Attach product data to checkbox for selection tracking
         CheckboxContext *checkbox_ctx = new CheckboxContext{*p};
         lv_obj_add_event_cb(checkbox, checkbox_changed_cb, LV_EVENT_VALUE_CHANGED, checkbox_ctx);
@@ -333,6 +341,7 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
         lv_obj_set_flex_grow(name, 1);
         lv_obj_set_style_text_color(name, lv_color_hex(0x495057), 0);
         lv_obj_set_style_text_font(name, &ui_font_ext_font_montserrat_18, 0);
+        lv_obj_set_style_translate_y(name, 5, 0);
 
         // Expiry badge
         int days = days_until_expiry(p->expiry);
@@ -354,6 +363,7 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
 
             lv_label_set_text(expiry, buf);
             lv_obj_set_style_bg_color(expiry, get_expiry_color(days), 0);
+            lv_obj_set_style_translate_y(expiry, 5, 0);
         }
 
         // Quantity Selector Container (commented out in original)
@@ -399,22 +409,24 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
         // Edit Button
         lv_obj_t *btn_edit = lv_btn_create(row);
         lv_obj_add_style(btn_edit, &style_del_btn, 0);
-        lv_obj_set_size(btn_edit, 56, 56);
+        lv_obj_set_size(btn_edit, 50, 50);
 
         lv_obj_t *lbl_edit = lv_label_create(btn_edit);
         lv_label_set_text(lbl_edit, LV_SYMBOL_EDIT);
         lv_obj_set_style_text_color(lbl_edit, lv_color_hex(theme_colors[active_theme_index][0]), 0);
         lv_obj_center(lbl_edit);
+        lv_obj_set_style_translate_y(btn_edit, 5, 0);
 
         // Delete Button
         lv_obj_t *btn_del = lv_btn_create(row);
         lv_obj_add_style(btn_del, &style_del_btn, 0);
-        lv_obj_set_size(btn_del, 56, 56);
+        lv_obj_set_size(btn_del, 50, 50);
 
         lv_obj_t *lbl_del = lv_label_create(btn_del);
         lv_label_set_text(lbl_del, LV_SYMBOL_TRASH);
         lv_obj_set_style_text_color(lbl_del, lv_color_hex(0xE74C3C), 0);
         lv_obj_center(lbl_del);
+        lv_obj_set_style_translate_y(btn_del, 5, 0);
 
         std::string *rowId = new std::string(p->rowId);
         lv_obj_add_event_cb(btn_del, delete_btn_cb, LV_EVENT_CLICKED, rowId);

@@ -20,7 +20,11 @@ public:
     int getSelectedCount() const;
     std::vector<Product> getSelectedProducts() const;
 
+    void fetchProducts();
+
 private:
+    static void fetchProductsTask(void *param);
+
     std::vector<Product> _allProducts;
     std::vector<Product> _selectedProducts;
     // ProductsManager.h
