@@ -81,8 +81,10 @@ static void qty_minus_cb(lv_event_t *e)
         bool success = productService.deleteProduct(ctx->rowId);
         if (success) {
             ESP_LOGI(TAG, "Product deleted successfully");
+            showSnackbar("Product deleted", 5000);
         } else {
             ESP_LOGE(TAG, "Failed to delete product");
+            showSnackbar("Failed to delete product", 5000);
             // Still delete UI row; product will reappear on next sync if deletion failed
         }
 
@@ -132,8 +134,10 @@ static void delete_btn_cb(lv_event_t *e)
     bool success = productService.deleteProduct(*rowId);
     if (success) {
         ESP_LOGI(TAG, "Product deleted successfully");
+        showSnackbar("Product deleted", 5000);
     } else {
         ESP_LOGE(TAG, "Failed to delete product");
+        showSnackbar("Failed to delete product", 5000);
         // Still delete UI row; product will reappear on next sync if deletion failed
     }
 

@@ -14,6 +14,8 @@
 #include "ui.h"
 #include "fonts.h"
 #include "models.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/timers.h"
 
 static const char *TAG = "UIEXTENSIONS";
 
@@ -29,6 +31,7 @@ lv_style_t style_del_btn;
 lv_style_t style_expiry_badge;
 lv_style_t style_checkbox_indicator;
 bool styles_initialized = false;
+static TimerHandle_t snackbar_timer = nullptr;
 
 // === REUSABLE STYLES (created once, applied many times) ===
 void init_styles()
@@ -345,6 +348,34 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
     *out_dsc = dsc;
     *out_px = px;
     return true;
+}
+
+static void snackbar_timer_callback(TimerHandle_t xTimer) {
+    lv_lock();
+    lv_obj_add_flag(objects.snackbar, LV_OBJ_FLAG_HIDDEN);
+    lv_unlock();
+}
+
+void showSnackbar(const char* message, int duration_ms) {
+    // Stop existing timer if any
+    if (snackbar_timer != nullptr) {
+        xTimerStop(snackbar_timer, 0);
+        xTimerDelete(snackbar_timer, 0);
+        snackbar_timer = nullptr;
+    }
+
+    lv_lock();
+    lv_label_set_text(objects.snackbar_text, message);
+    lv_obj_clear_flag(objects.snackbar, LV_OBJ_FLAG_HIDDEN);
+    lv_unlock();
+
+    // Create a one-shot timer to hide snackbar after duration_ms
+    snackbar_timer = xTimerCreate("snackbar", pdMS_TO_TICKS(duration_ms), pdFALSE, nullptr, snackbar_timer_callback);
+    if (snackbar_timer != nullptr) {
+        xTimerStart(snackbar_timer, 0);
+    } else {
+        ESP_LOGE(TAG, "Failed to create snackbar timer");
+    }
 }
 
 void thumb_worker_task(void *arg)

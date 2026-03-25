@@ -146,6 +146,15 @@
       "componentGroups": [],
       "userProperties": [],
       "name": "RecipeSuggestionPrev"
+    },
+    {
+      "objID": "40e683e2-0ad2-4342-986b-4d00baf885d1",
+      "components": [],
+      "connectionLines": [],
+      "localVariables": [],
+      "componentGroups": [],
+      "userProperties": [],
+      "name": "SnackBarHideClicked"
     }
   ],
   "userPages": [
@@ -1465,7 +1474,15 @@
                     "childStyles": []
                   },
                   "timeline": [],
-                  "eventHandlers": [],
+                  "eventHandlers": [
+                    {
+                      "objID": "737e2e63-0ff0-450f-d4bc-cf9ead2e8f3c",
+                      "eventName": "CLICKED",
+                      "handlerType": "action",
+                      "action": "SnackBarHideClicked",
+                      "userData": 0
+                    }
+                  ],
                   "leftUnit": "px",
                   "topUnit": "px",
                   "widthUnit": "px",
@@ -1603,9 +1620,9 @@
                   "objID": "0ba43263-826c-4695-8750-432df07c2e6c",
                   "type": "LVGLLabelWidget",
                   "left": 0,
-                  "top": 9,
-                  "width": 38,
-                  "height": 38,
+                  "top": 13,
+                  "width": 29,
+                  "height": 29,
                   "customInputs": [],
                   "customOutputs": [],
                   "style": {
@@ -1637,7 +1654,7 @@
                       "MAIN": {
                         "DEFAULT": {
                           "text_color": "#ffffff",
-                          "text_font": "MONTSERRAT_34"
+                          "text_font": "MONTSERRAT_26"
                         }
                       }
                     }
@@ -1650,7 +1667,7 @@
                   "recolor": false
                 }
               ],
-              "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+              "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
               "hiddenFlag": false,
               "hiddenFlagType": "literal",
               "clickableFlag": true,
