@@ -22,6 +22,5 @@
       "Bash(g++ --version)",
       "Bash(*export.sh* && idf.py build *)"
     ]
-  },
-  "max_tokens": "102400"
+  }
 }

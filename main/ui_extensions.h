@@ -8,3 +8,4 @@
 void populateProductList(lv_obj_t *root, const std::vector<Product> &products);
 void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &recipes);
 void showRecipeDetailScreen(const RecipeSuggestion &recipe);
+extern uint32_t s_thumb_generation;

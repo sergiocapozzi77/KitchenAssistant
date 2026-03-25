@@ -31,6 +31,26 @@ void set_tab_icon(lv_obj_t *tabview, uint32_t index, const void *img_src)
     lv_obj_center(img);
 }
 
+static void tabview_tab_changed_cb(lv_event_t *e)
+{
+    lv_obj_t *tabview = (lv_obj_t *)lv_event_get_target(e);
+    uint32_t tab = lv_tabview_get_tab_active(tabview);
+
+    if (tab == 0)
+    {
+        // Switching TO Products tab — destroy recipe widgets to free PSRAM thumbnails
+        // Cancel any in-flight thumbnail fetches first
+        s_thumb_generation++; // defined extern in ui_extensions.h
+        lv_obj_clean(objects.recipes_list);
+    }
+    else if (tab == 1)
+    {
+        // Switching TO Recipes tab — rebuild from cached data (no network call)
+        if (recipeSuggestionsManager.getSuggestionSize() > 0)
+            recipeSuggestionsManager.showCurrentPageRecipes();
+    }
+}
+
 void action_screen_loading(lv_event_t *e)
 {
     // This function can be used to perform actions when the loading screen is shown
@@ -40,6 +60,7 @@ void action_screen_loading(lv_event_t *e)
 
     lv_obj_add_flag(objects.create_recipe_pnl, LV_OBJ_FLAG_HIDDEN);
     create_filter_panel(objects.filters_container);
+    lv_obj_add_event_cb(objects.tabview, tabview_tab_changed_cb, LV_EVENT_VALUE_CHANGED, nullptr);
 }
 
 void fetchRecipesTask(void *param);
