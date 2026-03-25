@@ -228,6 +228,111 @@ static void update_selection_ui()
     ESP_LOGI(TAG, "Selection updated: %d products selected", selected_count);
 }
 
+static lv_obj_t *modal_overlay = nullptr;
+
+void close_product_edit_modal()
+{
+    if (!modal_overlay || !lv_obj_is_valid(modal_overlay))
+        return;
+
+    lv_obj_del(modal_overlay);
+    modal_overlay = nullptr;
+}
+
+static void overlay_click_cb(lv_event_t *e)
+{
+    close_product_edit_modal();
+}
+
+void show_product_edit_modal(int widgetIndex = 0)
+{
+    if (modal_overlay && lv_obj_is_valid(modal_overlay))
+        return;
+
+    // === OVERLAY ===
+    modal_overlay = lv_obj_create(lv_scr_act());
+    lv_obj_set_size(modal_overlay, LV_PCT(100), LV_PCT(100));
+    lv_obj_clear_flag(modal_overlay, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_border_width(modal_overlay, 0, 0);
+    lv_obj_set_style_radius(modal_overlay, 0, 0);
+    // Fake blur (dim background)
+    lv_obj_set_style_bg_color(modal_overlay, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(modal_overlay, LV_OPA_30, 0);
+    lv_obj_add_event_cb(modal_overlay, overlay_click_cb, LV_EVENT_CLICKED, NULL);
+    // === CREATE YOUR WIDGET INSIDE OVERLAY ===
+    create_user_widget_product_edit(modal_overlay, widgetIndex);
+
+    // Grab the modal content: last child of overlay
+    lv_obj_t *modal = lv_obj_get_child(modal_overlay, lv_obj_get_child_cnt(modal_overlay) - 1);
+    ESP_LOGI("MODAL", "child count: %d, modal ptr: %p, size: %dx%d",
+             lv_obj_get_child_cnt(modal_overlay),
+             modal,
+             modal ? lv_obj_get_width(modal) : -1,
+             modal ? lv_obj_get_height(modal) : -1);
+    if (!modal || !lv_obj_is_valid(modal))
+    {
+        ESP_LOGE("MODAL", "Failed to find product_edit widget");
+        return;
+    }
+
+    if (!modal || !lv_obj_is_valid(modal))
+    {
+        ESP_LOGE("MODAL", "product_edit widget not created");
+        return;
+    }
+
+    // === SIZE + CENTER ===
+    lv_obj_set_size(modal, 700, 800);
+    lv_obj_center(modal);
+
+    // === MODAL STYLE ===
+    lv_obj_set_style_radius(modal, 12, 0);
+    lv_obj_set_style_bg_color(modal, lv_color_white(), 0);
+    lv_obj_set_style_shadow_width(modal, 20, 0);
+    lv_obj_set_style_shadow_opa(modal, LV_OPA_20, 0);
+
+    lv_obj_add_flag(modal, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_clear_flag(modal, LV_OBJ_FLAG_EVENT_BUBBLE);
+
+    // =========================
+    // ✨ OPEN ANIMATION
+    // =========================
+
+    // Start invisible + slightly smaller
+    // lv_obj_set_style_opa(modal, LV_OPA_0, 0);
+    // lv_obj_set_style_transform_zoom(modal, 240, 0);
+
+    // Fade in
+    lv_anim_t a1;
+    lv_anim_init(&a1);
+    lv_anim_set_var(&a1, modal);
+    lv_anim_set_values(&a1, LV_OPA_0, LV_OPA_COVER);
+    lv_anim_set_time(&a1, 200);
+    lv_anim_set_exec_cb(&a1, (lv_anim_exec_xcb_t)lv_obj_set_style_opa);
+    // lv_anim_start(&a1);
+
+    // Zoom in
+    lv_anim_t a2;
+    lv_anim_init(&a2);
+    lv_anim_set_var(&a2, modal);
+    lv_anim_set_values(&a2, 240, 256);
+    lv_anim_set_time(&a2, 200);
+    lv_anim_set_exec_cb(&a2, (lv_anim_exec_xcb_t)lv_obj_set_style_transform_zoom);
+    // lv_anim_start(&a2);
+}
+
+static void edit_btn_cb(lv_event_t *e)
+{
+    std::string *rowId = static_cast<std::string *>(lv_event_get_user_data(e));
+    if (!rowId)
+        return;
+
+    // Show modal overlay (we'll create it below)
+    show_product_edit_modal();
+
+    // TODO: load product data into objects.product_edit using rowId
+}
+
 // === MAIN POPULATE FUNCTION ===
 
 void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
@@ -416,6 +521,11 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
         lv_obj_set_style_text_color(lbl_edit, lv_color_hex(theme_colors[active_theme_index][0]), 0);
         lv_obj_center(lbl_edit);
         lv_obj_set_style_translate_y(btn_edit, 5, 0);
+
+        // Pass rowId
+        std::string *edit_id = new std::string(p->rowId);
+        lv_obj_add_event_cb(btn_edit, edit_btn_cb, LV_EVENT_CLICKED, edit_id);
+        lv_obj_add_event_cb(btn_edit, free_rowid_cb, LV_EVENT_DELETE, edit_id);
 
         // Delete Button
         lv_obj_t *btn_del = lv_btn_create(row);

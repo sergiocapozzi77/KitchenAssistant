@@ -439,31 +439,26 @@ void create_screen_main() {
 void tick_screen_main() {
 }
 
-void create_screen_product_edit() {
-    lv_obj_t *obj = lv_obj_create(0);
-    objects.product_edit = obj;
-    lv_obj_set_pos(obj, 0, 0);
-    lv_obj_set_size(obj, 700, 800);
+void create_user_widget_product_edit(lv_obj_t *parent_obj, int startWidgetIndex) {
+    (void)startWidgetIndex;
+    lv_obj_t *obj = parent_obj;
     {
         lv_obj_t *parent_obj = obj;
         {
-            lv_obj_t *obj = lv_label_create(parent_obj);
-            lv_obj_set_pos(obj, 289, 232);
-            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-            lv_label_set_text(obj, "Text");
+            lv_obj_t *obj = lv_obj_create(parent_obj);
+            lv_obj_set_pos(obj, 0, 0);
+            lv_obj_set_size(obj, LV_PCT(100), LV_PCT(100));
         }
     }
-    
-    tick_screen_product_edit();
 }
 
-void tick_screen_product_edit() {
+void tick_user_widget_product_edit(int startWidgetIndex) {
+    (void)startWidgetIndex;
 }
 
 typedef void (*tick_screen_func_t)();
 tick_screen_func_t tick_screen_funcs[] = {
     tick_screen_main,
-    tick_screen_product_edit,
 };
 void tick_screen(int screen_index) {
     tick_screen_funcs[screen_index]();
@@ -558,7 +553,6 @@ void change_color_theme(uint32_t theme_index) {
     lv_style_set_bg_color(get_style_main_button_MAIN_DEFAULT(), lv_color_hex(theme_colors[theme_index][0]));
     lv_style_set_bg_grad_color(get_style_main_button_MAIN_DEFAULT(), lv_color_hex(theme_colors[theme_index][1]));
     lv_obj_invalidate(objects.main);
-    lv_obj_invalidate(objects.product_edit);
 }
 uint32_t theme_colors[1][3] = {
     { 0xff007aff, 0xff0159b7, 0xffb5b5b5 },
@@ -578,5 +572,4 @@ void create_screens() {
     // Initialize screens
     // Create screens
     create_screen_main();
-    create_screen_product_edit();
 }
