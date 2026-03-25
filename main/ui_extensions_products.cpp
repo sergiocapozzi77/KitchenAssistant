@@ -127,11 +127,7 @@ static void delete_btn_cb(lv_event_t *e)
     if (!btn)
         return;
 
-    lv_obj_t *qty_cont = lv_obj_get_parent(btn);
-    if (!qty_cont)
-        return;
-
-    lv_obj_t *row = lv_obj_get_parent(qty_cont);
+    lv_obj_t *row = lv_obj_get_parent(btn);
     if (!row)
         return;
 
@@ -385,7 +381,7 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
         // Edit Button
         lv_obj_t *btn_edit = lv_btn_create(row);
         lv_obj_add_style(btn_edit, &style_del_btn, 0);
-        lv_obj_set_size(btn_edit, 36, 36);
+        lv_obj_set_size(btn_edit, 56, 56);
 
         lv_obj_t *lbl_edit = lv_label_create(btn_edit);
         lv_label_set_text(lbl_edit, LV_SYMBOL_EDIT);
@@ -395,7 +391,7 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
         // Delete Button
         lv_obj_t *btn_del = lv_btn_create(row);
         lv_obj_add_style(btn_del, &style_del_btn, 0);
-        lv_obj_set_size(btn_del, 36, 36);
+        lv_obj_set_size(btn_del, 56, 56);
 
         lv_obj_t *lbl_del = lv_label_create(btn_del);
         lv_label_set_text(lbl_del, LV_SYMBOL_TRASH);

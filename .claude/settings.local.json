@@ -1,5 +1,4 @@
 {
-  "max_tokens": 102400,
   "permissions": {
     "allow": [
       "Bash(grep -E \"\\\\.\\(c|cpp\\)$\")",
@@ -13,7 +12,8 @@
       "Bash(grep -r typedef.*lv_point_t C:UserssergisourcereposKitchenAssistantmanaged_componentslvgl__lvgl)",
       "Bash(grep -r typedef.*lv_value_precise_t C:UserssergisourcereposKitchenAssistantmanaged_componentslvgl__lvgl)",
       "Bash(grep -r typedef.*lv_coord_t C:UserssergisourcereposKitchenAssistantmanaged_componentslvgl__lvgl)",
-      "Bash(find /c/Users/sergi/source/repos/KitchenAssistant/managed_components -type f -name *font* -o -name *Font*)"
+      "Bash(find /c/Users/sergi/source/repos/KitchenAssistant/managed_components -type f -name *font* -o -name *Font*)",
+      "Skill(update-config)"
     ],
     "deny": [
       "Bash(idf.py build *)",
@@ -22,5 +22,6 @@
       "Bash(g++ --version)",
       "Bash(*export.sh* && idf.py build *)"
     ]
-  }
+  },
+  "max_tokens": "102400"
 }
