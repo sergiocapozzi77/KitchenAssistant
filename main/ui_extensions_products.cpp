@@ -77,7 +77,14 @@ static void qty_minus_cb(lv_event_t *e)
     if (ctx->quantity <= 0)
     {
         ESP_LOGI(TAG, "Auto-delete product: %s", ctx->rowId.c_str());
-        // TODO: call your service to delete product with ctx->rowId
+        // Call service to delete product
+        bool success = productService.deleteProduct(ctx->rowId);
+        if (success) {
+            ESP_LOGI(TAG, "Product deleted successfully");
+        } else {
+            ESP_LOGE(TAG, "Failed to delete product");
+            // Still delete UI row; product will reappear on next sync if deletion failed
+        }
 
         // Deferred deletion to avoid re-entrancy issues
         if (ctx->row)
@@ -121,7 +128,14 @@ static void delete_btn_cb(lv_event_t *e)
         return;
 
     ESP_LOGI(TAG, "Delete product: %s", rowId->c_str());
-    // TODO: call your service to delete product
+    // Call service to delete product
+    bool success = productService.deleteProduct(*rowId);
+    if (success) {
+        ESP_LOGI(TAG, "Product deleted successfully");
+    } else {
+        ESP_LOGE(TAG, "Failed to delete product");
+        // Still delete UI row; product will reappear on next sync if deletion failed
+    }
 
     lv_obj_t *btn = static_cast<lv_obj_t *>(lv_event_get_target(e));
     if (!btn)

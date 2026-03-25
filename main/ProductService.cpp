@@ -578,16 +578,17 @@ bool ProductService::updateProduct(Product &product)
     return true;
 }
 
-bool ProductService::deleteProduct(Product &product)
+bool ProductService::deleteProduct(std::string &rowId)
 {
     std::string url = Endpoint + "/tablesdb/" + DatabaseId +
-                      "/tables/" + CollectionId + "/rows/" + product.rowId;
+                      "/tables/" + CollectionId + "/rows/" + rowId;
 
     int status = httpDelete(url);
     bool success = (status == 200 || status == 204);
 
     if (success)
     {
+        ESP_LOGI(TAG, "Product %s deleted", rowId.c_str());
         //  LVGLManager::updateStatusLabel("Product deleted");
         // LVGLManager::showProductSnackbar(product.name, product.category, ProductAction::Deleted);
     }

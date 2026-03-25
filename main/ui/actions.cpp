@@ -59,6 +59,7 @@ void action_screen_loading(lv_event_t *e)
     set_tab_icon(objects.tabview, 1, &img_chef);
 
     lv_obj_add_flag(objects.create_recipe_pnl, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(objects.snackbar, LV_OBJ_FLAG_HIDDEN);
     create_filter_panel(objects.filters_container);
     lv_obj_add_event_cb(objects.tabview, tabview_tab_changed_cb, LV_EVENT_VALUE_CHANGED, nullptr);
 }
