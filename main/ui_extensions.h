@@ -12,3 +12,4 @@ void showSnackbar(const char *message, int duration_ms);
 extern uint32_t s_thumb_generation;
 void showSpinner();
 void hideSpinner();
+void close_product_edit_modal();

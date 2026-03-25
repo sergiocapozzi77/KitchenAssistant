@@ -7,6 +7,8 @@
 extern "C" {
 #endif
 
+extern void action_product_edit_close(lv_event_t * e);
+extern void action_product_edit_save(lv_event_t * e);
 extern void action_screen_loading(lv_event_t * e);
 extern void action_generate_recipe_click(lv_event_t * e);
 extern void action_recipe_suggestion_next(lv_event_t * e);

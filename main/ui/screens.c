@@ -104,8 +104,8 @@ void create_screen_main() {
                                             // products_reload_btn
                                             lv_obj_t *obj = lv_button_create(parent_obj);
                                             objects.products_reload_btn = obj;
-                                            lv_obj_set_pos(obj, -7, -7);
-                                            lv_obj_set_size(obj, 65, 50);
+                                            lv_obj_set_pos(obj, 10, -9);
+                                            lv_obj_set_size(obj, 71, 55);
                                             lv_obj_add_event_cb(obj, action_products_reload_click, LV_EVENT_CLICKED, (void *)0);
                                             add_style_main_button(obj);
                                             {
@@ -445,9 +445,158 @@ void create_user_widget_product_edit(lv_obj_t *parent_obj, int startWidgetIndex)
     {
         lv_obj_t *parent_obj = obj;
         {
+            // product_edit_panel
             lv_obj_t *obj = lv_obj_create(parent_obj);
+            ((lv_obj_t **)&objects)[startWidgetIndex + 0] = obj;
             lv_obj_set_pos(obj, 0, 0);
             lv_obj_set_size(obj, LV_PCT(100), LV_PCT(100));
+            lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+            {
+                lv_obj_t *parent_obj = obj;
+                {
+                    // product_edit_close_btn
+                    lv_obj_t *obj = lv_button_create(parent_obj);
+                    ((lv_obj_t **)&objects)[startWidgetIndex + 1] = obj;
+                    lv_obj_set_pos(obj, 598, -5);
+                    lv_obj_set_size(obj, 60, 60);
+                    lv_obj_add_event_cb(obj, action_product_edit_close, LV_EVENT_CLICKED, (void *)0);
+                    add_style_main_button(obj);
+                    {
+                        lv_obj_t *parent_obj = obj;
+                        {
+                            lv_obj_t *obj = lv_label_create(parent_obj);
+                            lv_obj_set_pos(obj, 0, 0);
+                            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                            lv_label_set_long_mode(obj, LV_LABEL_LONG_CLIP);
+                            lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+                            lv_obj_set_style_text_font(obj, &lv_font_montserrat_26, LV_PART_MAIN | LV_STATE_DEFAULT);
+                            lv_label_set_text(obj, "\uF00D");
+                        }
+                    }
+                }
+                {
+                    // product_edit_title_lbl
+                    lv_obj_t *obj = lv_label_create(parent_obj);
+                    ((lv_obj_t **)&objects)[startWidgetIndex + 2] = obj;
+                    lv_obj_set_pos(obj, 20, 25);
+                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                    lv_label_set_long_mode(obj, LV_LABEL_LONG_CLIP);
+                    lv_obj_set_style_text_font(obj, &lv_font_montserrat_26, LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_obj_set_style_text_color(obj, lv_color_hex(0xff495057), LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_label_set_text(obj, "Edit Product");
+                }
+                {
+                    lv_obj_t *obj = lv_label_create(parent_obj);
+                    ((lv_obj_t **)&objects)[startWidgetIndex + 3] = obj;
+                    lv_obj_set_pos(obj, 20, 100);
+                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                    lv_label_set_long_mode(obj, LV_LABEL_LONG_CLIP);
+                    lv_obj_set_style_text_font(obj, &lv_font_montserrat_20, LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_obj_set_style_text_color(obj, lv_color_hex(0xff495057), LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_label_set_text(obj, "Product Name");
+                }
+                {
+                    // product_edit_name_ta
+                    lv_obj_t *obj = lv_textarea_create(parent_obj);
+                    ((lv_obj_t **)&objects)[startWidgetIndex + 4] = obj;
+                    lv_obj_set_pos(obj, 20, 135);
+                    lv_obj_set_size(obj, 627, 42);
+                    lv_textarea_set_max_length(obj, 128);
+                    lv_textarea_set_placeholder_text(obj, "Enter product name...");
+                    lv_textarea_set_one_line(obj, true);
+                    lv_textarea_set_password_mode(obj, false);
+                    lv_obj_add_flag(obj, LV_OBJ_FLAG_SCROLL_WITH_ARROW);
+                    lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLL_ON_FOCUS);
+                    lv_obj_set_style_text_font(obj, &lv_font_montserrat_20, LV_PART_MAIN | LV_STATE_DEFAULT);
+                }
+                {
+                    lv_obj_t *obj = lv_label_create(parent_obj);
+                    ((lv_obj_t **)&objects)[startWidgetIndex + 5] = obj;
+                    lv_obj_set_pos(obj, 20, 230);
+                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                    lv_label_set_long_mode(obj, LV_LABEL_LONG_CLIP);
+                    lv_obj_set_style_text_font(obj, &lv_font_montserrat_20, LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_obj_set_style_text_color(obj, lv_color_hex(0xff495057), LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_label_set_text(obj, "Expiry Date");
+                }
+                {
+                    // product_edit_expiry_ta
+                    lv_obj_t *obj = lv_textarea_create(parent_obj);
+                    ((lv_obj_t **)&objects)[startWidgetIndex + 6] = obj;
+                    lv_obj_set_pos(obj, 20, 265);
+                    lv_obj_set_size(obj, 627, 42);
+                    lv_textarea_set_max_length(obj, 128);
+                    lv_textarea_set_placeholder_text(obj, "YYYY-MM-DD");
+                    lv_textarea_set_one_line(obj, true);
+                    lv_textarea_set_password_mode(obj, false);
+                    lv_obj_add_flag(obj, LV_OBJ_FLAG_SCROLL_WITH_ARROW);
+                    lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLL_ON_FOCUS);
+                    lv_obj_set_style_text_font(obj, &lv_font_montserrat_20, LV_PART_MAIN | LV_STATE_DEFAULT);
+                }
+                {
+                    lv_obj_t *obj = lv_label_create(parent_obj);
+                    ((lv_obj_t **)&objects)[startWidgetIndex + 7] = obj;
+                    lv_obj_set_pos(obj, 20, 360);
+                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                    lv_label_set_long_mode(obj, LV_LABEL_LONG_CLIP);
+                    lv_obj_set_style_text_font(obj, &lv_font_montserrat_20, LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_obj_set_style_text_color(obj, lv_color_hex(0xff495057), LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_label_set_text(obj, "Category");
+                }
+                {
+                    // product_edit_category_dd
+                    lv_obj_t *obj = lv_dropdown_create(parent_obj);
+                    ((lv_obj_t **)&objects)[startWidgetIndex + 8] = obj;
+                    lv_obj_set_pos(obj, 20, 395);
+                    lv_obj_set_size(obj, 627, 60);
+                    lv_dropdown_set_options(obj, "Produce\nDairy\nMeat\nBakery\nFrozen\nBeverages\nSnacks\nOther");
+                    lv_dropdown_set_dir(obj, LV_DIR_BOTTOM);
+                    lv_dropdown_set_symbol(obj, LV_SYMBOL_RIGHT);
+                    lv_dropdown_set_selected(obj, 0);
+                    lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+                    lv_obj_set_style_text_font(obj, &lv_font_montserrat_20, LV_PART_MAIN | LV_STATE_DEFAULT);
+                }
+                {
+                    // product_edit_save_btn
+                    lv_obj_t *obj = lv_button_create(parent_obj);
+                    ((lv_obj_t **)&objects)[startWidgetIndex + 9] = obj;
+                    lv_obj_set_pos(obj, -3, 686);
+                    lv_obj_set_size(obj, 310, 70);
+                    lv_obj_add_event_cb(obj, action_product_edit_save, LV_EVENT_CLICKED, (void *)0);
+                    add_style_main_button(obj);
+                    {
+                        lv_obj_t *parent_obj = obj;
+                        {
+                            lv_obj_t *obj = lv_label_create(parent_obj);
+                            lv_obj_set_pos(obj, 0, 0);
+                            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                            lv_label_set_long_mode(obj, LV_LABEL_LONG_CLIP);
+                            lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+                            lv_label_set_text(obj, "SAVE");
+                        }
+                    }
+                }
+                {
+                    // product_edit_cancel_btn
+                    lv_obj_t *obj = lv_button_create(parent_obj);
+                    ((lv_obj_t **)&objects)[startWidgetIndex + 10] = obj;
+                    lv_obj_set_pos(obj, 328, 686);
+                    lv_obj_set_size(obj, 330, 70);
+                    lv_obj_add_event_cb(obj, action_product_edit_close, LV_EVENT_CLICKED, (void *)0);
+                    add_style_main_button(obj);
+                    {
+                        lv_obj_t *parent_obj = obj;
+                        {
+                            lv_obj_t *obj = lv_label_create(parent_obj);
+                            lv_obj_set_pos(obj, 0, 0);
+                            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                            lv_label_set_long_mode(obj, LV_LABEL_LONG_CLIP);
+                            lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+                            lv_label_set_text(obj, "CANCEL");
+                        }
+                    }
+                }
+            }
         }
     }
 }

@@ -97,3 +97,12 @@ void action_products_reload_click(lv_event_t *e)
 {
     productsManager.fetchProducts();
 }
+
+void action_product_edit_close(lv_event_t *e)
+{
+    close_product_edit_modal();
+}
+
+extern void action_product_edit_save(lv_event_t *e)
+{
+}

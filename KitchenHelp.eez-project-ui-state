@@ -1,6 +1,8 @@
 {
   "navigation": {
     "selectedUserPageObject": "[KitchenHelp.eez-project]:/userPages/0",
+    "selectedUserWidgetObject": "[KitchenHelp.eez-project]:/userWidgets/0",
+    "selectedActionObject": "[KitchenHelp.eez-project]:/actions/4",
     "selectedStyleObject": "[KitchenHelp.eez-project]:/lvglStyles/styles/1",
     "selectedFontObject": "[KitchenHelp.eez-project]:/fonts/0",
     "selectedBitmapObject": "[KitchenHelp.eez-project]:/bitmaps/1",
@@ -124,6 +126,7 @@
                   "type": "tabset",
                   "id": "#b72c0808-5062-4fa9-921b-7cce841c406f",
                   "weight": 1,
+                  "selected": 1,
                   "enableClose": false,
                   "children": [
                     {
@@ -190,10 +193,20 @@
               "type": "tabset",
               "id": "EDITORS",
               "weight": 52.69755747126437,
-              "selected": 2,
               "enableDeleteWhenEmpty": false,
               "enableClose": false,
               "children": [
+                {
+                  "type": "tab",
+                  "id": "#6689bd3f-4ac6-42db-b564-ea503cbc0dca",
+                  "name": "ProductEdit",
+                  "component": "editor",
+                  "config": {
+                    "objectPath": "[KitchenHelp.eez-project]:/userWidgets/0",
+                    "permanent": false
+                  },
+                  "icon": "svg:user_widget"
+                },
                 {
                   "type": "tab",
                   "id": "#7e2ec907-6232-4cc8-9436-c96067e5781a",
@@ -227,11 +240,12 @@
                   "component": "editor",
                   "config": {
                     "objectPath": "[KitchenHelp.eez-project]:/userPages/0",
-                    "permanent": false
+                    "permanent": true
                   },
                   "icon": "svg:page"
                 }
-              ]
+              ],
+              "active": true
             },
             {
               "type": "row",
@@ -251,8 +265,7 @@
                       "enableClose": false,
                       "icon": "svg:properties"
                     }
-                  ],
-                  "active": true
+                  ]
                 },
                 {
                   "type": "tabset",
@@ -687,6 +700,7 @@
             {
               "type": "tabset",
               "id": "#df9ef906-7cea-4c87-8414-6e5098bec452",
+              "weight": 179.65194109772423,
               "enableDrop": false,
               "enableDrag": false,
               "enableClose": false,
@@ -704,6 +718,7 @@
             {
               "type": "tabset",
               "id": "#3c99d448-dd79-4d13-81fe-25870d835b24",
+              "weight": 20.34805890227577,
               "enableDrop": false,
               "enableDrag": false,
               "enableClose": false,
@@ -1099,7 +1114,7 @@
       "transform": {
         "translate": {
           "x": -293.6461502125806,
-          "y": -87.26572872750216
+          "y": -903.6545870988128
         },
         "scale": 0.75
       },
@@ -1116,7 +1131,8 @@
             "0": {
               "0": {
                 "0": {
-                  "0": {}
+                  "0": {},
+                  "1": {}
                 },
                 "1": {},
                 "2": {
@@ -1126,11 +1142,13 @@
             },
             "1": {
               "0": {
-                "1": {
-                  "$selected": true
-                }
+                "0": {},
+                "1": {}
               }
             }
+          },
+          "2": {
+            "$selected": true
           }
         }
       }
@@ -1139,6 +1157,52 @@
       "0": {},
       "1": {
         "$selected": true
+      }
+    },
+    "[KitchenHelp.eez-project]:/userPages/1[flow-state]": {
+      "selectionFront": {},
+      "selectionBack": {
+        "0": {
+          "0": {
+            "0": {
+              "$selected": true
+            }
+          }
+        }
+      },
+      "transform": {
+        "translate": {
+          "x": -400,
+          "y": -350.8851012505427
+        },
+        "scale": 0.75
+      },
+      "timeline": {
+        "isEditorActive": false,
+        "position": 0,
+        "secondToPx": 200,
+        "scrollLeft": 0
+      }
+    },
+    "[KitchenHelp.eez-project]:/userWidgets/0[flow-state]": {
+      "selectionFront": {},
+      "selectionBack": {
+        "0": {
+          "$selected": true
+        }
+      },
+      "transform": {
+        "translate": {
+          "x": -400,
+          "y": -173.33334350585926
+        },
+        "scale": 0.75
+      },
+      "timeline": {
+        "isEditorActive": false,
+        "position": 0,
+        "secondToPx": 200,
+        "scrollLeft": 0
       }
     }
   },
@@ -1157,11 +1221,7 @@
   "lvglPart": "MAIN",
   "lvglState": "DEFAULT",
   "lvglExpandedPropertiesGroup": [
-    "TEXT",
-    "BORDER",
-    "MISCELLANEOUS",
-    "SHADOW",
-    "LAYOUT"
+    "BACKGROUND"
   ],
   "showInactiveFlowsInDebugger": true,
   "globalFlowZoom": true,

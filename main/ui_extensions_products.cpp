@@ -207,16 +207,6 @@ static void update_selection_ui()
 {
     int selected_count = productsManager.getSelectedCount();
 
-    // Update panel visibility
-    if (selected_count > 0)
-    {
-        lv_obj_clear_flag(objects.create_recipe_pnl, LV_OBJ_FLAG_HIDDEN);
-    }
-    else
-    {
-        lv_obj_add_flag(objects.create_recipe_pnl, LV_OBJ_FLAG_HIDDEN);
-    }
-
     // Update label text
     char buf[64];
     if (selected_count == 1)
@@ -226,6 +216,16 @@ static void update_selection_ui()
     lv_label_set_text(objects.product_selected_lbl, buf);
 
     ESP_LOGI(TAG, "Selection updated: %d products selected", selected_count);
+
+    // Update panel visibility
+    if (selected_count > 0)
+    {
+        lv_obj_clear_flag(objects.create_recipe_pnl, LV_OBJ_FLAG_HIDDEN);
+    }
+    else
+    {
+        lv_obj_add_flag(objects.create_recipe_pnl, LV_OBJ_FLAG_HIDDEN);
+    }
 }
 
 static lv_obj_t *modal_overlay = nullptr;
