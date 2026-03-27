@@ -8,6 +8,20 @@
 #include <cctype>
 #include "vars.h"
 
+/* =========================================================
+ * DATE FORMAT HELPER
+ * ========================================================= */
+static std::string extractDatePart(const std::string& isoStr)
+{
+    // Strip time component from ISO 8601 datetime (e.g., "2026-03-28T00:00:00Z" → "2026-03-28")
+    if (isoStr.empty()) return "";
+    size_t tPos = isoStr.find('T');
+    if (tPos != std::string::npos) {
+        return isoStr.substr(0, tPos);
+    }
+    return isoStr;
+}
+
 ProductService productService;
 
 static const char *TAG = "ProductService";
@@ -359,7 +373,7 @@ std::vector<Product> ProductService::getProducts(const std::vector<std::string> 
                 p.rowId = id->valuestring;
                 p.quantity = (qty && cJSON_IsNumber(qty)) ? qty->valueint : 0;
                 p.category = (cat && cJSON_IsString(cat)) ? cat->valuestring : "Uncategorized";
-                p.expiry = (exp && cJSON_IsString(exp)) ? exp->valuestring : "";
+                p.expiry = (exp && cJSON_IsString(exp)) ? extractDatePart(exp->valuestring) : "";
                 allProducts.push_back(p);
             }
         }
@@ -552,7 +566,9 @@ bool ProductService::updateProduct(Product &product)
     }
 
     cJSON_AddNumberToObject(data, "quantity", product.quantity);
+    cJSON_AddStringToObject(data, "name", product.name.c_str());
     cJSON_AddStringToObject(data, "category", product.category.c_str());
+    cJSON_AddStringToObject(data, "expiry", product.expiry.c_str());
 
     char *json = cJSON_PrintUnformatted(root);
     if (!json)
