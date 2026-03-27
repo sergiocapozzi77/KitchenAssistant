@@ -25,9 +25,8 @@ typedef struct
 // Function to create the filter panel
 /**
  * @brief Create the main filter panel with all dropdowns
- * @param parent Parent LVGL object to attach the panel to
  */
-void create_filter_panel(lv_obj_t *parent);
+void create_filter_panel();
 
 // Function to get current filter state
 /**

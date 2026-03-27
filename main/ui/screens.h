@@ -23,8 +23,16 @@ typedef struct _objects_t {
     lv_obj_t *products_list;
     lv_obj_t *create_recipe_pnl;
     lv_obj_t *product_selected_lbl;
+    lv_obj_t *products_filters_panel;
+    lv_obj_t *products_filters_panel__keywords_text;
+    lv_obj_t *products_filters_panel__filters_panel;
+    lv_obj_t *products_filters_panel__meal_type_dropdown;
+    lv_obj_t *products_filters_panel__total_time_dropdown;
+    lv_obj_t *products_filters_panel__diet_dropdown;
+    lv_obj_t *products_filters_panel__difficulty_dropdown;
+    lv_obj_t *products_filters_panel__cuisine_dropdown;
+    lv_obj_t *products_filters_panel__calories_dropdown;
     lv_obj_t *generate_recipe_btn;
-    lv_obj_t *filters_container;
     lv_obj_t *recipes_header_pnl;
     lv_obj_t *obj0;
     lv_obj_t *recipe_suggestion_prev_btn;
@@ -35,6 +43,7 @@ typedef struct _objects_t {
     lv_obj_t *obj1;
     lv_obj_t *snackbar_text;
     lv_obj_t *obj2;
+    lv_obj_t *obj3;
 } objects_t;
 
 extern objects_t objects;
@@ -44,6 +53,9 @@ void tick_screen_main();
 
 void create_user_widget_product_edit(lv_obj_t *parent_obj, int startWidgetIndex);
 void tick_user_widget_product_edit(int startWidgetIndex);
+
+void create_user_widget_filters_panel(lv_obj_t *parent_obj, int startWidgetIndex);
+void tick_user_widget_filters_panel(int startWidgetIndex);
 
 void tick_screen_by_id(enum ScreensEnum screenId);
 void tick_screen(int screen_index);

@@ -63,7 +63,7 @@ void create_screen_main() {
                             lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
                             lv_obj_set_style_layout(obj, LV_LAYOUT_GRID, LV_PART_MAIN | LV_STATE_DEFAULT);
                             {
-                                static lv_coord_t dsc[] = {80, LV_GRID_FR(1), LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST};
+                                static lv_coord_t dsc[] = {80, LV_GRID_FR(1), LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST};
                                 lv_obj_set_style_grid_row_dsc_array(obj, dsc, LV_PART_MAIN | LV_STATE_DEFAULT);
                             }
                             {
@@ -148,8 +148,8 @@ void create_screen_main() {
                                     // createRecipe_pnl
                                     lv_obj_t *obj = lv_obj_create(parent_obj);
                                     objects.create_recipe_pnl = obj;
-                                    lv_obj_set_pos(obj, -15, -96);
-                                    lv_obj_set_size(obj, LV_PCT(100), 296);
+                                    lv_obj_set_pos(obj, -15, -147);
+                                    lv_obj_set_size(obj, LV_PCT(100), 347);
                                     lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
                                     lv_obj_set_style_radius(obj, 12, LV_PART_MAIN | LV_STATE_DEFAULT);
                                     lv_obj_set_style_border_width(obj, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -172,8 +172,22 @@ void create_screen_main() {
                                             lv_label_set_text(obj, "Product selected");
                                         }
                                         {
+                                            // products_filters_panel
+                                            lv_obj_t *obj = lv_obj_create(parent_obj);
+                                            objects.products_filters_panel = obj;
+                                            lv_obj_set_pos(obj, -9, 55);
+                                            lv_obj_set_size(obj, 746, 195);
+                                            lv_obj_set_style_pad_left(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+                                            lv_obj_set_style_pad_top(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+                                            lv_obj_set_style_pad_right(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+                                            lv_obj_set_style_pad_bottom(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+                                            lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+                                            lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+                                            create_user_widget_filters_panel(obj, 8);
+                                        }
+                                        {
                                             lv_obj_t *obj = lv_button_create(parent_obj);
-                                            lv_obj_set_pos(obj, 3, 206);
+                                            lv_obj_set_pos(obj, 5, 261);
                                             lv_obj_set_size(obj, 350, 50);
                                             add_style_main_button(obj);
                                             {
@@ -191,7 +205,7 @@ void create_screen_main() {
                                             // generate_recipe_btn
                                             lv_obj_t *obj = lv_button_create(parent_obj);
                                             objects.generate_recipe_btn = obj;
-                                            lv_obj_set_pos(obj, 376, 206);
+                                            lv_obj_set_pos(obj, 378, 261);
                                             lv_obj_set_size(obj, 350, 50);
                                             lv_obj_add_event_cb(obj, action_generate_recipe_click, LV_EVENT_CLICKED, (void *)0);
                                             add_style_main_button(obj);
@@ -206,31 +220,15 @@ void create_screen_main() {
                                                 }
                                             }
                                         }
-                                        {
-                                            // filters_container
-                                            lv_obj_t *obj = lv_obj_create(parent_obj);
-                                            objects.filters_container = obj;
-                                            lv_obj_set_pos(obj, -9, 38);
-                                            lv_obj_set_size(obj, 746, 144);
-                                            lv_obj_set_style_pad_left(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-                                            lv_obj_set_style_pad_top(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-                                            lv_obj_set_style_pad_right(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-                                            lv_obj_set_style_pad_bottom(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-                                            lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-                                            lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-                                            lv_obj_set_style_radius(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-                                            lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE|LV_OBJ_FLAG_SCROLL_CHAIN_HOR|LV_OBJ_FLAG_SCROLL_CHAIN_VER|LV_OBJ_FLAG_SCROLL_ELASTIC|LV_OBJ_FLAG_SCROLL_MOMENTUM|LV_OBJ_FLAG_SCROLL_WITH_ARROW);
-                                            lv_obj_set_style_layout(obj, LV_LAYOUT_GRID, LV_PART_MAIN | LV_STATE_DEFAULT);
-                                            {
-                                                static lv_coord_t dsc[] = {LV_GRID_FR(1), LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
-                                                lv_obj_set_style_grid_row_dsc_array(obj, dsc, LV_PART_MAIN | LV_STATE_DEFAULT);
-                                            }
-                                            {
-                                                static lv_coord_t dsc[] = {LV_GRID_FR(1), LV_GRID_FR(1), LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
-                                                lv_obj_set_style_grid_column_dsc_array(obj, dsc, LV_PART_MAIN | LV_STATE_DEFAULT);
-                                            }
-                                        }
                                     }
+                                }
+                                {
+                                    lv_obj_t *obj = lv_keyboard_create(parent_obj);
+                                    objects.obj3 = obj;
+                                    lv_obj_set_pos(obj, 0, 14294);
+                                    lv_obj_set_size(obj, 800, 299);
+                                    lv_obj_set_style_align(obj, LV_ALIGN_DEFAULT, LV_PART_MAIN | LV_STATE_DEFAULT);
+                                    lv_obj_set_style_grid_cell_row_pos(obj, 3, LV_PART_MAIN | LV_STATE_DEFAULT);
                                 }
                             }
                         }
@@ -382,6 +380,7 @@ void create_screen_main() {
             objects.snackbar = obj;
             lv_obj_set_pos(obj, 31, 1132);
             lv_obj_set_size(obj, 743, 95);
+            lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
             lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff343434), LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -432,11 +431,13 @@ void create_screen_main() {
             }
         }
     }
+    lv_keyboard_set_textarea(objects.obj3, ((lv_obj_t **)&objects)[8]);
     
     tick_screen_main();
 }
 
 void tick_screen_main() {
+    tick_user_widget_filters_panel(8);
 }
 
 void create_user_widget_product_edit(lv_obj_t *parent_obj, int startWidgetIndex) {
@@ -602,6 +603,120 @@ void create_user_widget_product_edit(lv_obj_t *parent_obj, int startWidgetIndex)
 }
 
 void tick_user_widget_product_edit(int startWidgetIndex) {
+    (void)startWidgetIndex;
+}
+
+void create_user_widget_filters_panel(lv_obj_t *parent_obj, int startWidgetIndex) {
+    (void)startWidgetIndex;
+    lv_obj_t *obj = parent_obj;
+    {
+        lv_obj_t *parent_obj = obj;
+        {
+            // filters_panel
+            lv_obj_t *obj = lv_obj_create(parent_obj);
+            ((lv_obj_t **)&objects)[startWidgetIndex + 1] = obj;
+            lv_obj_set_pos(obj, 0, 0);
+            lv_obj_set_size(obj, 746, 300);
+            lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+            lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+            {
+                lv_obj_t *parent_obj = obj;
+                {
+                    // keywords_text
+                    lv_obj_t *obj = lv_textarea_create(parent_obj);
+                    ((lv_obj_t **)&objects)[startWidgetIndex + 0] = obj;
+                    lv_obj_set_pos(obj, 3, -3);
+                    lv_obj_set_size(obj, 460, 42);
+                    lv_textarea_set_max_length(obj, 128);
+                    lv_textarea_set_placeholder_text(obj, "Keywords");
+                    lv_textarea_set_one_line(obj, true);
+                    lv_textarea_set_password_mode(obj, false);
+                    lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+                }
+                {
+                    // meal_type_dropdown
+                    lv_obj_t *obj = lv_dropdown_create(parent_obj);
+                    ((lv_obj_t **)&objects)[startWidgetIndex + 2] = obj;
+                    lv_obj_set_pos(obj, 3, 60);
+                    lv_obj_set_size(obj, 220, 40);
+                    lv_dropdown_set_options(obj, "Meal Type\nAfternoon tea\nBreakfast\nBrunch\nBuffet\nCanapes\nCondiment\nDessert\nDinner\nFish Course\nLunch\nMain course\nPasta\nSide\r\n    dish\nSnack\nSoup\nStarter\nSupper\nTreat\nVegetable");
+                    lv_dropdown_set_dir(obj, LV_DIR_TOP);
+                    lv_dropdown_set_symbol(obj, LV_SYMBOL_RIGHT);
+                    lv_dropdown_set_selected(obj, 0);
+                    lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+                    lv_obj_set_style_text_font(obj, &lv_font_montserrat_16, LV_PART_MAIN | LV_STATE_DEFAULT);
+                }
+                {
+                    // total_time_dropdown
+                    lv_obj_t *obj = lv_dropdown_create(parent_obj);
+                    ((lv_obj_t **)&objects)[startWidgetIndex + 3] = obj;
+                    lv_obj_set_pos(obj, 243, 60);
+                    lv_obj_set_size(obj, 220, 40);
+                    lv_dropdown_set_options(obj, "Total Time\nUnder 15 minutes\nUnder 30 minutes\nUnder 45 minutes\nUnder 1 hour\n1 hour or more");
+                    lv_dropdown_set_dir(obj, LV_DIR_TOP);
+                    lv_dropdown_set_symbol(obj, LV_SYMBOL_RIGHT);
+                    lv_dropdown_set_selected(obj, 0);
+                    lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+                    lv_obj_set_style_text_font(obj, &lv_font_montserrat_16, LV_PART_MAIN | LV_STATE_DEFAULT);
+                }
+                {
+                    // diet_dropdown
+                    lv_obj_t *obj = lv_dropdown_create(parent_obj);
+                    ((lv_obj_t **)&objects)[startWidgetIndex + 4] = obj;
+                    lv_obj_set_pos(obj, 483, 60);
+                    lv_obj_set_size(obj, 220, 40);
+                    lv_dropdown_set_options(obj, "Diets\nHealthy\nGluten-free\nVegetarian\nEgg-free\nNut-free\nDairy-free\nHigh-protein\nVegan\nLow sugar\nHigh-fibre\nLow calorie\nKeto\nLow fat\nLow carb");
+                    lv_dropdown_set_dir(obj, LV_DIR_TOP);
+                    lv_dropdown_set_symbol(obj, LV_SYMBOL_RIGHT);
+                    lv_dropdown_set_selected(obj, 0);
+                    lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+                    lv_obj_set_style_text_font(obj, &lv_font_montserrat_16, LV_PART_MAIN | LV_STATE_DEFAULT);
+                }
+                {
+                    // difficulty_dropdown
+                    lv_obj_t *obj = lv_dropdown_create(parent_obj);
+                    ((lv_obj_t **)&objects)[startWidgetIndex + 5] = obj;
+                    lv_obj_set_pos(obj, 3, 120);
+                    lv_obj_set_size(obj, 220, 40);
+                    lv_dropdown_set_options(obj, "Difficulty\nEasy\nMore effort\nA challenge");
+                    lv_dropdown_set_dir(obj, LV_DIR_TOP);
+                    lv_dropdown_set_symbol(obj, LV_SYMBOL_RIGHT);
+                    lv_dropdown_set_selected(obj, 0);
+                    lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+                    lv_obj_set_style_text_font(obj, &lv_font_montserrat_16, LV_PART_MAIN | LV_STATE_DEFAULT);
+                }
+                {
+                    // cuisine_dropdown
+                    lv_obj_t *obj = lv_dropdown_create(parent_obj);
+                    ((lv_obj_t **)&objects)[startWidgetIndex + 6] = obj;
+                    lv_obj_set_pos(obj, 243, 120);
+                    lv_obj_set_size(obj, 220, 40);
+                    lv_dropdown_set_options(obj, "Cuisine\nAfrican\nAmerican\nAsian\nAustralian\nAzerbaijan\nBrazilian\nBritish\nCajun & Creole\nCaribbean\nChinese\nEastern\r\n    European\nEgyptian\nEnglish\nFrench\nGerman\nGreek\nIndian\nIndonesian\nIrish\nItalian\nJapanese\nKorean\nLatin American\nMediterranean\nMexican\nMiddle Eastern\nMoroccan\nNorth\r\n    African\nPortuguese\nScandinavian\nScottish\nSouthern & Soul\nSpanish\nSwedish\nThai\nTunisian\nTurkish\nVietnamese");
+                    lv_dropdown_set_dir(obj, LV_DIR_TOP);
+                    lv_dropdown_set_symbol(obj, LV_SYMBOL_RIGHT);
+                    lv_dropdown_set_selected(obj, 0);
+                    lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+                    lv_obj_set_style_text_font(obj, &lv_font_montserrat_16, LV_PART_MAIN | LV_STATE_DEFAULT);
+                }
+                {
+                    // calories_dropdown
+                    lv_obj_t *obj = lv_dropdown_create(parent_obj);
+                    ((lv_obj_t **)&objects)[startWidgetIndex + 7] = obj;
+                    lv_obj_set_pos(obj, 483, 120);
+                    lv_obj_set_size(obj, 220, 40);
+                    lv_dropdown_set_options(obj, "Calories\nUp to 250 kcal\nUp to 500 kcal\nUp to 750 kcal\nUp to 1000 kcal\nUp to 1250 kcal\nUp to 1500 kcal");
+                    lv_dropdown_set_dir(obj, LV_DIR_TOP);
+                    lv_dropdown_set_symbol(obj, LV_SYMBOL_RIGHT);
+                    lv_dropdown_set_selected(obj, 0);
+                    lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+                    lv_obj_set_style_text_font(obj, &lv_font_montserrat_16, LV_PART_MAIN | LV_STATE_DEFAULT);
+                }
+            }
+        }
+    }
+}
+
+void tick_user_widget_filters_panel(int startWidgetIndex) {
     (void)startWidgetIndex;
 }
 

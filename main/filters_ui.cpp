@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include "styles.h"
 #include "esp_log.h"
+#include "ui.h"
 
 static const char *TAG = "Filters";
 
@@ -213,29 +214,6 @@ static void dropdown_event_handler(lv_event_t *e)
     }
 }
 
-// Create a single dropdown
-static lv_obj_t *create_dropdown(lv_obj_t *parent, const char *label, filter_option_t options[], int count)
-{
-    // Create dropdown
-    lv_obj_t *dropdown = lv_dropdown_create(parent);
-    lv_obj_set_size(dropdown, 220, LV_SIZE_CONTENT);
-    lv_dropdown_set_dir(dropdown, LV_DIR_TOP);
-    lv_dropdown_set_symbol(dropdown, LV_SYMBOL_UP);
-    add_style_drop_down_with_shadow(dropdown);
-
-    // Set options
-    char *options_str = create_options_string(options, count, label);
-    lv_dropdown_set_options(dropdown, options_str);
-
-    // Set default selection to none
-    lv_dropdown_set_selected(dropdown, 0);
-
-    // Add event handler
-    lv_obj_add_event_cb(dropdown, dropdown_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
-
-    return dropdown;
-}
-
 // Log initialization (can be called from init or after creation)
 void log_filter_state(void)
 {
@@ -249,54 +227,64 @@ void log_filter_state(void)
 }
 
 // Create the main filter panel
-void create_filter_panel(lv_obj_t *parent)
+void create_filter_panel()
 {
-    // Configure parent as grid: 3 columns, 2 rows (already defined in screens.c, but we redefine for consistency)
-    lv_obj_set_style_layout(parent, LV_LAYOUT_GRID, 0);
+    // Get dropdown objects from the objects array
+    meal_type_dropdown = objects.products_filters_panel__meal_type_dropdown;
+    total_time_dropdown = objects.products_filters_panel__total_time_dropdown;
+    diet_dropdown = objects.products_filters_panel__diet_dropdown;
+    difficulty_dropdown = objects.products_filters_panel__difficulty_dropdown;
+    cuisine_dropdown = objects.products_filters_panel__cuisine_dropdown;
+    calories_dropdown = objects.products_filters_panel__calories_dropdown;
 
-    // Define grid columns: 3 equal fractional units
-    static lv_coord_t col_dsc[] = {LV_GRID_FR(1), LV_GRID_FR(1), LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
-    lv_obj_set_style_grid_column_dsc_array(parent, col_dsc, 0);
+    // Verify dropdowns were created
+    if (!meal_type_dropdown || !total_time_dropdown || !diet_dropdown ||
+        !difficulty_dropdown || !cuisine_dropdown || !calories_dropdown)
+    {
+        ESP_LOGE(TAG, "Failed to get dropdown objects from user widget");
+        return;
+    }
 
-    // Define grid rows: 2 equal fractional units (matching screens.c)
-    static lv_coord_t row_dsc[] = {LV_GRID_FR(1), LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
-    lv_obj_set_style_grid_row_dsc_array(parent, row_dsc, 0);
+    // Set dropdown properties (EEZ sets options, we need to set direction/symbol)
+    lv_dropdown_set_dir(meal_type_dropdown, LV_DIR_TOP);
+    lv_dropdown_set_symbol(meal_type_dropdown, LV_SYMBOL_UP);
+    add_style_drop_down_with_shadow(meal_type_dropdown);
 
-    // Set padding
-    lv_obj_set_style_pad_all(parent, 10, 0);
+    lv_dropdown_set_dir(total_time_dropdown, LV_DIR_TOP);
+    lv_dropdown_set_symbol(total_time_dropdown, LV_SYMBOL_UP);
+    add_style_drop_down_with_shadow(total_time_dropdown);
 
-    // Create dropdowns and place them in grid cells
-    // Row 0
-    meal_type_dropdown = create_dropdown(parent, "Meal Type", meal_type_options, meal_type_count);
-    lv_obj_set_style_grid_cell_column_pos(meal_type_dropdown, 0, 0);
-    lv_obj_set_style_grid_cell_row_pos(meal_type_dropdown, 0, 0);
-    lv_obj_set_style_grid_cell_y_align(meal_type_dropdown, LV_GRID_ALIGN_STRETCH, 0);
+    lv_dropdown_set_dir(diet_dropdown, LV_DIR_TOP);
+    lv_dropdown_set_symbol(diet_dropdown, LV_SYMBOL_UP);
+    add_style_drop_down_with_shadow(diet_dropdown);
 
-    total_time_dropdown = create_dropdown(parent, "Total Time", total_time_options, total_time_count);
-    lv_obj_set_style_grid_cell_column_pos(total_time_dropdown, 1, 0);
-    lv_obj_set_style_grid_cell_row_pos(total_time_dropdown, 0, 0);
-    lv_obj_set_style_grid_cell_y_align(total_time_dropdown, LV_GRID_ALIGN_STRETCH, 0);
+    lv_dropdown_set_dir(difficulty_dropdown, LV_DIR_TOP);
+    lv_dropdown_set_symbol(difficulty_dropdown, LV_SYMBOL_UP);
+    add_style_drop_down_with_shadow(difficulty_dropdown);
 
-    diet_dropdown = create_dropdown(parent, "Diets", diet_options, diet_count);
-    lv_obj_set_style_grid_cell_column_pos(diet_dropdown, 2, 0);
-    lv_obj_set_style_grid_cell_row_pos(diet_dropdown, 0, 0);
-    lv_obj_set_style_grid_cell_y_align(diet_dropdown, LV_GRID_ALIGN_STRETCH, 0);
+    lv_dropdown_set_dir(cuisine_dropdown, LV_DIR_TOP);
+    lv_dropdown_set_symbol(cuisine_dropdown, LV_SYMBOL_UP);
+    add_style_drop_down_with_shadow(cuisine_dropdown);
 
-    // Row 1
-    difficulty_dropdown = create_dropdown(parent, "Difficulty", difficulty_options, difficulty_count);
-    lv_obj_set_style_grid_cell_column_pos(difficulty_dropdown, 0, 0);
-    lv_obj_set_style_grid_cell_row_pos(difficulty_dropdown, 1, 0);
-    lv_obj_set_style_grid_cell_y_align(difficulty_dropdown, LV_GRID_ALIGN_STRETCH, 0);
+    lv_dropdown_set_dir(calories_dropdown, LV_DIR_TOP);
+    lv_dropdown_set_symbol(calories_dropdown, LV_SYMBOL_UP);
+    add_style_drop_down_with_shadow(calories_dropdown);
 
-    cuisine_dropdown = create_dropdown(parent, "Cuisine", cuisine_options, cuisine_count);
-    lv_obj_set_style_grid_cell_column_pos(cuisine_dropdown, 1, 0);
-    lv_obj_set_style_grid_cell_row_pos(cuisine_dropdown, 1, 0);
-    lv_obj_set_style_grid_cell_y_align(cuisine_dropdown, LV_GRID_ALIGN_STRETCH, 0);
+    // Set default selection to none (first option)
+    lv_dropdown_set_selected(meal_type_dropdown, 0);
+    lv_dropdown_set_selected(total_time_dropdown, 0);
+    lv_dropdown_set_selected(diet_dropdown, 0);
+    lv_dropdown_set_selected(difficulty_dropdown, 0);
+    lv_dropdown_set_selected(cuisine_dropdown, 0);
+    lv_dropdown_set_selected(calories_dropdown, 0);
 
-    calories_dropdown = create_dropdown(parent, "Calories", calories_options, calories_count);
-    lv_obj_set_style_grid_cell_column_pos(calories_dropdown, 2, 0);
-    lv_obj_set_style_grid_cell_row_pos(calories_dropdown, 1, 0);
-    lv_obj_set_style_grid_cell_y_align(calories_dropdown, LV_GRID_ALIGN_STRETCH, 0);
+    // Add event handlers
+    lv_obj_add_event_cb(meal_type_dropdown, dropdown_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
+    lv_obj_add_event_cb(total_time_dropdown, dropdown_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
+    lv_obj_add_event_cb(diet_dropdown, dropdown_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
+    lv_obj_add_event_cb(difficulty_dropdown, dropdown_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
+    lv_obj_add_event_cb(cuisine_dropdown, dropdown_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
+    lv_obj_add_event_cb(calories_dropdown, dropdown_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
 }
 
 // Public function to get current filter state
