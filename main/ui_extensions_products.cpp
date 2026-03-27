@@ -207,24 +207,38 @@ static void update_selection_ui()
 {
     int selected_count = productsManager.getSelectedCount();
 
-    // Update label text
-    char buf[64];
-    if (selected_count == 1)
-        snprintf(buf, sizeof(buf), "1 product selected");
-    else
-        snprintf(buf, sizeof(buf), "%d products selected", selected_count);
-    lv_label_set_text(objects.product_selected_lbl, buf);
-
-    ESP_LOGI(TAG, "Selection updated: %d products selected", selected_count);
-
-    // Update panel visibility
-    if (selected_count > 0)
+    // Update label text - with NULL/validity check
+    if (objects.product_selected_lbl && lv_obj_is_valid(objects.product_selected_lbl))
     {
-        lv_obj_clear_flag(objects.create_recipe_pnl, LV_OBJ_FLAG_HIDDEN);
+        char buf[64];
+        if (selected_count == 1)
+            snprintf(buf, sizeof(buf), "1 product selected");
+        else
+            snprintf(buf, sizeof(buf), "%d products selected", selected_count);
+        lv_label_set_text(objects.product_selected_lbl, buf);
     }
     else
     {
-        lv_obj_add_flag(objects.create_recipe_pnl, LV_OBJ_FLAG_HIDDEN);
+        ESP_LOGW(TAG, "product_selected_lbl is NULL or invalid, skipping update");
+    }
+
+    ESP_LOGI(TAG, "Selection updated: %d products selected", selected_count);
+
+    // Update panel visibility - with NULL/validity check
+    if (objects.create_recipe_pnl && lv_obj_is_valid(objects.create_recipe_pnl))
+    {
+        if (selected_count > 0)
+        {
+            lv_obj_clear_flag(objects.create_recipe_pnl, LV_OBJ_FLAG_HIDDEN);
+        }
+        else
+        {
+            lv_obj_add_flag(objects.create_recipe_pnl, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+    else
+    {
+        ESP_LOGW(TAG, "create_recipe_pnl is NULL or invalid, skipping visibility update");
     }
 }
 
