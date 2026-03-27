@@ -2318,7 +2318,7 @@
               },
               "group": "",
               "groupIndex": 0,
-              "options": "Produce\nDairy\nMeat\nBakery\nFrozen\nBeverages\nSnacks\nOther",
+              "options": "Baby\nBakery\nBeverages\nBreakfast & Cereal\nCondiments & Dressing\nCooking & Baking\nDairy\nDeli\nFrozen Foods\nGrains\nPasta & Sides\nHealth & Personal Care\nHousehold & Cleaning\nMeat\nPet Supplies\nProduce\nSeafood\nSnacks\nSoups & Canned Food\nWine, Beer & Spirit\nOther",
               "optionsType": "literal",
               "selected": 0,
               "selectedType": "literal",

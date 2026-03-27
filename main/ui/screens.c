@@ -549,7 +549,7 @@ void create_user_widget_product_edit(lv_obj_t *parent_obj, int startWidgetIndex)
                     ((lv_obj_t **)&objects)[startWidgetIndex + 8] = obj;
                     lv_obj_set_pos(obj, 20, 395);
                     lv_obj_set_size(obj, 627, 60);
-                    lv_dropdown_set_options(obj, "Produce\nDairy\nMeat\nBakery\nFrozen\nBeverages\nSnacks\nOther");
+                    lv_dropdown_set_options(obj, "Baby\nBakery\nBeverages\nBreakfast & Cereal\nCondiments & Dressing\nCooking & Baking\nDairy\nDeli\nFrozen Foods\nGrains\nPasta & Sides\nHealth & Personal Care\nHousehold & Cleaning\nMeat\nPet Supplies\nProduce\nSeafood\nSnacks\nSoups & Canned Food\nWine, Beer & Spirit\nOther");
                     lv_dropdown_set_dir(obj, LV_DIR_BOTTOM);
                     lv_dropdown_set_symbol(obj, LV_SYMBOL_RIGHT);
                     lv_dropdown_set_selected(obj, 0);
