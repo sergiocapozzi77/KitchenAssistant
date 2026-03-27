@@ -85,27 +85,35 @@ void create_screen_main() {
                                     {
                                         lv_obj_t *parent_obj = obj;
                                         {
-                                            lv_obj_t *obj = lv_button_create(parent_obj);
-                                            lv_obj_set_pos(obj, 681, -12);
-                                            lv_obj_set_size(obj, 71, 55);
-                                            add_style_main_button(obj);
-                                            {
-                                                lv_obj_t *parent_obj = obj;
-                                                {
-                                                    lv_obj_t *obj = lv_label_create(parent_obj);
-                                                    lv_obj_set_pos(obj, 0, 0);
-                                                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-                                                    lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
-                                                    lv_label_set_text(obj, "\uF078");
-                                                }
-                                            }
+                                            // product_filter_dropdown
+                                            lv_obj_t *obj = lv_dropdown_create(parent_obj);
+                                            objects.product_filter_dropdown = obj;
+                                            lv_obj_set_pos(obj, 452, -5);
+                                            lv_obj_set_size(obj, 149, LV_SIZE_CONTENT);
+                                            lv_dropdown_set_options(obj, "Show All\nShow Expirying");
+                                            lv_dropdown_set_selected(obj, 0);
+                                            lv_obj_add_event_cb(obj, action_product_filter_change, LV_EVENT_VALUE_CHANGED, (void *)0);
+                                            add_style_drop_down_with_shadow(obj);
+                                            lv_obj_set_style_text_font(obj, &lv_font_montserrat_20, LV_PART_MAIN | LV_STATE_DEFAULT);
+                                        }
+                                        {
+                                            // product_sort_dropdown
+                                            lv_obj_t *obj = lv_dropdown_create(parent_obj);
+                                            objects.product_sort_dropdown = obj;
+                                            lv_obj_set_pos(obj, 617, -5);
+                                            lv_obj_set_size(obj, 146, LV_SIZE_CONTENT);
+                                            lv_dropdown_set_options(obj, "Sort A-Z\nSort By Expiry");
+                                            lv_dropdown_set_selected(obj, 0);
+                                            lv_obj_add_event_cb(obj, action_product_sort_value_changed, LV_EVENT_VALUE_CHANGED, (void *)0);
+                                            add_style_drop_down_with_shadow(obj);
+                                            lv_obj_set_style_text_font(obj, &lv_font_montserrat_20, LV_PART_MAIN | LV_STATE_DEFAULT);
                                         }
                                         {
                                             // products_reload_btn
                                             lv_obj_t *obj = lv_button_create(parent_obj);
                                             objects.products_reload_btn = obj;
-                                            lv_obj_set_pos(obj, 10, -9);
-                                            lv_obj_set_size(obj, 71, 55);
+                                            lv_obj_set_pos(obj, -6, -7);
+                                            lv_obj_set_size(obj, 50, 50);
                                             lv_obj_add_event_cb(obj, action_products_reload_click, LV_EVENT_CLICKED, (void *)0);
                                             add_style_main_button(obj);
                                             {
@@ -183,7 +191,7 @@ void create_screen_main() {
                                             lv_obj_set_style_pad_bottom(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                                             lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                                             lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-                                            create_user_widget_filters_panel(obj, 8);
+                                            create_user_widget_filters_panel(obj, 10);
                                         }
                                         {
                                             lv_obj_t *obj = lv_button_create(parent_obj);
@@ -431,13 +439,13 @@ void create_screen_main() {
             }
         }
     }
-    lv_keyboard_set_textarea(objects.obj3, ((lv_obj_t **)&objects)[8]);
+    lv_keyboard_set_textarea(objects.obj3, ((lv_obj_t **)&objects)[10]);
     
     tick_screen_main();
 }
 
 void tick_screen_main() {
-    tick_user_widget_filters_panel(8);
+    tick_user_widget_filters_panel(10);
 }
 
 void create_user_widget_product_edit(lv_obj_t *parent_obj, int startWidgetIndex) {
@@ -616,7 +624,7 @@ void create_user_widget_filters_panel(lv_obj_t *parent_obj, int startWidgetIndex
             lv_obj_t *obj = lv_obj_create(parent_obj);
             ((lv_obj_t **)&objects)[startWidgetIndex + 1] = obj;
             lv_obj_set_pos(obj, 0, 0);
-            lv_obj_set_size(obj, 746, 300);
+            lv_obj_set_size(obj, 746, 200);
             lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
             lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
             {
@@ -628,10 +636,11 @@ void create_user_widget_filters_panel(lv_obj_t *parent_obj, int startWidgetIndex
                     lv_obj_set_pos(obj, 3, -3);
                     lv_obj_set_size(obj, 460, 42);
                     lv_textarea_set_max_length(obj, 128);
-                    lv_textarea_set_placeholder_text(obj, "Keywords");
+                    lv_textarea_set_placeholder_text(obj, "Keywords...");
                     lv_textarea_set_one_line(obj, true);
                     lv_textarea_set_password_mode(obj, false);
                     lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+                    add_style_text_area_with_shadow(obj);
                 }
                 {
                     // meal_type_dropdown
@@ -639,11 +648,12 @@ void create_user_widget_filters_panel(lv_obj_t *parent_obj, int startWidgetIndex
                     ((lv_obj_t **)&objects)[startWidgetIndex + 2] = obj;
                     lv_obj_set_pos(obj, 3, 60);
                     lv_obj_set_size(obj, 220, 40);
-                    lv_dropdown_set_options(obj, "Meal Type\nAfternoon tea\nBreakfast\nBrunch\nBuffet\nCanapes\nCondiment\nDessert\nDinner\nFish Course\nLunch\nMain course\nPasta\nSide\r\n    dish\nSnack\nSoup\nStarter\nSupper\nTreat\nVegetable");
+                    lv_dropdown_set_options(obj, "Meal Type\nAfternoon tea\nBreakfast\nBrunch\nBuffet\nCanapes\nCondiment\nDessert\nDinner\nFish Course\nLunch\nMain course\nPasta\nSide dish\nSnack\nSoup\nStarter\nSupper\nTreat\nVegetable");
                     lv_dropdown_set_dir(obj, LV_DIR_TOP);
-                    lv_dropdown_set_symbol(obj, LV_SYMBOL_RIGHT);
+                    lv_dropdown_set_symbol(obj, LV_SYMBOL_UP);
                     lv_dropdown_set_selected(obj, 0);
                     lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+                    add_style_drop_down_with_shadow(obj);
                     lv_obj_set_style_text_font(obj, &lv_font_montserrat_16, LV_PART_MAIN | LV_STATE_DEFAULT);
                 }
                 {
@@ -654,9 +664,10 @@ void create_user_widget_filters_panel(lv_obj_t *parent_obj, int startWidgetIndex
                     lv_obj_set_size(obj, 220, 40);
                     lv_dropdown_set_options(obj, "Total Time\nUnder 15 minutes\nUnder 30 minutes\nUnder 45 minutes\nUnder 1 hour\n1 hour or more");
                     lv_dropdown_set_dir(obj, LV_DIR_TOP);
-                    lv_dropdown_set_symbol(obj, LV_SYMBOL_RIGHT);
+                    lv_dropdown_set_symbol(obj, LV_SYMBOL_UP);
                     lv_dropdown_set_selected(obj, 0);
                     lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+                    add_style_drop_down_with_shadow(obj);
                     lv_obj_set_style_text_font(obj, &lv_font_montserrat_16, LV_PART_MAIN | LV_STATE_DEFAULT);
                 }
                 {
@@ -667,9 +678,10 @@ void create_user_widget_filters_panel(lv_obj_t *parent_obj, int startWidgetIndex
                     lv_obj_set_size(obj, 220, 40);
                     lv_dropdown_set_options(obj, "Diets\nHealthy\nGluten-free\nVegetarian\nEgg-free\nNut-free\nDairy-free\nHigh-protein\nVegan\nLow sugar\nHigh-fibre\nLow calorie\nKeto\nLow fat\nLow carb");
                     lv_dropdown_set_dir(obj, LV_DIR_TOP);
-                    lv_dropdown_set_symbol(obj, LV_SYMBOL_RIGHT);
+                    lv_dropdown_set_symbol(obj, LV_SYMBOL_UP);
                     lv_dropdown_set_selected(obj, 0);
                     lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+                    add_style_drop_down_with_shadow(obj);
                     lv_obj_set_style_text_font(obj, &lv_font_montserrat_16, LV_PART_MAIN | LV_STATE_DEFAULT);
                 }
                 {
@@ -680,9 +692,10 @@ void create_user_widget_filters_panel(lv_obj_t *parent_obj, int startWidgetIndex
                     lv_obj_set_size(obj, 220, 40);
                     lv_dropdown_set_options(obj, "Difficulty\nEasy\nMore effort\nA challenge");
                     lv_dropdown_set_dir(obj, LV_DIR_TOP);
-                    lv_dropdown_set_symbol(obj, LV_SYMBOL_RIGHT);
+                    lv_dropdown_set_symbol(obj, LV_SYMBOL_UP);
                     lv_dropdown_set_selected(obj, 0);
                     lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+                    add_style_drop_down_with_shadow(obj);
                     lv_obj_set_style_text_font(obj, &lv_font_montserrat_16, LV_PART_MAIN | LV_STATE_DEFAULT);
                 }
                 {
@@ -691,11 +704,12 @@ void create_user_widget_filters_panel(lv_obj_t *parent_obj, int startWidgetIndex
                     ((lv_obj_t **)&objects)[startWidgetIndex + 6] = obj;
                     lv_obj_set_pos(obj, 243, 120);
                     lv_obj_set_size(obj, 220, 40);
-                    lv_dropdown_set_options(obj, "Cuisine\nAfrican\nAmerican\nAsian\nAustralian\nAzerbaijan\nBrazilian\nBritish\nCajun & Creole\nCaribbean\nChinese\nEastern\r\n    European\nEgyptian\nEnglish\nFrench\nGerman\nGreek\nIndian\nIndonesian\nIrish\nItalian\nJapanese\nKorean\nLatin American\nMediterranean\nMexican\nMiddle Eastern\nMoroccan\nNorth\r\n    African\nPortuguese\nScandinavian\nScottish\nSouthern & Soul\nSpanish\nSwedish\nThai\nTunisian\nTurkish\nVietnamese");
+                    lv_dropdown_set_options(obj, "Cuisine\nAfrican\nAmerican\nAsian\nAustralian\nAzerbaijan\nBrazilian\nBritish\nCajun & Creole\nCaribbean\nChinese\nEastern European\nEgyptian\nEnglish\nFrench\nGerman\nGreek\nIndian\nIndonesian\nIrish\nItalian\nJapanese\nKorean\nLatin American\nMediterranean\nMexican\nMiddle Eastern\nMoroccan\nNorth African\nPortuguese\nScandinavian\nScottish\nSouthern & Soul\nSpanish\nSwedish\nThai\nTunisian\nTurkish\nVietnamese");
                     lv_dropdown_set_dir(obj, LV_DIR_TOP);
-                    lv_dropdown_set_symbol(obj, LV_SYMBOL_RIGHT);
+                    lv_dropdown_set_symbol(obj, LV_SYMBOL_UP);
                     lv_dropdown_set_selected(obj, 0);
                     lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+                    add_style_drop_down_with_shadow(obj);
                     lv_obj_set_style_text_font(obj, &lv_font_montserrat_16, LV_PART_MAIN | LV_STATE_DEFAULT);
                 }
                 {
@@ -706,9 +720,10 @@ void create_user_widget_filters_panel(lv_obj_t *parent_obj, int startWidgetIndex
                     lv_obj_set_size(obj, 220, 40);
                     lv_dropdown_set_options(obj, "Calories\nUp to 250 kcal\nUp to 500 kcal\nUp to 750 kcal\nUp to 1000 kcal\nUp to 1250 kcal\nUp to 1500 kcal");
                     lv_dropdown_set_dir(obj, LV_DIR_TOP);
-                    lv_dropdown_set_symbol(obj, LV_SYMBOL_RIGHT);
+                    lv_dropdown_set_symbol(obj, LV_SYMBOL_UP);
                     lv_dropdown_set_selected(obj, 0);
                     lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+                    add_style_drop_down_with_shadow(obj);
                     lv_obj_set_style_text_font(obj, &lv_font_montserrat_16, LV_PART_MAIN | LV_STATE_DEFAULT);
                 }
             }
@@ -816,6 +831,7 @@ void change_color_theme(uint32_t theme_index) {
     lv_style_set_border_color(get_style_drop_down_with_shadow_MAIN_DEFAULT(), lv_color_hex(theme_colors[theme_index][2]));
     lv_style_set_bg_color(get_style_main_button_MAIN_DEFAULT(), lv_color_hex(theme_colors[theme_index][0]));
     lv_style_set_bg_grad_color(get_style_main_button_MAIN_DEFAULT(), lv_color_hex(theme_colors[theme_index][1]));
+    lv_style_set_border_color(get_style_text_area_with_shadow_MAIN_DEFAULT(), lv_color_hex(theme_colors[theme_index][2]));
     lv_obj_invalidate(objects.main);
 }
 uint32_t theme_colors[1][3] = {

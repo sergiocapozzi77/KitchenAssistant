@@ -2,6 +2,8 @@
 #define FILTERS_H
 
 #include "lvgl.h"
+#include <vector>
+#include <string>
 
 void log_filter_state(void);
 // Filter structure to store selected values
@@ -13,6 +15,7 @@ typedef struct
     char *difficulty; // Difficulty (single-select)
     char *cuisine;    // Cuisine (single-select)
     char *calories;   // Calories (single-select)
+    std::vector<std::string> keywords;
 } filter_state_t;
 
 // Filter option structure

@@ -5,6 +5,9 @@
 #include "styles.h"
 #include "esp_log.h"
 #include "ui.h"
+#include <vector>
+#include <string>
+#include <sstream>
 
 static const char *TAG = "Filters";
 
@@ -133,6 +136,7 @@ static lv_obj_t *diet_dropdown = NULL;
 static lv_obj_t *difficulty_dropdown = NULL;
 static lv_obj_t *cuisine_dropdown = NULL;
 static lv_obj_t *calories_dropdown = NULL;
+static lv_obj_t *keywords_textarea = NULL;
 
 // Helper function to create dropdown option string
 static char *create_options_string(filter_option_t options[], int count, const char *label)
@@ -151,6 +155,43 @@ static char *create_options_string(filter_option_t options[], int count, const c
     }
 
     return buffer;
+}
+
+static void update_keywords_from_textarea()
+{
+    if (!keywords_textarea)
+        return;
+    const char *text = lv_textarea_get_text(keywords_textarea);
+    if (!text)
+        return;
+    std::string input(text);
+    current_filters.keywords.clear();
+    std::string token;
+    for (size_t i = 0; i < input.length(); ++i)
+    {
+        char c = input[i];
+        if (c == ',' || c == ' ' || c == '\t' || c == '\n')
+        {
+            if (!token.empty())
+            {
+                current_filters.keywords.push_back(token);
+                token.clear();
+            }
+        }
+        else
+        {
+            token += c;
+        }
+    }
+    if (!token.empty())
+    {
+        current_filters.keywords.push_back(token);
+    }
+}
+
+static void keywords_textarea_event_handler(lv_event_t *e)
+{
+    update_keywords_from_textarea();
 }
 
 // Dropdown event handler
@@ -224,6 +265,11 @@ void log_filter_state(void)
     ESP_LOGI(TAG, "  difficulty: %s", current_filters.difficulty ? current_filters.difficulty : "NULL");
     ESP_LOGI(TAG, "  cuisine: %s", current_filters.cuisine ? current_filters.cuisine : "NULL");
     ESP_LOGI(TAG, "  calories: %s", current_filters.calories ? current_filters.calories : "NULL");
+    ESP_LOGI(TAG, "  keywords: %d", current_filters.keywords.size());
+    for (size_t i = 0; i < current_filters.keywords.size(); ++i)
+    {
+        ESP_LOGI(TAG, "    - %s", current_filters.keywords[i].c_str());
+    }
 }
 
 // Create the main filter panel
@@ -236,6 +282,9 @@ void create_filter_panel()
     difficulty_dropdown = objects.products_filters_panel__difficulty_dropdown;
     cuisine_dropdown = objects.products_filters_panel__cuisine_dropdown;
     calories_dropdown = objects.products_filters_panel__calories_dropdown;
+    keywords_textarea = objects.products_filters_panel__keywords_text;
+    if (keywords_textarea)
+        update_keywords_from_textarea();
 
     // Verify dropdowns were created
     if (!meal_type_dropdown || !total_time_dropdown || !diet_dropdown ||
@@ -244,31 +293,6 @@ void create_filter_panel()
         ESP_LOGE(TAG, "Failed to get dropdown objects from user widget");
         return;
     }
-
-    // Set dropdown properties (EEZ sets options, we need to set direction/symbol)
-    lv_dropdown_set_dir(meal_type_dropdown, LV_DIR_TOP);
-    lv_dropdown_set_symbol(meal_type_dropdown, LV_SYMBOL_UP);
-    add_style_drop_down_with_shadow(meal_type_dropdown);
-
-    lv_dropdown_set_dir(total_time_dropdown, LV_DIR_TOP);
-    lv_dropdown_set_symbol(total_time_dropdown, LV_SYMBOL_UP);
-    add_style_drop_down_with_shadow(total_time_dropdown);
-
-    lv_dropdown_set_dir(diet_dropdown, LV_DIR_TOP);
-    lv_dropdown_set_symbol(diet_dropdown, LV_SYMBOL_UP);
-    add_style_drop_down_with_shadow(diet_dropdown);
-
-    lv_dropdown_set_dir(difficulty_dropdown, LV_DIR_TOP);
-    lv_dropdown_set_symbol(difficulty_dropdown, LV_SYMBOL_UP);
-    add_style_drop_down_with_shadow(difficulty_dropdown);
-
-    lv_dropdown_set_dir(cuisine_dropdown, LV_DIR_TOP);
-    lv_dropdown_set_symbol(cuisine_dropdown, LV_SYMBOL_UP);
-    add_style_drop_down_with_shadow(cuisine_dropdown);
-
-    lv_dropdown_set_dir(calories_dropdown, LV_DIR_TOP);
-    lv_dropdown_set_symbol(calories_dropdown, LV_SYMBOL_UP);
-    add_style_drop_down_with_shadow(calories_dropdown);
 
     // Set default selection to none (first option)
     lv_dropdown_set_selected(meal_type_dropdown, 0);
@@ -285,6 +309,10 @@ void create_filter_panel()
     lv_obj_add_event_cb(difficulty_dropdown, dropdown_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
     lv_obj_add_event_cb(cuisine_dropdown, dropdown_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
     lv_obj_add_event_cb(calories_dropdown, dropdown_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
+    if (keywords_textarea)
+    {
+        lv_obj_add_event_cb(keywords_textarea, keywords_textarea_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
+    }
 }
 
 // Public function to get current filter state

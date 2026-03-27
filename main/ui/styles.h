@@ -22,6 +22,11 @@ lv_style_t *get_style_main_button_MAIN_DEFAULT();
 void add_style_main_button(lv_obj_t *obj);
 void remove_style_main_button(lv_obj_t *obj);
 
+// Style: TextAreaWithShadow
+lv_style_t *get_style_text_area_with_shadow_MAIN_DEFAULT();
+void add_style_text_area_with_shadow(lv_obj_t *obj);
+void remove_style_text_area_with_shadow(lv_obj_t *obj);
+
 #ifdef __cplusplus
 }
 #endif

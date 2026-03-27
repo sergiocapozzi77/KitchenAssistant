@@ -182,6 +182,24 @@
       "componentGroups": [],
       "userProperties": [],
       "name": "ProductsReloadClick"
+    },
+    {
+      "objID": "1a5f758b-4bd7-4eab-c5ee-b62f1b911129",
+      "components": [],
+      "connectionLines": [],
+      "localVariables": [],
+      "componentGroups": [],
+      "userProperties": [],
+      "name": "ProductSortValueChanged"
+    },
+    {
+      "objID": "01de0212-ad17-4f32-eab3-bf50112a3f24",
+      "components": [],
+      "connectionLines": [],
+      "localVariables": [],
+      "componentGroups": [],
+      "userProperties": [],
+      "name": "ProductFilterChange"
     }
   ],
   "userPages": [
@@ -310,78 +328,37 @@
                           "heightUnit": "%",
                           "children": [
                             {
-                              "objID": "6524ab99-2c59-41d9-a2a3-afa7e59f814e",
-                              "type": "LVGLButtonWidget",
-                              "left": 681,
-                              "top": -12,
-                              "width": 71,
-                              "height": 55,
+                              "objID": "d083bbc8-5717-4267-d38d-01f3be525e29",
+                              "type": "LVGLDropdownWidget",
+                              "left": 452,
+                              "top": -5,
+                              "width": 149,
+                              "height": 46,
                               "customInputs": [],
                               "customOutputs": [],
                               "style": {
-                                "objID": "db2c1d07-ae97-427a-f9bb-08a82555525e",
+                                "objID": "665da32f-a415-43d2-fe51-05e75ff2a56a",
                                 "useStyle": "default",
                                 "conditionalStyles": [],
                                 "childStyles": []
                               },
                               "timeline": [],
-                              "eventHandlers": [],
+                              "eventHandlers": [
+                                {
+                                  "objID": "8226b341-deb4-4e92-efa4-319e0b6c16d8",
+                                  "eventName": "VALUE_CHANGED",
+                                  "handlerType": "action",
+                                  "action": "ProductFilterChange",
+                                  "userData": 0
+                                }
+                              ],
+                              "identifier": "product_filter_dropdown",
                               "leftUnit": "px",
                               "topUnit": "px",
                               "widthUnit": "px",
-                              "heightUnit": "px",
-                              "children": [
-                                {
-                                  "objID": "9906727b-d0f2-466b-9aa5-e0e9854aa5f6",
-                                  "type": "LVGLLabelWidget",
-                                  "left": 0,
-                                  "top": 0,
-                                  "width": 23,
-                                  "height": 29,
-                                  "customInputs": [],
-                                  "customOutputs": [],
-                                  "style": {
-                                    "objID": "f0061acc-f0d8-4970-ed65-7a31de4ddf16",
-                                    "useStyle": "default",
-                                    "conditionalStyles": [],
-                                    "childStyles": []
-                                  },
-                                  "timeline": [],
-                                  "eventHandlers": [],
-                                  "leftUnit": "px",
-                                  "topUnit": "px",
-                                  "widthUnit": "content",
-                                  "heightUnit": "content",
-                                  "children": [],
-                                  "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
-                                  "hiddenFlagType": "literal",
-                                  "clickableFlagType": "literal",
-                                  "flagScrollbarMode": "",
-                                  "flagScrollDirection": "",
-                                  "scrollSnapX": "",
-                                  "scrollSnapY": "",
-                                  "checkedStateType": "literal",
-                                  "disabledStateType": "literal",
-                                  "states": "",
-                                  "localStyles": {
-                                    "objID": "a93ff822-bdba-4253-b824-c86a8e36bdf1",
-                                    "definition": {
-                                      "MAIN": {
-                                        "DEFAULT": {
-                                          "align": "CENTER"
-                                        }
-                                      }
-                                    }
-                                  },
-                                  "group": "",
-                                  "groupIndex": 0,
-                                  "text": "\\uF078",
-                                  "textType": "literal",
-                                  "longMode": "WRAP",
-                                  "recolor": false
-                                }
-                              ],
-                              "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_ON_FOCUS|SCROLL_WITH_ARROW|SNAPPABLE",
+                              "heightUnit": "content",
+                              "children": [],
+                              "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_ON_FOCUS|SCROLL_WITH_ARROW|SNAPPABLE",
                               "hiddenFlagType": "literal",
                               "clickableFlag": true,
                               "clickableFlagType": "literal",
@@ -392,20 +369,93 @@
                               "checkedStateType": "literal",
                               "disabledStateType": "literal",
                               "states": "",
-                              "useStyle": "MainButton",
+                              "useStyle": "DropDownWithShadow",
                               "localStyles": {
-                                "objID": "4f3262c2-a0fb-41f4-cb82-bc4d59abea3d"
+                                "objID": "40100e0a-d8e6-4fef-9aa6-2033e959c255",
+                                "definition": {
+                                  "MAIN": {
+                                    "DEFAULT": {
+                                      "text_font": "MONTSERRAT_20"
+                                    }
+                                  }
+                                }
                               },
                               "group": "",
-                              "groupIndex": 0
+                              "groupIndex": 0,
+                              "options": "Show All\nShow Expirying",
+                              "optionsType": "literal",
+                              "selected": 0,
+                              "selectedType": "literal",
+                              "direction": "bottom"
+                            },
+                            {
+                              "objID": "16be3ea4-ed06-45ca-f1e3-6458fac0c932",
+                              "type": "LVGLDropdownWidget",
+                              "left": 617,
+                              "top": -5,
+                              "width": 146,
+                              "height": 46,
+                              "customInputs": [],
+                              "customOutputs": [],
+                              "style": {
+                                "objID": "35b5ed43-a658-472d-9e2a-587f13e65dee",
+                                "useStyle": "default",
+                                "conditionalStyles": [],
+                                "childStyles": []
+                              },
+                              "timeline": [],
+                              "eventHandlers": [
+                                {
+                                  "objID": "9a70b4c5-0af4-492b-fa1c-a41db262b1bb",
+                                  "eventName": "VALUE_CHANGED",
+                                  "handlerType": "action",
+                                  "action": "ProductSortValueChanged",
+                                  "userData": 0
+                                }
+                              ],
+                              "identifier": "product_sort_dropdown",
+                              "leftUnit": "px",
+                              "topUnit": "px",
+                              "widthUnit": "px",
+                              "heightUnit": "content",
+                              "children": [],
+                              "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_ON_FOCUS|SCROLL_WITH_ARROW|SNAPPABLE",
+                              "hiddenFlagType": "literal",
+                              "clickableFlag": true,
+                              "clickableFlagType": "literal",
+                              "flagScrollbarMode": "",
+                              "flagScrollDirection": "",
+                              "scrollSnapX": "",
+                              "scrollSnapY": "",
+                              "checkedStateType": "literal",
+                              "disabledStateType": "literal",
+                              "states": "",
+                              "useStyle": "DropDownWithShadow",
+                              "localStyles": {
+                                "objID": "cafe3996-556e-45b5-ebc0-808797a486ab",
+                                "definition": {
+                                  "MAIN": {
+                                    "DEFAULT": {
+                                      "text_font": "MONTSERRAT_20"
+                                    }
+                                  }
+                                }
+                              },
+                              "group": "",
+                              "groupIndex": 0,
+                              "options": "Sort A-Z\nSort By Expiry",
+                              "optionsType": "literal",
+                              "selected": 0,
+                              "selectedType": "literal",
+                              "direction": "bottom"
                             },
                             {
                               "objID": "b6a5cb80-3d34-45f9-e14e-797db685b79b",
                               "type": "LVGLButtonWidget",
-                              "left": 10,
-                              "top": -9,
-                              "width": 71,
-                              "height": 55,
+                              "left": -6,
+                              "top": -7,
+                              "width": 50,
+                              "height": 50,
                               "customInputs": [],
                               "customOutputs": [],
                               "style": {
@@ -2608,7 +2658,7 @@
           "left": 0,
           "top": 0,
           "width": 746,
-          "height": 300,
+          "height": 200,
           "customInputs": [],
           "customOutputs": [],
           "style": {
@@ -2659,6 +2709,7 @@
               "checkedStateType": "literal",
               "disabledStateType": "literal",
               "states": "",
+              "useStyle": "TextAreaWithShadow",
               "localStyles": {
                 "objID": "b314350b-9521-4867-dcc3-fbf7ece596dc"
               },
@@ -2666,7 +2717,7 @@
               "groupIndex": 0,
               "text": "",
               "textType": "literal",
-              "placeholder": "Keywords",
+              "placeholder": "Keywords...",
               "oneLineMode": true,
               "passwordMode": false,
               "acceptedCharacters": "",
@@ -2706,6 +2757,7 @@
               "checkedStateType": "literal",
               "disabledStateType": "literal",
               "states": "",
+              "useStyle": "DropDownWithShadow",
               "localStyles": {
                 "objID": "filters-panel-0000-0000-0000-000000000006",
                 "definition": {
@@ -2718,11 +2770,11 @@
               },
               "group": "",
               "groupIndex": 0,
-              "options": "Meal Type\nAfternoon tea\nBreakfast\nBrunch\nBuffet\nCanapes\nCondiment\nDessert\nDinner\nFish Course\nLunch\nMain course\nPasta\nSide\r\n    dish\nSnack\nSoup\nStarter\nSupper\nTreat\nVegetable",
+              "options": "Meal Type\nAfternoon tea\nBreakfast\nBrunch\nBuffet\nCanapes\nCondiment\nDessert\nDinner\nFish Course\nLunch\nMain course\nPasta\nSide dish\nSnack\nSoup\nStarter\nSupper\nTreat\nVegetable",
               "optionsType": "literal",
               "selected": 0,
               "selectedType": "literal",
-              "direction": "TOP"
+              "direction": "top"
             },
             {
               "objID": "filters-panel-0000-0000-0000-000000000007",
@@ -2758,6 +2810,7 @@
               "checkedStateType": "literal",
               "disabledStateType": "literal",
               "states": "",
+              "useStyle": "DropDownWithShadow",
               "localStyles": {
                 "objID": "filters-panel-0000-0000-0000-000000000009",
                 "definition": {
@@ -2774,7 +2827,7 @@
               "optionsType": "literal",
               "selected": 0,
               "selectedType": "literal",
-              "direction": "TOP"
+              "direction": "top"
             },
             {
               "objID": "filters-panel-0000-0000-0000-000000000010",
@@ -2810,6 +2863,7 @@
               "checkedStateType": "literal",
               "disabledStateType": "literal",
               "states": "",
+              "useStyle": "DropDownWithShadow",
               "localStyles": {
                 "objID": "filters-panel-0000-0000-0000-000000000012",
                 "definition": {
@@ -2826,7 +2880,7 @@
               "optionsType": "literal",
               "selected": 0,
               "selectedType": "literal",
-              "direction": "TOP"
+              "direction": "top"
             },
             {
               "objID": "filters-panel-0000-0000-0000-000000000013",
@@ -2862,6 +2916,7 @@
               "checkedStateType": "literal",
               "disabledStateType": "literal",
               "states": "",
+              "useStyle": "DropDownWithShadow",
               "localStyles": {
                 "objID": "filters-panel-0000-0000-0000-000000000015",
                 "definition": {
@@ -2878,7 +2933,7 @@
               "optionsType": "literal",
               "selected": 0,
               "selectedType": "literal",
-              "direction": "TOP"
+              "direction": "top"
             },
             {
               "objID": "filters-panel-0000-0000-0000-000000000016",
@@ -2914,6 +2969,7 @@
               "checkedStateType": "literal",
               "disabledStateType": "literal",
               "states": "",
+              "useStyle": "DropDownWithShadow",
               "localStyles": {
                 "objID": "filters-panel-0000-0000-0000-000000000018",
                 "definition": {
@@ -2926,11 +2982,11 @@
               },
               "group": "",
               "groupIndex": 0,
-              "options": "Cuisine\nAfrican\nAmerican\nAsian\nAustralian\nAzerbaijan\nBrazilian\nBritish\nCajun & Creole\nCaribbean\nChinese\nEastern\r\n    European\nEgyptian\nEnglish\nFrench\nGerman\nGreek\nIndian\nIndonesian\nIrish\nItalian\nJapanese\nKorean\nLatin American\nMediterranean\nMexican\nMiddle Eastern\nMoroccan\nNorth\r\n    African\nPortuguese\nScandinavian\nScottish\nSouthern & Soul\nSpanish\nSwedish\nThai\nTunisian\nTurkish\nVietnamese",
+              "options": "Cuisine\nAfrican\nAmerican\nAsian\nAustralian\nAzerbaijan\nBrazilian\nBritish\nCajun & Creole\nCaribbean\nChinese\nEastern European\nEgyptian\nEnglish\nFrench\nGerman\nGreek\nIndian\nIndonesian\nIrish\nItalian\nJapanese\nKorean\nLatin American\nMediterranean\nMexican\nMiddle Eastern\nMoroccan\nNorth African\nPortuguese\nScandinavian\nScottish\nSouthern & Soul\nSpanish\nSwedish\nThai\nTunisian\nTurkish\nVietnamese",
               "optionsType": "literal",
               "selected": 0,
               "selectedType": "literal",
-              "direction": "TOP"
+              "direction": "top"
             },
             {
               "objID": "filters-panel-0000-0000-0000-000000000019",
@@ -2966,6 +3022,7 @@
               "checkedStateType": "literal",
               "disabledStateType": "literal",
               "states": "",
+              "useStyle": "DropDownWithShadow",
               "localStyles": {
                 "objID": "filters-panel-0000-0000-0000-000000000021",
                 "definition": {
@@ -2982,7 +3039,7 @@
               "optionsType": "literal",
               "selected": 0,
               "selectedType": "literal",
-              "direction": "TOP"
+              "direction": "top"
             }
           ],
           "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
@@ -3018,7 +3075,7 @@
       "left": 0,
       "top": 0,
       "width": 746,
-      "height": 300,
+      "height": 200,
       "isUsedAsUserWidget": true,
       "createAtStart": true,
       "deleteOnScreenUnload": false
@@ -3082,6 +3139,25 @@
                 "bg_grad_color": "AccentDark",
                 "text_color": "#ffffff",
                 "text_font": "MONTSERRAT_26"
+              }
+            }
+          }
+        }
+      },
+      {
+        "objID": "819e2bec-1546-496d-a2f6-d5150730dc51",
+        "name": "TextAreaWithShadow",
+        "forWidgetType": "LVGLTextareaWidget",
+        "childStyles": [],
+        "definition": {
+          "objID": "6bf6e585-4275-40fe-98b5-cab360767dee",
+          "definition": {
+            "MAIN": {
+              "DEFAULT": {
+                "border_color": "Border",
+                "border_width": 1,
+                "shadow_width": 15,
+                "shadow_opa": 30
               }
             }
           }

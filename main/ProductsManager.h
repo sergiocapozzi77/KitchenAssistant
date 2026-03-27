@@ -22,6 +22,8 @@ public:
 
     void fetchProducts();
 
+    void pupulateProductList();
+
 private:
     static void fetchProductsTask(void *param);
 

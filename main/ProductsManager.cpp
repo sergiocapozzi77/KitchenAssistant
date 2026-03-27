@@ -108,3 +108,8 @@ void ProductsManager::fetchProductsTask(void *param)
 
     vTaskDelete(NULL);
 }
+
+void ProductsManager::pupulateProductList()
+{
+    populateProductList(objects.products_list, getAllProducts());
+}

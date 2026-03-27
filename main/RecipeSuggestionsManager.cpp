@@ -160,7 +160,7 @@ void fetchRecipesTask(void *param)
     heap_caps_check_integrity_all(true);
     ESP_LOGI("ShowRecipesTask", "Heap OK after building ingredients");
 
-    std::vector<std::string> keywords = {};
+    std::vector<std::string> keywords = filterState->keywords;
 
     ESP_LOGI("ShowRecipesTask", "Largest free block: %d bytes", (int)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
 

@@ -370,12 +370,44 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
     lv_obj_set_flex_flow(root, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_row(root, 15, 0);
 
-    // Sort products by category
+    uint32_t filter_idx = lv_dropdown_get_selected(objects.product_filter_dropdown);
+    // filter_idx = 0: show all
+    // filter_idx = 1: show only product expirying < 7 days
+
+    uint32_t sort_idx = lv_dropdown_get_selected(objects.product_sort_dropdown);
+    // sort_idx = 0: sort alphabetically (by category, then name)
+    // sort_idx = 1: sort by expiry (by category, then expiry date)
+
     std::vector<const Product *> sorted;
     for (const auto &p : products)
         sorted.push_back(&p);
-    std::sort(sorted.begin(), sorted.end(), [](const Product *a, const Product *b)
-              { return a->category < b->category; });
+
+    // Filter first (fewer elements to sort)
+    if (filter_idx == 1)
+    {
+        sorted.erase(std::remove_if(sorted.begin(), sorted.end(), [](const Product *p)
+                                    {
+        int days = days_until_expiry(p->expiry);
+        return days == 9999 || days >= 7; }),
+                     sorted.end());
+    }
+
+    std::sort(sorted.begin(), sorted.end(), [sort_idx](const Product *a, const Product *b)
+              {
+    if (a->category != b->category)
+        return a->category < b->category;
+
+    if (sort_idx == 1)
+    {
+        // Push products with no expiry (9999) to the end
+        bool a_valid = days_until_expiry(a->expiry) != 9999;
+        bool b_valid = days_until_expiry(b->expiry) != 9999;
+        if (a_valid != b_valid)
+            return a_valid > b_valid;
+        return a->expiry < b->expiry;
+    }
+
+    return a->name < b->name; });
 
     std::string currentCategory;
     lv_obj_t *content = nullptr;

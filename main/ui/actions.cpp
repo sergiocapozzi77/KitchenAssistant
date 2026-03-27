@@ -137,6 +137,16 @@ void action_product_edit_close(lv_event_t *e)
     close_product_edit_modal();
 }
 
-extern void action_product_edit_save(lv_event_t *e)
+void action_product_edit_save(lv_event_t *e)
 {
+}
+
+void action_product_sort_value_changed(lv_event_t *e)
+{
+    productsManager.pupulateProductList();
+}
+
+void action_product_filter_change(lv_event_t *e)
+{
+    productsManager.pupulateProductList();
 }
