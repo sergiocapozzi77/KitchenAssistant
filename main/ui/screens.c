@@ -90,7 +90,7 @@ void create_screen_main() {
                                             objects.product_filter_dropdown = obj;
                                             lv_obj_set_pos(obj, 452, -5);
                                             lv_obj_set_size(obj, 149, LV_SIZE_CONTENT);
-                                            lv_dropdown_set_options(obj, "Show All\nShow Expirying");
+                                            lv_dropdown_set_options(obj, "Show All\nExpirying");
                                             lv_dropdown_set_selected(obj, 0);
                                             lv_obj_add_event_cb(obj, action_product_filter_change, LV_EVENT_VALUE_CHANGED, (void *)0);
                                             add_style_drop_down_with_shadow(obj);
@@ -102,7 +102,7 @@ void create_screen_main() {
                                             objects.product_sort_dropdown = obj;
                                             lv_obj_set_pos(obj, 617, -5);
                                             lv_obj_set_size(obj, 146, LV_SIZE_CONTENT);
-                                            lv_dropdown_set_options(obj, "Sort A-Z\nSort By Expiry");
+                                            lv_dropdown_set_options(obj, "Sort A-Z\nBy Expiry");
                                             lv_dropdown_set_selected(obj, 0);
                                             lv_obj_add_event_cb(obj, action_product_sort_value_changed, LV_EVENT_VALUE_CHANGED, (void *)0);
                                             add_style_drop_down_with_shadow(obj);

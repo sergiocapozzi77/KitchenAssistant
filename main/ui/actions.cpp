@@ -6,9 +6,11 @@
 #include "vars.h"
 #include "images.h"
 #include "ProductsManager.h"
+#include "ProductService.h"
 #include "ui_extensions.h"
 #include "RecipeSuggestionsManager.h"
 #include "filters_ui.h"
+#include <algorithm>
 
 static void keyboard_ready_cb(lv_event_t *e)
 {
@@ -137,8 +139,87 @@ void action_product_edit_close(lv_event_t *e)
     close_product_edit_modal();
 }
 
+static std::string index_to_category(int idx) {
+    static const char* categories[] = {
+        "Baby", "Bakery", "Beverages", "Breakfast & Cereal", "Condiments & Dressing",
+        "Cooking & Baking", "Dairy", "Deli", "Frozen Foods", "Grains",
+        "Pasta & Sides", "Health & Personal Care", "Household & Cleaning", "Meat",
+        "Pet Supplies", "Produce", "Seafood", "Snacks", "Soups & Canned Food",
+        "Wine, Beer & Spirit", "Other"
+    };
+    if (idx < 0 || idx >= 21) idx = 20;
+    return categories[idx];
+}
+
 void action_product_edit_save(lv_event_t *e)
 {
+    ESP_LOGI("actions", "Product edit save clicked");
+
+    // Get modal widgets (startWidgetIndex = 0)
+    lv_obj_t* panel = ((lv_obj_t **)&objects)[0]; // product_edit_panel
+    if (!panel || !lv_obj_is_valid(panel)) {
+        ESP_LOGE("actions", "Panel not found");
+        return;
+    }
+
+    // Get rowId from panel user data (set by edit_btn_cb)
+    std::string* rowId = static_cast<std::string*>(lv_obj_get_user_data(panel));
+    if (!rowId) {
+        ESP_LOGE("actions", "RowId not found in panel");
+        return;
+    }
+
+    lv_obj_t* name_ta = ((lv_obj_t **)&objects)[4];  // product_edit_name_ta
+    lv_obj_t* expiry_ta = ((lv_obj_t **)&objects)[6]; // product_edit_expiry_ta
+    lv_obj_t* category_dd = ((lv_obj_t **)&objects)[8]; // product_edit_category_dd
+
+    if (!name_ta || !lv_obj_is_valid(name_ta) ||
+        !expiry_ta || !lv_obj_is_valid(expiry_ta) ||
+        !category_dd || !lv_obj_is_valid(category_dd)) {
+        ESP_LOGE("actions", "One or more widgets invalid");
+        return;
+    }
+
+    // Read values
+    const char* name = lv_textarea_get_text(name_ta);
+    const char* expiry = lv_textarea_get_text(expiry_ta);
+    int cat_idx = lv_dropdown_get_selected(category_dd);
+    std::string category = index_to_category(cat_idx);
+
+    ESP_LOGI("actions", "Updating product %s: name='%s', expiry='%s', category='%s'",
+             rowId->c_str(), name, expiry, category.c_str());
+
+    // Create updated product, preserving existing quantity
+    Product product;
+    product.rowId = *rowId;
+    product.name = name ? name : "";
+    product.expiry = expiry ? expiry : "";
+    product.category = category;
+
+    // Preserve quantity from existing product
+    auto allProducts = productsManager.getAllProducts();
+    auto it = std::find_if(allProducts.begin(), allProducts.end(),
+                           [&rowId](const Product& p) { return p.rowId == *rowId; });
+    if (it != allProducts.end()) {
+        product.quantity = it->quantity;
+    } else {
+        product.quantity = 0; // default if not found
+    }
+
+    // Call service to update
+    bool success = productService.updateProduct(product);
+    if (success) {
+        ESP_LOGI("actions", "Product updated successfully");
+        showSnackbar("Product updated", 3000);
+        // Refresh product list
+        productsManager.fetchProducts();
+    } else {
+        ESP_LOGE("actions", "Failed to update product");
+        showSnackbar("Failed to update product", 5000);
+    }
+
+    // Close modal
+    close_product_edit_modal();
 }
 
 void action_product_sort_value_changed(lv_event_t *e)

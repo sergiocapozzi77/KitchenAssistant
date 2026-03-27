@@ -258,6 +258,22 @@ static void overlay_click_cb(lv_event_t *e)
     close_product_edit_modal();
 }
 
+static int category_to_index(const std::string &category)
+{
+    static const char *categories[] = {
+        "Baby", "Bakery", "Beverages", "Breakfast & Cereal", "Condiments & Dressing",
+        "Cooking & Baking", "Dairy", "Deli", "Frozen Foods", "Grains",
+        "Pasta & Sides", "Health & Personal Care", "Household & Cleaning", "Meat",
+        "Pet Supplies", "Produce", "Seafood", "Snacks", "Soups & Canned Food",
+        "Wine, Beer & Spirit", "Other"};
+    for (int i = 0; i < 21; ++i)
+    {
+        if (category == categories[i])
+            return i;
+    }
+    return 20; // default to "Other"
+}
+
 void show_product_edit_modal(int widgetIndex = 0)
 {
     if (modal_overlay && lv_obj_is_valid(modal_overlay))
@@ -335,6 +351,12 @@ void show_product_edit_modal(int widgetIndex = 0)
     // lv_anim_start(&a2);
 }
 
+static void free_panel_rowid_cb(lv_event_t *e)
+{
+    std::string *data = static_cast<std::string *>(lv_event_get_user_data(e));
+    delete data;
+}
+
 static void edit_btn_cb(lv_event_t *e)
 {
     std::string *rowId = static_cast<std::string *>(lv_event_get_user_data(e));
@@ -344,7 +366,47 @@ static void edit_btn_cb(lv_event_t *e)
     // Show modal overlay (we'll create it below)
     show_product_edit_modal();
 
-    // TODO: load product data into objects.product_edit using rowId
+    // Load product data into modal widgets
+    auto products = productsManager.getAllProducts();
+    auto it = std::find_if(products.begin(), products.end(),
+                           [&rowId](const Product &p)
+                           { return p.rowId == *rowId; });
+    if (it == products.end())
+    {
+        ESP_LOGE("UIEXTENSIONS", "Product with rowId %s not found", rowId->c_str());
+        return;
+    }
+    const Product &product = *it;
+
+    // Get modal widgets (startWidgetIndex = 0)
+    lv_obj_t *name_ta = ((lv_obj_t **)&objects)[4];     // product_edit_name_ta
+    lv_obj_t *expiry_ta = ((lv_obj_t **)&objects)[6];   // product_edit_expiry_ta
+    lv_obj_t *category_dd = ((lv_obj_t **)&objects)[8]; // product_edit_category_dd
+
+    if (name_ta && lv_obj_is_valid(name_ta))
+    {
+        lv_textarea_set_text(name_ta, product.name.c_str());
+    }
+    if (expiry_ta && lv_obj_is_valid(expiry_ta))
+    {
+        lv_textarea_set_text(expiry_ta, product.expiry.c_str());
+    }
+    if (category_dd && lv_obj_is_valid(category_dd))
+    {
+        int idx = category_to_index(product.category);
+        lv_dropdown_set_selected(category_dd, idx);
+    }
+
+    // Store rowId in panel user data for save action
+    lv_obj_t *panel = ((lv_obj_t **)&objects)[0]; // product_edit_panel
+    if (panel && lv_obj_is_valid(panel))
+    {
+        // Copy rowId string and attach to panel; will be freed on panel deletion
+        std::string *rowIdCopy = new std::string(*rowId);
+        lv_obj_set_user_data(panel, rowIdCopy);
+        // Set delete callback to free the copy
+        lv_obj_add_event_cb(panel, free_panel_rowid_cb, LV_EVENT_DELETE, rowIdCopy);
+    }
 }
 
 // === MAIN POPULATE FUNCTION ===
