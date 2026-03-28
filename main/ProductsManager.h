@@ -2,17 +2,19 @@
 #include <string>
 #include <vector>
 #include <mutex>
+#include <optional>
 #include "models.h"
 
 class ProductsManager
 {
 public:
+    void updateProduct(const Product &updated);
+    std::optional<Product> getProductById(const std::string &rowId);
     // void addProduct(const Product &product);
     void addProducts(const std::vector<Product> &products);
     // void removeProduct(const std::string &id);
     std::vector<Product> getProducts() const;
     //  Product getProduct(const std::string &id) const;
-    void updateProduct(const Product &product);
     std::vector<Product> getAllProducts();
 
     void addSelectedProduct(const Product &product);
@@ -22,7 +24,7 @@ public:
 
     void fetchProducts();
 
-    void pupulateProductList();
+    void populateProductList();
 
 private:
     static void fetchProductsTask(void *param);

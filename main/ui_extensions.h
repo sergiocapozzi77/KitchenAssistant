@@ -5,7 +5,7 @@
 #include "models.h"
 #include "lvgl.h"
 
-void populateProductList(lv_obj_t *root, const std::vector<Product> &products);
+void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products);
 void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &recipes);
 void showRecipeDetailScreen(const RecipeSuggestion &recipe);
 void showSnackbar(const char *message, int duration_ms);

@@ -1,6 +1,7 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <ctime>
 #include "lvgl.h"
 #include "esp_log.h"
 #include "ProductService.h"
@@ -12,8 +13,16 @@
 #include "models.h"
 
 static const char *TAG = "UIEXTENSIONS";
+static bool s_populating = false;
 
 static void update_selection_ui();
+
+// // Calendar picker helpers
+// static void add_calendar_button_to_expiry(lv_obj_t *expiry_ta);
+// static void calendar_btn_cb(lv_event_t *e);
+// static void calendar_close_cb(lv_event_t *e);
+// static void calendar_day_selected_cb(lv_event_t *e);
+// static void show_calendar_popup(lv_obj_t *expiry_ta);
 
 // === PRODUCT-SPECIFIC STRUCTS ===
 
@@ -242,20 +251,9 @@ static void update_selection_ui()
     }
 }
 
-static lv_obj_t *modal_overlay = nullptr;
-
 void close_product_edit_modal()
 {
-    if (!modal_overlay || !lv_obj_is_valid(modal_overlay))
-        return;
-
-    lv_obj_del(modal_overlay);
-    modal_overlay = nullptr;
-}
-
-static void overlay_click_cb(lv_event_t *e)
-{
-    close_product_edit_modal();
+    lv_obj_add_flag(objects.product_edit_modal, LV_OBJ_FLAG_HIDDEN);
 }
 
 static int category_to_index(const std::string &category)
@@ -274,81 +272,9 @@ static int category_to_index(const std::string &category)
     return 20; // default to "Other"
 }
 
-void show_product_edit_modal(int widgetIndex = 0)
+void show_product_edit_modal()
 {
-    if (modal_overlay && lv_obj_is_valid(modal_overlay))
-        return;
-
-    // === OVERLAY ===
-    modal_overlay = lv_obj_create(lv_scr_act());
-    lv_obj_set_size(modal_overlay, LV_PCT(100), LV_PCT(100));
-    lv_obj_clear_flag(modal_overlay, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_style_border_width(modal_overlay, 0, 0);
-    lv_obj_set_style_radius(modal_overlay, 0, 0);
-    // Fake blur (dim background)
-    lv_obj_set_style_bg_color(modal_overlay, lv_color_black(), 0);
-    lv_obj_set_style_bg_opa(modal_overlay, LV_OPA_30, 0);
-    lv_obj_add_event_cb(modal_overlay, overlay_click_cb, LV_EVENT_CLICKED, NULL);
-    // === CREATE YOUR WIDGET INSIDE OVERLAY ===
-    create_user_widget_product_edit(modal_overlay, widgetIndex);
-
-    // Grab the modal content: last child of overlay
-    lv_obj_t *modal = lv_obj_get_child(modal_overlay, lv_obj_get_child_cnt(modal_overlay) - 1);
-    ESP_LOGI("MODAL", "child count: %d, modal ptr: %p, size: %dx%d",
-             lv_obj_get_child_cnt(modal_overlay),
-             modal,
-             modal ? lv_obj_get_width(modal) : -1,
-             modal ? lv_obj_get_height(modal) : -1);
-    if (!modal || !lv_obj_is_valid(modal))
-    {
-        ESP_LOGE("MODAL", "Failed to find product_edit widget");
-        return;
-    }
-
-    if (!modal || !lv_obj_is_valid(modal))
-    {
-        ESP_LOGE("MODAL", "product_edit widget not created");
-        return;
-    }
-
-    // === SIZE + CENTER ===
-    lv_obj_set_size(modal, 700, 800);
-    lv_obj_center(modal);
-
-    // === MODAL STYLE ===
-    lv_obj_set_style_radius(modal, 12, 0);
-    lv_obj_set_style_bg_color(modal, lv_color_white(), 0);
-    lv_obj_set_style_shadow_width(modal, 20, 0);
-    lv_obj_set_style_shadow_opa(modal, LV_OPA_20, 0);
-
-    lv_obj_add_flag(modal, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_clear_flag(modal, LV_OBJ_FLAG_EVENT_BUBBLE);
-
-    // =========================
-    // ✨ OPEN ANIMATION
-    // =========================
-
-    // Start invisible + slightly smaller
-    // lv_obj_set_style_opa(modal, LV_OPA_0, 0);
-    // lv_obj_set_style_transform_zoom(modal, 240, 0);
-
-    // Fade in
-    lv_anim_t a1;
-    lv_anim_init(&a1);
-    lv_anim_set_var(&a1, modal);
-    lv_anim_set_values(&a1, LV_OPA_0, LV_OPA_COVER);
-    lv_anim_set_time(&a1, 200);
-    lv_anim_set_exec_cb(&a1, (lv_anim_exec_xcb_t)lv_obj_set_style_opa);
-    // lv_anim_start(&a1);
-
-    // Zoom in
-    lv_anim_t a2;
-    lv_anim_init(&a2);
-    lv_anim_set_var(&a2, modal);
-    lv_anim_set_values(&a2, 240, 256);
-    lv_anim_set_time(&a2, 200);
-    lv_anim_set_exec_cb(&a2, (lv_anim_exec_xcb_t)lv_obj_set_style_transform_zoom);
-    // lv_anim_start(&a2);
+    lv_obj_clear_flag(objects.product_edit_modal, LV_OBJ_FLAG_HIDDEN);
 }
 
 static void free_panel_rowid_cb(lv_event_t *e)
@@ -379,9 +305,9 @@ static void edit_btn_cb(lv_event_t *e)
     const Product &product = *it;
 
     // Get modal widgets (startWidgetIndex = 0)
-    lv_obj_t *name_ta = ((lv_obj_t **)&objects)[4];     // product_edit_name_ta
-    lv_obj_t *expiry_ta = ((lv_obj_t **)&objects)[6];   // product_edit_expiry_ta
-    lv_obj_t *category_dd = ((lv_obj_t **)&objects)[8]; // product_edit_category_dd
+    lv_obj_t *name_ta = objects.product_edit__product_edit_name_ta;         // product_edit_name_ta
+    lv_obj_t *expiry_ta = objects.product_edit__product_edit_expiry_ta;     // product_edit_expiry_ta
+    lv_obj_t *category_dd = objects.product_edit__product_edit_category_dd; // product_edit_category_dd
 
     if (name_ta && lv_obj_is_valid(name_ta))
     {
@@ -398,7 +324,7 @@ static void edit_btn_cb(lv_event_t *e)
     }
 
     // Store rowId in panel user data for save action
-    lv_obj_t *panel = ((lv_obj_t **)&objects)[0]; // product_edit_panel
+    lv_obj_t *panel = objects.product_edit__product_edit_panel; // product_edit_panel
     if (panel && lv_obj_is_valid(panel))
     {
         // Copy rowId string and attach to panel; will be freed on panel deletion
@@ -411,15 +337,32 @@ static void edit_btn_cb(lv_event_t *e)
 
 // === MAIN POPULATE FUNCTION ===
 
-void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
+void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
 {
-    if (!root)
+    if (!root || !lv_obj_is_valid(root))
     {
-        ESP_LOGE(TAG, "Root object is NULL");
+        ESP_LOGE(TAG, "Root object is NULL or invalid");
         return;
     }
 
     lv_lock();
+
+    // Re-check after lock (object could have been deleted)
+    if (!lv_obj_is_valid(root))
+    {
+        ESP_LOGE(TAG, "Root object became invalid after lock");
+        lv_unlock();
+        return;
+    }
+
+    // Prevent re-entrant calls
+    if (s_populating)
+    {
+        ESP_LOGW(TAG, "populateProductList already in progress, skipping");
+        lv_unlock();
+        return;
+    }
+    s_populating = true;
 
     // Initialize styles once
     init_styles();
@@ -432,11 +375,19 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
     lv_obj_set_flex_flow(root, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_row(root, 15, 0);
 
-    uint32_t filter_idx = lv_dropdown_get_selected(objects.product_filter_dropdown);
+    uint32_t filter_idx = 0;
+    if (objects.product_filter_dropdown && lv_obj_is_valid(objects.product_filter_dropdown))
+    {
+        filter_idx = lv_dropdown_get_selected(objects.product_filter_dropdown);
+    }
     // filter_idx = 0: show all
     // filter_idx = 1: show only product expirying < 7 days
 
-    uint32_t sort_idx = lv_dropdown_get_selected(objects.product_sort_dropdown);
+    uint32_t sort_idx = 0;
+    if (objects.product_sort_dropdown && lv_obj_is_valid(objects.product_sort_dropdown))
+    {
+        sort_idx = lv_dropdown_get_selected(objects.product_sort_dropdown);
+    }
     // sort_idx = 0: sort alphabetically (by category, then name)
     // sort_idx = 1: sort by expiry (by category, then expiry date)
 
@@ -657,5 +608,6 @@ void populateProductList(lv_obj_t *root, const std::vector<Product> &products)
     // Initialize selection UI to correct state (panel hidden, count = 0)
     update_selection_ui();
 
+    s_populating = false;
     lv_unlock();
 }

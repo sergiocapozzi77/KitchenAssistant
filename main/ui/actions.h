@@ -17,6 +17,9 @@ extern void action_snack_bar_hide_clicked(lv_event_t * e);
 extern void action_products_reload_click(lv_event_t * e);
 extern void action_product_sort_value_changed(lv_event_t * e);
 extern void action_product_filter_change(lv_event_t * e);
+extern void action_product_edit_calendar(lv_event_t * e);
+extern void action_edit_product_panel_clicked(lv_event_t * e);
+extern void action_product_calendar_value_changed(lv_event_t * e);
 
 #ifdef __cplusplus
 }

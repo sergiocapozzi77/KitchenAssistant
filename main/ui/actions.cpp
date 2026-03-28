@@ -139,15 +139,16 @@ void action_product_edit_close(lv_event_t *e)
     close_product_edit_modal();
 }
 
-static std::string index_to_category(int idx) {
-    static const char* categories[] = {
+static std::string index_to_category(int idx)
+{
+    static const char *categories[] = {
         "Baby", "Bakery", "Beverages", "Breakfast & Cereal", "Condiments & Dressing",
         "Cooking & Baking", "Dairy", "Deli", "Frozen Foods", "Grains",
         "Pasta & Sides", "Health & Personal Care", "Household & Cleaning", "Meat",
         "Pet Supplies", "Produce", "Seafood", "Snacks", "Soups & Canned Food",
-        "Wine, Beer & Spirit", "Other"
-    };
-    if (idx < 0 || idx >= 21) idx = 20;
+        "Wine, Beer & Spirit", "Other"};
+    if (idx < 0 || idx >= 21)
+        idx = 20;
     return categories[idx];
 }
 
@@ -155,41 +156,35 @@ void action_product_edit_save(lv_event_t *e)
 {
     ESP_LOGI("actions", "Product edit save clicked");
 
-    // Get modal widgets (startWidgetIndex = 0)
-    lv_obj_t* panel = ((lv_obj_t **)&objects)[0]; // product_edit_panel
-    if (!panel || !lv_obj_is_valid(panel)) {
-        ESP_LOGE("actions", "Panel not found");
-        return;
-    }
+    lv_obj_t *panel = objects.product_edit__product_edit_panel;
 
-    // Get rowId from panel user data (set by edit_btn_cb)
-    std::string* rowId = static_cast<std::string*>(lv_obj_get_user_data(panel));
-    if (!rowId) {
+    std::string *rowId = static_cast<std::string *>(lv_obj_get_user_data(panel));
+    if (!rowId)
+    {
         ESP_LOGE("actions", "RowId not found in panel");
         return;
     }
 
-    lv_obj_t* name_ta = ((lv_obj_t **)&objects)[4];  // product_edit_name_ta
-    lv_obj_t* expiry_ta = ((lv_obj_t **)&objects)[6]; // product_edit_expiry_ta
-    lv_obj_t* category_dd = ((lv_obj_t **)&objects)[8]; // product_edit_category_dd
+    lv_obj_t *name_ta = objects.product_edit__product_edit_name_ta;         // product_edit_name_ta
+    lv_obj_t *expiry_ta = objects.product_edit__product_edit_expiry_ta;     // product_edit_expiry_ta
+    lv_obj_t *category_dd = objects.product_edit__product_edit_category_dd; // product_edit_category_dd
 
     if (!name_ta || !lv_obj_is_valid(name_ta) ||
         !expiry_ta || !lv_obj_is_valid(expiry_ta) ||
-        !category_dd || !lv_obj_is_valid(category_dd)) {
+        !category_dd || !lv_obj_is_valid(category_dd))
+    {
         ESP_LOGE("actions", "One or more widgets invalid");
         return;
     }
 
-    // Read values
-    const char* name = lv_textarea_get_text(name_ta);
-    const char* expiry = lv_textarea_get_text(expiry_ta);
+    const char *name = lv_textarea_get_text(name_ta);
+    const char *expiry = lv_textarea_get_text(expiry_ta);
     int cat_idx = lv_dropdown_get_selected(category_dd);
     std::string category = index_to_category(cat_idx);
 
     ESP_LOGI("actions", "Updating product %s: name='%s', expiry='%s', category='%s'",
              rowId->c_str(), name, expiry, category.c_str());
 
-    // Create updated product, preserving existing quantity
     Product product;
     product.rowId = *rowId;
     product.name = name ? name : "";
@@ -199,35 +194,86 @@ void action_product_edit_save(lv_event_t *e)
     // Preserve quantity from existing product
     auto allProducts = productsManager.getAllProducts();
     auto it = std::find_if(allProducts.begin(), allProducts.end(),
-                           [&rowId](const Product& p) { return p.rowId == *rowId; });
-    if (it != allProducts.end()) {
-        product.quantity = it->quantity;
-    } else {
-        product.quantity = 0; // default if not found
-    }
+                           [&rowId](const Product &p)
+                           { return p.rowId == *rowId; });
+    product.quantity = (it != allProducts.end()) ? it->quantity : 0;
+    // NOTE: do NOT mutate allProducts — it's a local copy
 
-    // Call service to update
     bool success = productService.updateProduct(product);
-    if (success) {
+    if (success)
+    {
         ESP_LOGI("actions", "Product updated successfully");
         showSnackbar("Product updated", 3000);
-        // Refresh product list
-        productsManager.fetchProducts();
-    } else {
+        productsManager.updateProduct(product);
+
+        // Defer close + refresh — we are still inside the button's event chain.
+        // Destroying the modal now would free objects still on the call stack.
+        lv_async_call([](void *)
+                      {
+            close_product_edit_modal();
+            productsManager.populateProductList(); }, nullptr);
+    }
+    else
+    {
         ESP_LOGE("actions", "Failed to update product");
         showSnackbar("Failed to update product", 5000);
-    }
 
-    // Close modal
-    close_product_edit_modal();
+        lv_async_call([](void *)
+                      { close_product_edit_modal(); }, nullptr);
+    }
 }
 
 void action_product_sort_value_changed(lv_event_t *e)
 {
-    productsManager.pupulateProductList();
+    productsManager.populateProductList();
 }
 
 void action_product_filter_change(lv_event_t *e)
 {
-    productsManager.pupulateProductList();
+    productsManager.populateProductList();
+}
+
+void action_product_edit_calendar(lv_event_t *e)
+{
+    ESP_LOGI("actions", "Product calendar");
+
+    lv_obj_t *calendar = objects.product_edit__calendar_editproduct; // product_edit_name_ta
+
+    // Set today's date
+    time_t now = time(nullptr);
+    struct tm *tm_now = localtime(&now);
+    lv_calendar_date_t today;
+    today.year = tm_now->tm_year + 1900;
+    today.month = tm_now->tm_mon + 1;
+    today.day = tm_now->tm_mday;
+    lv_calendar_set_today_date(calendar, today.year, today.month, today.day);
+    lv_calendar_set_showed_date(calendar, today.year, today.month);
+
+    lv_obj_clear_flag(calendar, LV_OBJ_FLAG_HIDDEN);
+}
+
+void action_edit_product_panel_clicked(lv_event_t *e)
+{
+
+    lv_obj_t *calendar = objects.product_edit__calendar_editproduct;
+
+    lv_obj_add_flag(calendar, LV_OBJ_FLAG_HIDDEN);
+}
+
+void action_product_calendar_value_changed(lv_event_t *e)
+{
+    lv_obj_t *calendar = (lv_obj_t *)lv_event_get_current_target(e);
+
+    ESP_LOGI("actions", "Product day selected");
+
+    lv_calendar_date_t date;
+    lv_calendar_get_pressed_date(calendar, &date);
+
+    // Format as YYYY-MM-DD
+    char buf[16];
+    snprintf(buf, sizeof(buf), "%04d-%02d-%02d", date.year, date.month, date.day);
+    lv_obj_t *expiry_ta = objects.product_edit__product_edit_expiry_ta; // product_edit_expiry_ta
+    lv_textarea_set_text(expiry_ta, buf);
+
+    lv_obj_add_flag(calendar, LV_OBJ_FLAG_HIDDEN);
 }

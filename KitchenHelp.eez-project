@@ -200,6 +200,33 @@
       "componentGroups": [],
       "userProperties": [],
       "name": "ProductFilterChange"
+    },
+    {
+      "objID": "c7d5b5d0-3b90-4db5-d0a6-3b41aa27a356",
+      "components": [],
+      "connectionLines": [],
+      "localVariables": [],
+      "componentGroups": [],
+      "userProperties": [],
+      "name": "ProductEditCalendar"
+    },
+    {
+      "objID": "efe441d8-f6a3-4090-8e32-0b2a1793dc0e",
+      "components": [],
+      "connectionLines": [],
+      "localVariables": [],
+      "componentGroups": [],
+      "userProperties": [],
+      "name": "EditProductPanelClicked"
+    },
+    {
+      "objID": "5762343a-df6d-4d5e-a1ba-8dee165e8c62",
+      "components": [],
+      "connectionLines": [],
+      "localVariables": [],
+      "componentGroups": [],
+      "userProperties": [],
+      "name": "ProductCalendarValueChanged"
     }
   ],
   "userPages": [
@@ -994,6 +1021,7 @@
                           "heightUnit": "px",
                           "children": [],
                           "widgetFlags": "GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+                          "hiddenFlag": false,
                           "hiddenFlagType": "literal",
                           "clickableFlag": true,
                           "clickableFlagType": "literal",
@@ -1040,6 +1068,102 @@
                               "layout": "GRID",
                               "grid_row_dsc_array": "80 FR(1) CONTENT CONTENT",
                               "grid_column_dsc_array": "FR(1)"
+                            }
+                          }
+                        }
+                      },
+                      "group": "",
+                      "groupIndex": 0
+                    },
+                    {
+                      "objID": "daccbe36-ecf9-46ba-ee6d-edfb90311d91",
+                      "type": "LVGLContainerWidget",
+                      "left": 0,
+                      "top": 0,
+                      "width": 100,
+                      "height": 100,
+                      "customInputs": [],
+                      "customOutputs": [],
+                      "style": {
+                        "objID": "b19f521a-2c0c-4e95-a20a-4527a3be0a8b",
+                        "useStyle": "default",
+                        "conditionalStyles": [],
+                        "childStyles": []
+                      },
+                      "timeline": [],
+                      "eventHandlers": [],
+                      "identifier": "product_edit_modal",
+                      "leftUnit": "px",
+                      "topUnit": "px",
+                      "widthUnit": "%",
+                      "heightUnit": "%",
+                      "children": [
+                        {
+                          "objID": "b70fb82c-8384-40d4-9b31-f388cf248fcb",
+                          "type": "LVGLUserWidgetWidget",
+                          "left": 50,
+                          "top": 240,
+                          "width": 700,
+                          "height": 800,
+                          "customInputs": [],
+                          "customOutputs": [],
+                          "style": {
+                            "objID": "1070f5f1-d886-4b8e-cbd4-d102ca927d11",
+                            "useStyle": "default",
+                            "conditionalStyles": [],
+                            "childStyles": []
+                          },
+                          "timeline": [],
+                          "eventHandlers": [],
+                          "identifier": "product_edit",
+                          "leftUnit": "px",
+                          "topUnit": "px",
+                          "widthUnit": "px",
+                          "heightUnit": "px",
+                          "children": [],
+                          "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+                          "hiddenFlag": false,
+                          "hiddenFlagType": "literal",
+                          "clickableFlag": true,
+                          "clickableFlagType": "literal",
+                          "flagScrollbarMode": "",
+                          "flagScrollDirection": "",
+                          "scrollSnapX": "",
+                          "scrollSnapY": "",
+                          "checkedStateType": "literal",
+                          "disabledStateType": "literal",
+                          "states": "",
+                          "localStyles": {
+                            "objID": "05597270-2c36-487c-e28f-68f1bd0b0e02"
+                          },
+                          "group": "",
+                          "groupIndex": 0,
+                          "userWidgetPageName": "ProductEdit",
+                          "userPropertyValues": {
+                            "objID": "21e9929c-9b2c-4674-d35c-906b6540154d",
+                            "values": {}
+                          }
+                        }
+                      ],
+                      "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+                      "hiddenFlag": true,
+                      "hiddenFlagType": "literal",
+                      "clickableFlag": true,
+                      "clickableFlagType": "literal",
+                      "flagScrollbarMode": "",
+                      "flagScrollDirection": "",
+                      "scrollSnapX": "",
+                      "scrollSnapY": "",
+                      "checkedStateType": "literal",
+                      "disabledStateType": "literal",
+                      "states": "",
+                      "localStyles": {
+                        "objID": "a63d8e89-4819-4e42-c5f9-ad7d34e817f6",
+                        "definition": {
+                          "MAIN": {
+                            "DEFAULT": {
+                              "bg_opa": 50,
+                              "bg_color": "#646464"
                             }
                           }
                         }
@@ -1955,7 +2079,15 @@
             "childStyles": []
           },
           "timeline": [],
-          "eventHandlers": [],
+          "eventHandlers": [
+            {
+              "objID": "9efcc7c3-05b9-4248-f055-26cc17e9f42f",
+              "eventName": "CLICKED",
+              "handlerType": "action",
+              "action": "EditProductPanelClicked",
+              "userData": 0
+            }
+          ],
           "identifier": "product_edit_panel",
           "leftUnit": "px",
           "topUnit": "px",
@@ -2202,7 +2334,7 @@
                 "definition": {
                   "MAIN": {
                     "DEFAULT": {
-                      "text_font": "MONTSERRAT_20"
+                      "text_font": "ext_font_montserrat_18"
                     }
                   }
                 }
@@ -2270,8 +2402,8 @@
               "type": "LVGLTextareaWidget",
               "left": 20,
               "top": 265,
-              "width": 627,
-              "height": 42,
+              "width": 568,
+              "height": 48,
               "customInputs": [],
               "customOutputs": [],
               "style": {
@@ -2290,7 +2422,7 @@
               "children": [],
               "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
               "hiddenFlagType": "literal",
-              "clickableFlag": true,
+              "clickableFlag": false,
               "clickableFlagType": "literal",
               "flagScrollbarMode": "",
               "flagScrollDirection": "",
@@ -2616,6 +2748,158 @@
               },
               "group": "",
               "groupIndex": 0
+            },
+            {
+              "objID": "92e094dd-2437-41a1-8e78-27811c61e7ae",
+              "type": "LVGLButtonWidget",
+              "left": 599,
+              "top": 265,
+              "width": 48,
+              "height": 48,
+              "customInputs": [],
+              "customOutputs": [],
+              "style": {
+                "objID": "3e86f4c8-4a13-432c-f8fe-15b5596bfa1a",
+                "useStyle": "FlatButton",
+                "conditionalStyles": [],
+                "childStyles": []
+              },
+              "timeline": [],
+              "eventHandlers": [
+                {
+                  "objID": "f17bc4b3-c845-49a9-8ef7-7b1631b73fc3",
+                  "eventName": "CLICKED",
+                  "handlerType": "action",
+                  "action": "ProductEditCalendar",
+                  "userData": 0
+                }
+              ],
+              "identifier": "product_edit_selectdate",
+              "leftUnit": "px",
+              "topUnit": "px",
+              "widthUnit": "px",
+              "heightUnit": "px",
+              "children": [
+                {
+                  "objID": "7170c1af-914e-4808-d394-6d59beb84516",
+                  "type": "LVGLLabelWidget",
+                  "left": 0,
+                  "top": 0,
+                  "width": 20,
+                  "height": 22,
+                  "customInputs": [],
+                  "customOutputs": [],
+                  "style": {
+                    "objID": "c10efea7-9c81-41d3-e12d-672b52fe5f05",
+                    "useStyle": "default",
+                    "conditionalStyles": [],
+                    "childStyles": []
+                  },
+                  "timeline": [],
+                  "eventHandlers": [],
+                  "leftUnit": "px",
+                  "topUnit": "px",
+                  "widthUnit": "content",
+                  "heightUnit": "content",
+                  "children": [],
+                  "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+                  "hiddenFlagType": "literal",
+                  "clickableFlagType": "literal",
+                  "flagScrollbarMode": "",
+                  "flagScrollDirection": "",
+                  "scrollSnapX": "",
+                  "scrollSnapY": "",
+                  "checkedStateType": "literal",
+                  "disabledStateType": "literal",
+                  "states": "",
+                  "localStyles": {
+                    "objID": "8e45ab67-52e5-4de8-f44d-225c4b6f24f4",
+                    "definition": {
+                      "MAIN": {
+                        "DEFAULT": {
+                          "align": "CENTER",
+                          "text_font": "MONTSERRAT_20"
+                        }
+                      }
+                    }
+                  },
+                  "group": "",
+                  "groupIndex": 0,
+                  "text": "\\uF304",
+                  "textType": "literal",
+                  "longMode": "CLIP",
+                  "recolor": false
+                }
+              ],
+              "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_ON_FOCUS|SCROLL_WITH_ARROW|SNAPPABLE",
+              "hiddenFlagType": "literal",
+              "clickableFlag": true,
+              "clickableFlagType": "literal",
+              "flagScrollbarMode": "",
+              "flagScrollDirection": "",
+              "scrollSnapX": "",
+              "scrollSnapY": "",
+              "checkedStateType": "literal",
+              "disabledStateType": "literal",
+              "states": "",
+              "useStyle": "MainButton",
+              "localStyles": {
+                "objID": "ab2e34a6-6ab7-47f3-affb-3150b01d7ca0"
+              },
+              "group": "",
+              "groupIndex": 0
+            },
+            {
+              "objID": "ef0bdab4-4aae-4da8-e124-f00e255a6d38",
+              "type": "LVGLCalendarWidget",
+              "left": 20,
+              "top": 313,
+              "width": 428,
+              "height": 352,
+              "customInputs": [],
+              "customOutputs": [],
+              "style": {
+                "objID": "c332c2b8-a6c2-47f3-b695-0484a9ed5161",
+                "useStyle": "default",
+                "conditionalStyles": [],
+                "childStyles": []
+              },
+              "timeline": [],
+              "eventHandlers": [
+                {
+                  "objID": "e200e6ba-ee98-46cd-d848-9afa46127802",
+                  "eventName": "VALUE_CHANGED",
+                  "handlerType": "action",
+                  "action": "ProductCalendarValueChanged",
+                  "userData": 0
+                }
+              ],
+              "identifier": "calendar_editproduct",
+              "leftUnit": "px",
+              "topUnit": "px",
+              "widthUnit": "px",
+              "heightUnit": "px",
+              "children": [],
+              "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+              "hiddenFlag": true,
+              "hiddenFlagType": "literal",
+              "clickableFlag": true,
+              "clickableFlagType": "literal",
+              "flagScrollbarMode": "",
+              "flagScrollDirection": "",
+              "scrollSnapX": "",
+              "scrollSnapY": "",
+              "checkedStateType": "literal",
+              "disabledStateType": "literal",
+              "states": "",
+              "localStyles": {
+                "objID": "587c679a-d6b9-43dc-b848-a21345e848fc"
+              },
+              "group": "",
+              "groupIndex": 0,
+              "todayYear": 2022,
+              "todayMonth": 11,
+              "todayDay": 1
             }
           ],
           "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",

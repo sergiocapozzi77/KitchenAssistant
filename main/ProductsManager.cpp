@@ -32,6 +32,22 @@ std::vector<Product> ProductsManager::getAllProducts()
     return _allProducts;
 }
 
+std::optional<Product> ProductsManager::getProductById(const std::string &rowId)
+{
+    std::lock_guard<std::mutex> lock(_productMutex);
+    const auto &products = getAllProducts(); // call on self, not productsManager
+    auto it = std::find_if(products.begin(), products.end(),
+                           [&rowId](const Product &p)
+                           { return p.rowId == rowId; });
+    if (it == products.end())
+    {
+        ESP_LOGE("ProductsManager", "Product with rowId %s not found", rowId.c_str());
+        return std::nullopt;
+    }
+
+    return *it;
+}
+
 void ProductsManager::addSelectedProduct(const Product &product)
 {
     std::lock_guard<std::mutex> lock(_productMutex);
@@ -103,13 +119,28 @@ void ProductsManager::fetchProductsTask(void *param)
         ESP_LOGI(TAG, "Fetched %d products", products.size());
         productsManager.addProducts(products);
         // LVGLManager::updateStatusLabel("Fetched " + std::to_string(products.size()) + " expiring products");
-        populateProductList(objects.products_list, productsManager.getAllProducts());
+        populateProductListUi(objects.products_list, productsManager.getAllProducts());
     }
 
     vTaskDelete(NULL);
 }
 
-void ProductsManager::pupulateProductList()
+void ProductsManager::populateProductList()
 {
-    populateProductList(objects.products_list, getAllProducts());
+    if (!objects.products_list || !lv_obj_is_valid(objects.products_list))
+    {
+        ESP_LOGE(TAG, "products_list is invalid");
+        return;
+    }
+    populateProductListUi(objects.products_list, getAllProducts());
+}
+
+void ProductsManager::updateProduct(const Product &updated)
+{
+    std::lock_guard<std::mutex> lock(_productMutex);
+    auto it = std::find_if(_allProducts.begin(), _allProducts.end(),
+                           [&updated](const Product &p)
+                           { return p.rowId == updated.rowId; });
+    if (it != _allProducts.end())
+        *it = updated;
 }
