@@ -73,7 +73,11 @@ std::vector<RecipeSuggestion> RecipeGialloZafferanoService::getRecipeSuggestions
         rawQuery += ing;
     }
 
-    // GZ search paths use URL-encoded terms; spaces become '+' via urlEncode
+    // GZ search paths are case-sensitive — lowercase everything to avoid 301s
+    std::transform(rawQuery.begin(), rawQuery.end(), rawQuery.begin(),
+                   [](unsigned char c)
+                   { return std::tolower(c); });
+
     std::string encodedQuery = urlEncode(rawQuery);
 
     ESP_LOGI(TAG, "Free Block: %d bytes. Starting Page %d",
@@ -167,20 +171,27 @@ std::vector<RecipeSuggestion> RecipeGialloZafferanoService::fetchPage(
 
     for (const auto &article : articles)
     {
+        // Skip non-recipe cards (gz-card-special, blog carousels, etc.).
+        // Real search result cards always carry a data-index attribute.
+        if (article.find("data-index=") == std::string::npos)
+            continue;
+
         RecipeSuggestion r;
 
         // ── URL & ID ────────────────────────────────────────────────────────
-        // First <a href="..."> inside the article is the recipe link.
-        // GZ recipe URLs look like: /ricette/Pasta-al-pomodoro_123456.html
+        // Actual structure:
+        //   <div class="gz-card-image">
+        //     <a href="https://ricette.giallozafferano.it/Pastiera-napoletana.html" ...>
+        // Both the image link and the title link point to the same URL;
+        // grabbing the first href in the article is reliable.
         std::string firstHref = extractBetween(article, "href=\"", "\"");
         if (firstHref.empty())
-            continue; // malformed card — skip
+            continue;
 
         r.url = (firstHref.find("http") == 0)
                     ? firstHref
                     : ("https://www.giallozafferano.it" + firstHref);
 
-        // Extract slug as ID (e.g. "Pasta-al-pomodoro_123456")
         {
             size_t slash = r.url.rfind('/');
             size_t dot = r.url.rfind('.');
@@ -191,18 +202,14 @@ std::vector<RecipeSuggestion> RecipeGialloZafferanoService::fetchPage(
         }
 
         // ── Title ───────────────────────────────────────────────────────────
-        // <h2 class="gz-card__title">Pasta al pomodoro</h2>
-        std::string titleBlock = extractBetween(article, "gz-card__title\">", "</h2>");
-        if (titleBlock.empty())
-        {
-            // Fallback: pull from img alt or link title attr
-            titleBlock = extractBetween(article, "title=\"", "\"");
-        }
-        r.name = stripTags(titleBlock);
+        // Actual: <h2 class="gz-title"><a href="...">Pastiera napoletana</a></h2>
+        r.name = stripTags(extractBetween(article, "gz-title\">", "</h2>"));
+        if (r.name.empty())
+            r.name = extractBetween(article, "title=\"", "\""); // <a title="..."> fallback
 
         // ── Image URL ───────────────────────────────────────────────────────
-        // GZ uses lazy-loading: the real src is in data-src; the placeholder
-        // is in src.  Prefer data-src.
+        // GZ search results use plain src= (no data-src lazy-loading on first
+        // visible image; later pages use class="lazyload" with data-src).
         {
             size_t imgPos = article.find("<img ");
             if (imgPos != std::string::npos)
@@ -211,43 +218,44 @@ std::vector<RecipeSuggestion> RecipeGialloZafferanoService::fetchPage(
                 if (imgEnd != std::string::npos)
                 {
                     std::string imgTag = article.substr(imgPos, imgEnd - imgPos + 1);
-                    std::string dataSrc = extractAttr(imgTag, "data-src");
-                    r.imageUrl = dataSrc.empty() ? extractAttr(imgTag, "src") : dataSrc;
+                    r.imageUrl = extractAttr(imgTag, "data-src"); // lazy-loaded pages
+                    if (r.imageUrl.empty())
+                        r.imageUrl = extractAttr(imgTag, "src"); // direct src
                 }
             }
         }
 
         // ── Description ─────────────────────────────────────────────────────
-        // <p class="gz-card__description">...</p>
-        r.description = stripTags(extractBetween(article, "gz-card__description\">", "</p>"));
+        // Actual: <div class="gz-description">La pastiera è…</div>
+        r.description = stripTags(extractBetween(article, "gz-description\">", "</div>"));
 
         // ── Author ──────────────────────────────────────────────────────────
-        // Individual author names are rarely shown in search results on GZ;
-        // default to the site brand.
         r.author = "Giallo Zafferano";
 
         // ── Difficulty & Time ───────────────────────────────────────────────
-        // GZ wraps metadata in <ul class="gz-list-featured">
-        // Each <li> contains an icon span (class contains "difficulty" or
-        // "time") followed by a value span.
+        // Actual structure — <ul class="gz-card-data bottom"> contains three <li>:
         //
-        // Pattern (simplified):
-        //   <li class="gz-name-featured">
-        //     <span class="gz-icon-featured gz-icon-difficulty"></span>
-        //     <span class="gz-featured-value">Facile</span>
+        //   <li class="gz-single-data-recipe">
+        //     <span class="gz-icon">
+        //       <svg …><use xlink:href="…#difficolta-grey" /></svg>
+        //     </span>
+        //     Difficile          ← plain text after the closing </span>
         //   </li>
+        //   <li …>  …#tempo-grey…   2 h 5 min  </li>
+        //   <li …>  …#kcal-grey…    Kcal 580   </li>
+        //
+        // We identify the type by the SVG fragment name and read the trailing text.
         {
-            size_t listStart = article.find("gz-list-featured");
-            if (listStart != std::string::npos)
+            size_t bottomStart = article.find("gz-card-data bottom");
+            if (bottomStart != std::string::npos)
             {
-                size_t listEnd = article.find("</ul>", listStart);
-                if (listEnd == std::string::npos)
-                    listEnd = article.size();
+                size_t ulEnd = article.find("</ul>", bottomStart);
+                if (ulEnd == std::string::npos)
+                    ulEnd = article.size();
 
-                std::string list = article.substr(listStart, listEnd - listStart);
-
-                // Walk each <li>
+                std::string list = article.substr(bottomStart, ulEnd - bottomStart);
                 size_t liPos = 0;
+
                 while (true)
                 {
                     size_t liStart = list.find("<li", liPos);
@@ -259,22 +267,25 @@ std::vector<RecipeSuggestion> RecipeGialloZafferanoService::fetchPage(
 
                     std::string li = list.substr(liStart, liEnd - liStart + 5);
 
-                    // The icon span's class tells us the data type
-                    bool isDifficulty = (li.find("gz-icon-difficulty") != std::string::npos);
-                    bool isTimePrep = (li.find("gz-icon-time-prep") != std::string::npos);
-                    bool isTimeCook = (li.find("gz-icon-time-cook") != std::string::npos);
-                    bool isTimeTotal = (li.find("gz-icon-time-total") != std::string::npos ||
-                                       li.find("gz-icon-time") != std::string::npos);
+                    bool isDiff = (li.find("difficolta") != std::string::npos);
+                    bool isTime = (li.find("tempo") != std::string::npos);
 
-                    std::string value = stripTags(extractBetween(li, "gz-featured-value\">", "</span>"));
-
-                    if (isDifficulty && !value.empty())
-                        r.difficulty = value; // already Italian ("Facile" etc.)
-
-                    if (isTimeTotal && !value.empty())
-                        r.totalTime = value;
-                    else if ((isTimePrep || isTimeCook) && r.totalTime.empty() && !value.empty())
-                        r.totalTime = value; // best-effort fallback
+                    // Text value sits after the last </span> in the <li>
+                    size_t spanClose = li.rfind("</span>");
+                    if (spanClose != std::string::npos)
+                    {
+                        std::string raw = li.substr(spanClose + 7);
+                        size_t s = raw.find_first_not_of(" \t\r\n");
+                        size_t e = raw.find_last_not_of(" \t\r\n");
+                        if (s != std::string::npos)
+                        {
+                            std::string value = raw.substr(s, e - s + 1);
+                            if (isDiff && !value.empty())
+                                r.difficulty = value;
+                            else if (isTime && r.totalTime.empty() && !value.empty())
+                                r.totalTime = value;
+                        }
+                    }
 
                     liPos = liEnd + 5;
                 }
@@ -282,30 +293,82 @@ std::vector<RecipeSuggestion> RecipeGialloZafferanoService::fetchPage(
         }
 
         // ── Rating ──────────────────────────────────────────────────────────
-        // GZ embeds ratings as data attributes on a span:
-        //   <span class="gz-rating-star" data-average="4.5" data-count="120">
+        // Actual structure — <ul class="gz-card-data top"> contains a <li>
+        // whose SVG uses fragment #voto-grey or #voto-orange, followed by
+        // the rating as plain text with an Italian comma decimal: "4,2"
         {
-            size_t ratingPos = article.find("gz-rating-star");
-            if (ratingPos != std::string::npos)
+            size_t topStart = article.find("gz-card-data top");
+            if (topStart != std::string::npos)
             {
-                size_t spanEnd = article.find('>', ratingPos);
-                if (spanEnd != std::string::npos)
+                size_t ulEnd = article.find("</ul>", topStart);
+                if (ulEnd == std::string::npos)
+                    ulEnd = article.size();
+
+                std::string list = article.substr(topStart, ulEnd - topStart);
+                size_t liPos = 0;
+
+                while (true)
                 {
-                    std::string ratingTag = article.substr(ratingPos, spanEnd - ratingPos);
-                    std::string avg = extractAttr(ratingTag, "data-average");
-                    std::string cnt = extractAttr(ratingTag, "data-count");
-                    if (!avg.empty())
-                        r.ratingValue = std::stod(avg);
-                    if (!cnt.empty())
-                        r.ratingCount = std::stoi(cnt);
+                    size_t liStart = list.find("<li", liPos);
+                    if (liStart == std::string::npos)
+                        break;
+                    size_t liEnd = list.find("</li>", liStart);
+                    if (liEnd == std::string::npos)
+                        break;
+
+                    std::string li = list.substr(liStart, liEnd - liStart + 5);
+
+                    if (li.find("voto") != std::string::npos)
+                    {
+                        // Rating text is after the last </span> (or </a>)
+                        size_t spanClose = li.rfind("</span>");
+                        if (spanClose != std::string::npos)
+                        {
+                            std::string raw = li.substr(spanClose + 7);
+                            // Also strip a possible enclosing </a>
+                            size_t aClose = raw.find("</a>");
+                            if (aClose != std::string::npos)
+                                raw = raw.substr(0, aClose);
+
+                            size_t s = raw.find_first_not_of(" \t\r\n");
+                            size_t e = raw.find_last_not_of(" \t\r\n");
+                            if (s != std::string::npos)
+                            {
+                                std::string ratingStr = raw.substr(s, e - s + 1);
+
+                                // Italian decimal comma → dot
+                                std::replace(ratingStr.begin(), ratingStr.end(), ',', '.');
+
+                                // Parse safely
+                                char *end = nullptr;
+                                double value = std::strtod(ratingStr.c_str(), &end);
+
+                                // Skip trailing spaces (optional but robust)
+                                while (end && std::isspace(*end))
+                                {
+                                    ++end;
+                                }
+
+                                // Validate conversion
+                                if (end != ratingStr.c_str() && *end == '\0')
+                                {
+                                    r.ratingValue = value;
+                                }
+                                else
+                                {
+                                    // fallback (choose what makes sense)
+                                    r.ratingValue = 0.0;
+                                }
+                            }
+                        }
+                    }
+
+                    liPos = liEnd + 5;
                 }
             }
         }
 
-        // ── Premium flag ─────────────────────────────────────────────────────
-        // GZ has no paywalled recipes; always false.
         r.isPremium = false;
-
         r.contentType = "recipe";
         r.recipeSource = "giallozafferano";
 
@@ -334,6 +397,39 @@ std::string RecipeGialloZafferanoService::httpGet(const std::string &url, int &s
     cfg.buffer_size = 2048;
     cfg.crt_bundle_attach = esp_crt_bundle_attach;
     cfg.use_global_ca_store = false;
+    cfg.keep_alive_enable = false;
+
+    // ── Debug: log every response header as it arrives ───────────────────────
+    // Attach an event handler so we can see exactly what headers the server
+    // sends back (including Location on a redirect).
+    // Remove once redirect behaviour is confirmed.
+    struct HeaderDumpCtx
+    {
+        const char *tag;
+    };
+    static HeaderDumpCtx dumpCtx{TAG};
+
+    cfg.event_handler = [](esp_http_client_event_t *evt) -> esp_err_t
+    {
+        auto *ctx = static_cast<HeaderDumpCtx *>(evt->user_data);
+        switch (evt->event_id)
+        {
+        case HTTP_EVENT_ON_HEADER:
+            ESP_LOGI(ctx->tag, "[HDR] %s: %s", evt->header_key, evt->header_value);
+            break;
+        case HTTP_EVENT_REDIRECT:
+            ESP_LOGI(ctx->tag, "[EVT] HTTP_EVENT_REDIRECT fired");
+            break;
+        case HTTP_EVENT_ERROR:
+            ESP_LOGE(ctx->tag, "[EVT] HTTP_EVENT_ERROR");
+            break;
+        default:
+            break;
+        }
+        return ESP_OK;
+    };
+    cfg.user_data = &dumpCtx;
+    // ─────────────────────────────────────────────────────────────────────────
 
     esp_http_client_handle_t client = esp_http_client_init(&cfg);
     if (!client)
@@ -345,14 +441,52 @@ std::string RecipeGialloZafferanoService::httpGet(const std::string &url, int &s
                                "text/html,application/xhtml+xml");
     esp_http_client_set_header(client, "Accept-Language", "it-IT,it;q=0.9");
 
-    if (esp_http_client_open(client, 0) != ESP_OK)
+    // esp_http_client's manual open/read path does NOT follow redirects
+    // automatically (only esp_http_client_perform does).  Chase Location
+    // headers ourselves for up to 3 hops.
+    constexpr int kMaxRedirects = 3;
+    for (int hop = 0; hop <= kMaxRedirects; ++hop)
     {
-        esp_http_client_cleanup(client);
-        return {};
-    }
+        if (esp_http_client_open(client, 0) != ESP_OK)
+        {
+            esp_http_client_cleanup(client);
+            return {};
+        }
 
-    esp_http_client_fetch_headers(client);
-    status = esp_http_client_get_status_code(client);
+        esp_http_client_fetch_headers(client);
+        status = esp_http_client_get_status_code(client);
+
+        if (status != 301 && status != 302 && status != 307 && status != 308)
+            break; // final destination reached (or an error — handled below)
+
+        // Read the Location header before closing
+        char *location = nullptr;
+        esp_http_client_get_header(client, "Location", &location);
+
+        if (!location || location[0] == '\0')
+        {
+            ESP_LOGE(TAG, "Redirect %d has no Location header", status);
+            esp_http_client_cleanup(client);
+            return {};
+        }
+
+        // Location may be relative ("/ricerca-ricette/…") or absolute
+        std::string newUrl = location;
+        if (newUrl[0] == '/')
+            newUrl = "https://www.giallozafferano.it" + newUrl;
+
+        ESP_LOGI(TAG, "Redirect %d → %s", status, newUrl.c_str());
+
+        esp_http_client_close(client);
+        esp_http_client_set_url(client, newUrl.c_str());
+
+        if (hop == kMaxRedirects)
+        {
+            ESP_LOGE(TAG, "Too many redirects, giving up");
+            esp_http_client_cleanup(client);
+            return {};
+        }
+    }
 
     std::string html;
     html.reserve(32768); // 32 KB initial reservation
@@ -369,12 +503,12 @@ std::string RecipeGialloZafferanoService::httpGet(const std::string &url, int &s
 
         // Emergency cap: 80 KB — the recipes list is always within the first
         // ~50 KB of the GZ search page.
-        if (html.size() > 81920)
-        {
-            ESP_LOGW(TAG, "HTML cap reached (%d bytes), stopping early", (int)html.size());
-            done = true;
-        }
-        else if (html.find("</main>") != std::string::npos)
+        // if (html.size() > 161920)
+        // {
+        //     ESP_LOGW(TAG, "HTML cap reached (%d bytes), stopping early", (int)html.size());
+        //     done = true;
+        // }
+        if (html.find("</main>") != std::string::npos)
         {
             // Main content block fully received; discard the rest (footer etc.)
             done = true;
@@ -506,9 +640,12 @@ std::string RecipeGialloZafferanoService::stripTags(const std::string &html) con
  * ========================================================= */
 std::string RecipeGialloZafferanoService::mapDifficulty(const std::string &d) const
 {
-    if (d == "easy")   return "facile";
-    if (d == "medium") return "media";
-    if (d == "hard")   return "difficile";
+    if (d == "easy")
+        return "facile";
+    if (d == "medium")
+        return "media";
+    if (d == "hard")
+        return "difficile";
     return d; // pass through if already Italian or empty
 }
 
@@ -517,8 +654,10 @@ std::string RecipeGialloZafferanoService::mapDifficulty(const std::string &d) co
  * ========================================================= */
 std::string RecipeGialloZafferanoService::mapDiet(const std::string &diet) const
 {
-    if (diet == "vegetarian") return "vegetariana";
-    if (diet == "vegan")      return "vegana";
+    if (diet == "vegetarian")
+        return "vegetariana";
+    if (diet == "vegan")
+        return "vegana";
     return diet;
 }
 
@@ -554,7 +693,7 @@ int RecipeGialloZafferanoService::parseMinutes(const std::string &timeInput)
     // Extracts all digit runs and sums hours*60 + minutes.
     int hours = 0, minutes = 0;
     bool hasOra = (timeInput.find("ora") != std::string::npos ||
-                   timeInput.find("h")   != std::string::npos);
+                   timeInput.find("h") != std::string::npos);
 
     std::vector<int> nums;
     int cur = -1;

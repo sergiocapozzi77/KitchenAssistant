@@ -310,6 +310,8 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
         else
             jd.scale = 0; // full
 
+        ESP_LOGI(TAG, "Decoding with scale: 1/%d", 1 << jd.scale);
+
         uint16_t decoded_w = jd.width >> jd.scale;
         uint16_t decoded_h = jd.height >> jd.scale;
         px = (uint8_t *)heap_caps_malloc(decoded_w * decoded_h * 3, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);

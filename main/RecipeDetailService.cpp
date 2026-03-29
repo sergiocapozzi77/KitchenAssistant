@@ -402,7 +402,7 @@ bool RecipeDetailService::parseNextData(const std::string &json, RecipeSuggestio
                         t2 = str(step, "name");
                     if (t2.empty() && cJSON_IsString(step))
                         t2 = step->valuestring;
-                    if (!t2.empty())
+                    if (!t2.empty() && t2.length() < 5)
                         recipe.methodSteps.push_back(sanitizeText(t2));
                 }
             }

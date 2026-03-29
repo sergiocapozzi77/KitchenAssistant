@@ -278,7 +278,7 @@ void create_screen_main() {
                                     lv_obj_set_style_pad_bottom(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                                     lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                                     lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-                                    create_user_widget_product_edit(obj, 22);
+                                    create_user_widget_product_edit(obj, 23);
                                 }
                             }
                         }
@@ -488,7 +488,7 @@ void create_screen_main() {
 
 void tick_screen_main() {
     tick_user_widget_filters_panel(11);
-    tick_user_widget_product_edit(22);
+    tick_user_widget_product_edit(23);
 }
 
 void create_user_widget_product_edit(lv_obj_t *parent_obj, int startWidgetIndex) {
@@ -818,6 +818,20 @@ void create_user_widget_filters_panel(lv_obj_t *parent_obj, int startWidgetIndex
                     lv_obj_set_pos(obj, 483, 120);
                     lv_obj_set_size(obj, 220, 40);
                     lv_dropdown_set_options(obj, "Calories\nUp to 250 kcal\nUp to 500 kcal\nUp to 750 kcal\nUp to 1000 kcal\nUp to 1250 kcal\nUp to 1500 kcal");
+                    lv_dropdown_set_dir(obj, LV_DIR_TOP);
+                    lv_dropdown_set_symbol(obj, LV_SYMBOL_UP);
+                    lv_dropdown_set_selected(obj, 0);
+                    lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+                    add_style_drop_down_with_shadow(obj);
+                    lv_obj_set_style_text_font(obj, &lv_font_montserrat_16, LV_PART_MAIN | LV_STATE_DEFAULT);
+                }
+                {
+                    // source_dropdown
+                    lv_obj_t *obj = lv_dropdown_create(parent_obj);
+                    ((lv_obj_t **)&objects)[startWidgetIndex + 8] = obj;
+                    lv_obj_set_pos(obj, 483, -3);
+                    lv_obj_set_size(obj, 220, 40);
+                    lv_dropdown_set_options(obj, "Source\nGoodFood\nGialloZafferano.it");
                     lv_dropdown_set_dir(obj, LV_DIR_TOP);
                     lv_dropdown_set_symbol(obj, LV_SYMBOL_UP);
                     lv_dropdown_set_selected(obj, 0);

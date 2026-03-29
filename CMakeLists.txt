@@ -11,7 +11,7 @@ project(kitchen_assistant)
 
 # LVGL: Optimize for size (rendering is already fast, size matters more)
 idf_component_get_property(lvgl_lib lvgl__lvgl COMPONENT_LIB)
-target_compile_options(${lvgl_lib} PRIVATE -Os -ffunction-sections -fdata-sections)
+target_compile_options(${lvgl_lib} PRIVATE -Os -ffunction-sections -fdata-sections -fexceptions)
 
 # LCD driver: Optimize for size (only runs during init, not performance-critical)
 idf_component_get_property(lcd_lib esp_lcd_jd9365 COMPONENT_LIB)

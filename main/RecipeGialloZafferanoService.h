@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 #include <random>
-#include "RecipeModels.h" // RecipeSuggestion definition shared with RecipeGoodFoodService
+#include "models.h" // RecipeSuggestion definition shared with RecipeGoodFoodService
 
 /**
  * RecipeGialloZafferanoService

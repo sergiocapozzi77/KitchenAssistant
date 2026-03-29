@@ -15,6 +15,7 @@ typedef struct
     char *difficulty; // Difficulty (single-select)
     char *cuisine;    // Cuisine (single-select)
     char *calories;   // Calories (single-select)
+    char *source;     // Recipe source (single-select)
     std::vector<std::string> keywords;
 } filter_state_t;
 

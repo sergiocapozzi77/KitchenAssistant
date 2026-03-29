@@ -35,6 +35,7 @@ typedef struct _objects_t {
     lv_obj_t *products_filters_panel__difficulty_dropdown;
     lv_obj_t *products_filters_panel__cuisine_dropdown;
     lv_obj_t *products_filters_panel__calories_dropdown;
+    lv_obj_t *products_filters_panel__source_dropdown;
     lv_obj_t *generate_recipe_btn;
     lv_obj_t *product_edit_modal;
     lv_obj_t *product_edit;

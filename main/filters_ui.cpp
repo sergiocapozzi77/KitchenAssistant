@@ -18,7 +18,8 @@ static filter_state_t current_filters = {
     .diet = NULL,
     .difficulty = NULL,
     .cuisine = NULL,
-    .calories = NULL};
+    .calories = NULL,
+    .source = NULL};
 
 // Define all filter options
 static filter_option_t meal_type_options[] = {
@@ -129,6 +130,12 @@ static filter_option_t calories_options[] = {
     {"Up to 1500 kcal", "lt-1500"}};
 static const int calories_count = sizeof(calories_options) / sizeof(calories_options[0]);
 
+// Source options
+static filter_option_t source_options[] = {
+    {"GoodFood", "goodfood"},
+    {"GialloZafferano.it", "giallozafferanoit"}};
+static const int source_count = sizeof(source_options) / sizeof(source_options[0]);
+
 // LVGL dropdown objects
 static lv_obj_t *meal_type_dropdown = NULL;
 static lv_obj_t *total_time_dropdown = NULL;
@@ -136,6 +143,7 @@ static lv_obj_t *diet_dropdown = NULL;
 static lv_obj_t *difficulty_dropdown = NULL;
 static lv_obj_t *cuisine_dropdown = NULL;
 static lv_obj_t *calories_dropdown = NULL;
+static lv_obj_t *source_dropdown = NULL;
 static lv_obj_t *keywords_textarea = NULL;
 
 // Helper function to create dropdown option string
@@ -241,6 +249,12 @@ static void dropdown_event_handler(lv_event_t *e)
         count = calories_count;
         target_field = &current_filters.calories;
     }
+    else if (dropdown == source_dropdown)
+    {
+        options = source_options;
+        count = source_count;
+        target_field = &current_filters.source;
+    }
 
     if (options && target_field)
     {
@@ -282,13 +296,14 @@ void create_filter_panel()
     difficulty_dropdown = objects.products_filters_panel__difficulty_dropdown;
     cuisine_dropdown = objects.products_filters_panel__cuisine_dropdown;
     calories_dropdown = objects.products_filters_panel__calories_dropdown;
+    source_dropdown = objects.products_filters_panel__source_dropdown;
     keywords_textarea = objects.products_filters_panel__keywords_text;
     if (keywords_textarea)
         update_keywords_from_textarea();
 
     // Verify dropdowns were created
     if (!meal_type_dropdown || !total_time_dropdown || !diet_dropdown ||
-        !difficulty_dropdown || !cuisine_dropdown || !calories_dropdown)
+        !difficulty_dropdown || !cuisine_dropdown || !calories_dropdown || !source_dropdown)
     {
         ESP_LOGE(TAG, "Failed to get dropdown objects from user widget");
         return;
@@ -301,6 +316,7 @@ void create_filter_panel()
     lv_dropdown_set_selected(difficulty_dropdown, 0);
     lv_dropdown_set_selected(cuisine_dropdown, 0);
     lv_dropdown_set_selected(calories_dropdown, 0);
+    lv_dropdown_set_selected(source_dropdown, 0);
 
     // Add event handlers
     lv_obj_add_event_cb(meal_type_dropdown, dropdown_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
@@ -309,6 +325,7 @@ void create_filter_panel()
     lv_obj_add_event_cb(difficulty_dropdown, dropdown_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
     lv_obj_add_event_cb(cuisine_dropdown, dropdown_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
     lv_obj_add_event_cb(calories_dropdown, dropdown_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
+    lv_obj_add_event_cb(source_dropdown, dropdown_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
     if (keywords_textarea)
     {
         lv_obj_add_event_cb(keywords_textarea, keywords_textarea_event_handler, LV_EVENT_VALUE_CHANGED, NULL);

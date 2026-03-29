@@ -2,6 +2,7 @@
 #include "RecipeSuggestionsManager.h"
 #include "esp_heap_caps.h"
 #include "RecipeGoodFoodService.h"
+#include "RecipeGialloZafferanoService.h"
 #include "esp_log.h"
 #include "lvgl.h"
 #include "ui_extensions.h"
@@ -110,7 +111,7 @@ void RecipeSuggestionsManager::showCurrentPageRecipes()
     std::vector<RecipeSuggestion> suggestions = getSuggestions();
 
     int start = (currentPage - 1) * pageSize;
-    int end = start + pageSize;
+    int end = std::min(start + pageSize, (int)suggestions.size());
     // If start is beyond the end of the vector, return an empty page
     bool hasRange =
         start >= 0 &&
@@ -175,18 +176,45 @@ void fetchRecipesTask(void *param)
     std::string totalTime = filterState->total_time ? filterState->total_time : "";
     std::string diet = filterState->diet ? filterState->diet : "";
     std::string cuisine = filterState->cuisine ? filterState->cuisine : "";
+    std::string source = filterState->source ? filterState->source : "";
 
-    manager->appendSuggestions(recipeGoodFoodService.getRecipeSuggestions(
-        ingredients,
-        mealType,
-        keywords,
-        difficulty,
-        totalTime,
-        diet,
-        cuisine,
-        "", // ratings
-        "", // calories
-        1));
+    ESP_LOGI("ShowRecipesTask", "Filters - mealType: '%s', difficulty: '%s', totalTime: '%s', diet: '%s', cuisine: '%s', source: '%s'",
+             mealType.c_str(), difficulty.c_str(), totalTime.c_str(), diet.c_str(), cuisine.c_str(), source.c_str());
+
+    ESP_LOGI("ShowRecipesTask", "Fetching recipes with %d ingredients and %d keywords...",
+             (int)ingredients.size(), (int)keywords.size());
+
+    std::vector<RecipeSuggestion> suggestions;
+    if (filterState->source == NULL || strcmp(filterState->source, "goodfood") == 0)
+    {
+        suggestions = recipeGoodFoodService.getRecipeSuggestions(
+            ingredients,
+            mealType,
+            keywords,
+            difficulty,
+            totalTime,
+            diet,
+            cuisine,
+            "", // ratings
+            "", // calories
+            1);
+    }
+    else if (strcmp(filterState->source, "giallozafferanoit") == 0)
+    {
+        suggestions = recipeGialloZafferanoService.getRecipeSuggestions(
+            ingredients,
+            mealType,
+            keywords,
+            difficulty,
+            totalTime,
+            diet,
+            cuisine,
+            "", // ratings
+            "", // calories
+            1);
+    }
+
+    manager->appendSuggestions(suggestions);
 
     lv_lock();
     lv_obj_add_flag(objects.spinner, LV_OBJ_FLAG_HIDDEN);
@@ -194,7 +222,6 @@ void fetchRecipesTask(void *param)
 
     ESP_LOGI("ShowRecipesTask", "Got %d recipe suggestions", manager->getSuggestionSize());
 
-    std::vector<RecipeSuggestion> suggestions = manager->getSuggestions();
     for (const auto &r : suggestions)
     {
         ESP_LOGI("ShowRecipesTask",
