@@ -32,6 +32,37 @@ std::vector<Product> ProductsManager::getAllProducts()
     return _allProducts;
 }
 
+void ProductsManager::deleteProduct(const std::string &rowId)
+{
+    {
+        std::lock_guard<std::mutex> lock(_productMutex);
+
+        auto eraseFrom = [&rowId](std::vector<Product> &vec)
+        {
+            auto it = std::remove_if(vec.begin(), vec.end(),
+                                     [&rowId](const Product &p)
+                                     { return p.rowId == rowId; });
+            if (it != vec.end())
+            {
+                vec.erase(it, vec.end());
+                return true;
+            }
+            return false;
+        };
+
+        bool removed = eraseFrom(_allProducts);
+        eraseFrom(_selectedProducts);
+
+        if (!removed)
+        {
+            ESP_LOGW(TAG, "deleteProduct: rowId %s not found locally", rowId.c_str());
+            return;
+        }
+
+        ESP_LOGI(TAG, "deleteProduct: removed %s locally", rowId.c_str());
+    }
+}
+
 std::optional<Product> ProductsManager::getProductById(const std::string &rowId)
 {
     std::lock_guard<std::mutex> lock(_productMutex);

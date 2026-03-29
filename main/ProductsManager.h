@@ -9,6 +9,8 @@ class ProductsManager
 {
 public:
     void updateProduct(const Product &updated);
+
+    void deleteProduct(const std::string &rowId);
     std::optional<Product> getProductById(const std::string &rowId);
     // void addProduct(const Product &product);
     void addProducts(const std::vector<Product> &products);

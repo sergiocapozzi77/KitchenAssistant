@@ -294,22 +294,24 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
 
     JpegIo io = {jpeg_buf, total, 0, nullptr, 0};
     JDEC jd;
+
     JRESULT res = jd_prepare(&jd, tjpgd_in_cb, work, 3100, &io);
     ESP_LOGI(TAG, "jd_prepare: %d  img size: %ux%u", res, jd.width, jd.height);
 
     uint8_t *px = nullptr;
     if (res == JDR_OK)
     {
-        uint8_t scale = 0;
         if (jd.width >= W * 8)
-            scale = 3;
+            jd.scale = 3; // 1/8
         else if (jd.width >= W * 4)
-            scale = 2;
+            jd.scale = 2; // 1/4
         else if (jd.width >= W * 2)
-            scale = 1;
+            jd.scale = 1; // 1/2
+        else
+            jd.scale = 0; // full
 
-        uint16_t decoded_w = jd.width >> scale;
-        uint16_t decoded_h = jd.height >> scale;
+        uint16_t decoded_w = jd.width >> jd.scale;
+        uint16_t decoded_h = jd.height >> jd.scale;
         px = (uint8_t *)heap_caps_malloc(decoded_w * decoded_h * 3, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
         if (!px)
         {
@@ -323,7 +325,7 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
         W = decoded_w;
         H = decoded_h;
 
-        res = jd_decomp(&jd, tjpgd_out_cb, scale);
+        res = jd_decomp(&jd, tjpgd_out_cb, jd.scale);
         ESP_LOGI(TAG, "jd_decomp: %d", res);
     }
 

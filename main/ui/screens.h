@@ -24,6 +24,7 @@ typedef struct _objects_t {
     lv_obj_t *products_reload_btn;
     lv_obj_t *products_list;
     lv_obj_t *create_recipe_pnl;
+    lv_obj_t *poducts_selected_cb;
     lv_obj_t *product_selected_lbl;
     lv_obj_t *products_filters_panel;
     lv_obj_t *products_filters_panel__keywords_text;
@@ -50,6 +51,7 @@ typedef struct _objects_t {
     lv_obj_t *product_edit__product_edit_cancel_btn;
     lv_obj_t *product_edit__product_edit_selectdate;
     lv_obj_t *product_edit__calendar_editproduct;
+    lv_obj_t *product_edit__product_edit_delete_btn;
     lv_obj_t *recipes_header_pnl;
     lv_obj_t *obj0;
     lv_obj_t *recipe_suggestion_prev_btn;

@@ -112,6 +112,20 @@ static lv_obj_t *make_section_header(lv_obj_t *parent, const char *text)
     return lbl;
 }
 
+static void scroll_begin_hide_img_cb(lv_event_t *e)
+{
+    lv_obj_t *img = (lv_obj_t *)lv_event_get_user_data(e);
+    if (img && lv_obj_is_valid(img))
+        lv_obj_set_style_opa(img, LV_OPA_TRANSP, 0);
+}
+
+static void scroll_end_show_img_cb(lv_event_t *e)
+{
+    lv_obj_t *img = (lv_obj_t *)lv_event_get_user_data(e);
+    if (img && lv_obj_is_valid(img))
+        lv_obj_set_style_opa(img, LV_OPA_COVER, 0);
+}
+
 // FreeRTOS task: fetch details, then populate ingredients & method widgets
 static void fetch_recipe_detail_task(void *arg)
 {
@@ -347,6 +361,7 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
     lv_obj_set_style_radius(scroll, 0, 0);
     lv_obj_set_flex_flow(scroll, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_row(scroll, 0, 0);
+    lv_obj_clear_flag(scroll, LV_OBJ_FLAG_SCROLL_ELASTIC);
 
     // ── Header image (grey placeholder, filled by task) ────────────────────
     lv_obj_t *header_img = lv_image_create(scroll);
@@ -356,6 +371,9 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
     lv_obj_set_style_radius(header_img, 0, 0);
     lv_obj_set_style_border_width(header_img, 0, 0);
     lv_image_set_inner_align(header_img, LV_IMAGE_ALIGN_COVER);
+
+    lv_obj_add_event_cb(scroll, scroll_begin_hide_img_cb, LV_EVENT_SCROLL_BEGIN, header_img);
+    lv_obj_add_event_cb(scroll, scroll_end_show_img_cb, LV_EVENT_SCROLL_END, header_img);
 
     // ── Info card (meta row) ───────────────────────────────────────────────
     lv_obj_t *meta_card = lv_obj_create(scroll);

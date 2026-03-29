@@ -277,3 +277,40 @@ void action_product_calendar_value_changed(lv_event_t *e)
 
     lv_obj_add_flag(calendar, LV_OBJ_FLAG_HIDDEN);
 }
+
+void action_product_edit_delete(lv_event_t *e)
+{
+    ESP_LOGI("actions", "Product edit delete clicked");
+
+    lv_obj_t *panel = objects.product_edit__product_edit_panel;
+
+    std::string *rowId = static_cast<std::string *>(lv_obj_get_user_data(panel));
+    if (!rowId)
+    {
+        ESP_LOGE("actions", "RowId not found in panel");
+        return;
+    }
+
+    bool success = productService.deleteProduct(*rowId);
+    if (success)
+    {
+        ESP_LOGI("actions", "Product delete successfully");
+        showSnackbar("Product deleted", 5000);
+        productsManager.deleteProduct(*rowId);
+
+        // Defer close + refresh — we are still inside the button's event chain.
+        // Destroying the modal now would free objects still on the call stack.
+        lv_async_call([](void *)
+                      {
+            close_product_edit_modal();
+            productsManager.populateProductList(); }, nullptr);
+    }
+    else
+    {
+        ESP_LOGE("actions", "Failed to delete product");
+        showSnackbar("Failed to update product", 5000);
+
+        lv_async_call([](void *)
+                      { close_product_edit_modal(); }, nullptr);
+    }
+}

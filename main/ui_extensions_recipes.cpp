@@ -61,6 +61,8 @@ void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &rec
 
     lv_lock();
     init_styles();
+    // Capture scroll position before cleaning
+    lv_coord_t scroll_y = lv_obj_get_scroll_y(root);
     lv_obj_clean(root);
 
     lv_obj_set_style_bg_color(root, lv_color_hex(0xF8F9FA), 0);
@@ -196,6 +198,8 @@ void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &rec
         // Visual press feedback
         lv_obj_set_style_bg_color(card, lv_color_hex(0xF1F3F5), LV_STATE_PRESSED);
     }
+    // Restore scroll position
+    lv_obj_scroll_to_y(root, scroll_y, LV_ANIM_OFF);
 
     lv_unlock();
 

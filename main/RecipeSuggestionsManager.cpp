@@ -152,9 +152,14 @@ void fetchRecipesTask(void *param)
     heap_caps_check_integrity_all(true);
     ESP_LOGI("ShowRecipesTask", "Heap OK before building ingredients");
 
-    for (const auto &product : selectedProducts)
+    if (lv_obj_has_state(objects.poducts_selected_cb, LV_STATE_CHECKED))
     {
-        ingredients.push_back(product.name);
+        // checkbox is checked
+
+        for (const auto &product : selectedProducts)
+        {
+            ingredients.push_back(product.name);
+        }
     }
 
     heap_caps_check_integrity_all(true);

@@ -171,10 +171,19 @@ void create_screen_main() {
                                     {
                                         lv_obj_t *parent_obj = obj;
                                         {
+                                            // poducts_selected_cb
+                                            lv_obj_t *obj = lv_checkbox_create(parent_obj);
+                                            objects.poducts_selected_cb = obj;
+                                            lv_obj_set_pos(obj, 15, 7);
+                                            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                                            lv_checkbox_set_text(obj, "");
+                                            lv_obj_add_state(obj, LV_STATE_CHECKED);
+                                        }
+                                        {
                                             // productSelected_lbl
                                             lv_obj_t *obj = lv_label_create(parent_obj);
                                             objects.product_selected_lbl = obj;
-                                            lv_obj_set_pos(obj, 3, 6);
+                                            lv_obj_set_pos(obj, 56, 6);
                                             lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
                                             lv_obj_set_style_text_font(obj, &lv_font_montserrat_24, LV_PART_MAIN | LV_STATE_DEFAULT);
                                             lv_label_set_text(obj, "Product selected");
@@ -191,7 +200,7 @@ void create_screen_main() {
                                             lv_obj_set_style_pad_bottom(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                                             lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                                             lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-                                            create_user_widget_filters_panel(obj, 10);
+                                            create_user_widget_filters_panel(obj, 11);
                                         }
                                         {
                                             lv_obj_t *obj = lv_button_create(parent_obj);
@@ -269,7 +278,7 @@ void create_screen_main() {
                                     lv_obj_set_style_pad_bottom(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                                     lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                                     lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-                                    create_user_widget_product_edit(obj, 21);
+                                    create_user_widget_product_edit(obj, 22);
                                 }
                             }
                         }
@@ -472,14 +481,14 @@ void create_screen_main() {
             }
         }
     }
-    lv_keyboard_set_textarea(objects.obj3, ((lv_obj_t **)&objects)[10]);
+    lv_keyboard_set_textarea(objects.obj3, ((lv_obj_t **)&objects)[11]);
     
     tick_screen_main();
 }
 
 void tick_screen_main() {
-    tick_user_widget_filters_panel(10);
-    tick_user_widget_product_edit(21);
+    tick_user_widget_filters_panel(11);
+    tick_user_widget_product_edit(22);
 }
 
 void create_user_widget_product_edit(lv_obj_t *parent_obj, int startWidgetIndex) {
@@ -672,6 +681,28 @@ void create_user_widget_product_edit(lv_obj_t *parent_obj, int startWidgetIndex)
                     lv_calendar_set_month_shown(obj, 2022, 11);
                     lv_obj_add_event_cb(obj, action_product_calendar_value_changed, LV_EVENT_VALUE_CHANGED, (void *)0);
                     lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
+                }
+                {
+                    // product_edit_delete_btn
+                    lv_obj_t *obj = lv_button_create(parent_obj);
+                    ((lv_obj_t **)&objects)[startWidgetIndex + 13] = obj;
+                    lv_obj_set_pos(obj, -3, 595);
+                    lv_obj_set_size(obj, 661, 70);
+                    lv_obj_add_event_cb(obj, action_product_edit_delete, LV_EVENT_CLICKED, (void *)0);
+                    add_style_main_button(obj);
+                    lv_obj_set_style_bg_color(obj, lv_color_hex(0xffff0000), LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_obj_set_style_bg_grad_color(obj, lv_color_hex(0xffda0000), LV_PART_MAIN | LV_STATE_DEFAULT);
+                    {
+                        lv_obj_t *parent_obj = obj;
+                        {
+                            lv_obj_t *obj = lv_label_create(parent_obj);
+                            lv_obj_set_pos(obj, 0, 0);
+                            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                            lv_label_set_long_mode(obj, LV_LABEL_LONG_CLIP);
+                            lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+                            lv_label_set_text(obj, "\uF2ED DELETE");
+                        }
+                    }
                 }
             }
         }

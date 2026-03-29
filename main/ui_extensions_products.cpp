@@ -11,6 +11,7 @@
 #include "fonts.h"
 #include "ProductsManager.h"
 #include "models.h"
+#include "images.h"
 
 static const char *TAG = "UIEXTENSIONS";
 static bool s_populating = false;
@@ -46,10 +47,17 @@ struct DeleteCtx
     lv_obj_t *obj;
 };
 
-struct CheckboxContext
+struct RowClickCtx
 {
     Product product;
+    lv_obj_t *img = nullptr;
+    bool selected = false;
 };
+
+static void free_row_click_ctx_cb(lv_event_t *e)
+{
+    delete (RowClickCtx *)lv_event_get_user_data(e);
+}
 
 // === CLEANUP CALLBACKS ===
 
@@ -66,11 +74,6 @@ static void free_group_cb(lv_event_t *e)
 static void free_rowid_cb(lv_event_t *e)
 {
     delete (std::string *)lv_event_get_user_data(e);
-}
-
-static void free_checkbox_ctx_cb(lv_event_t *e)
-{
-    delete (CheckboxContext *)lv_event_get_user_data(e);
 }
 
 // === EVENT CALLBACKS ===
@@ -189,25 +192,30 @@ static void group_toggle_cb(lv_event_t *e)
     }
 }
 
-static void checkbox_changed_cb(lv_event_t *e)
+static void row_prod_click_cb(lv_event_t *e)
 {
-    lv_obj_t *checkbox = static_cast<lv_obj_t *>(lv_event_get_target(e));
-    if (!checkbox)
+    lv_obj_t *row = static_cast<lv_obj_t *>(lv_event_get_target(e));
+    if (!row)
         return;
 
-    CheckboxContext *ctx = (CheckboxContext *)lv_event_get_user_data(e);
+    RowClickCtx *ctx = (RowClickCtx *)lv_event_get_user_data(e);
     if (!ctx)
         return;
 
-    // Add or remove product from selected set
-    if (lv_obj_has_state(checkbox, LV_STATE_CHECKED))
+    ctx->selected = !ctx->selected;
+
+    if (ctx->img && lv_obj_is_valid(ctx->img))
     {
+        if (ctx->selected)
+            lv_obj_clear_flag(ctx->img, LV_OBJ_FLAG_HIDDEN);
+        else
+            lv_obj_add_flag(ctx->img, LV_OBJ_FLAG_HIDDEN);
+    }
+
+    if (ctx->selected)
         productsManager.addSelectedProduct(ctx->product);
-    }
     else
-    {
         productsManager.removeSelectedProduct(ctx->product.rowId);
-    }
 
     update_selection_ui();
 }
@@ -367,6 +375,8 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
     // Initialize styles once
     init_styles();
 
+    // Capture scroll position before cleaning
+    lv_coord_t scroll_y = lv_obj_get_scroll_y(root);
     lv_obj_clean(root);
 
     // Root setup: Light gray background
@@ -484,20 +494,23 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
         lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
         lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
-        // Checkbox (before product name)
-        lv_obj_t *checkbox = lv_checkbox_create(row);
-        lv_checkbox_set_text(checkbox, "");
-        lv_obj_set_style_pad_right(checkbox, 8, 0);
-        lv_obj_add_style(checkbox, &style_checkbox_indicator, LV_PART_INDICATOR);
-        lv_obj_add_style(checkbox, &style_checkbox_indicator, 0);
-        lv_obj_set_style_translate_y(checkbox, 5, 0);
-        // Attach product data to checkbox for selection tracking
-        CheckboxContext *checkbox_ctx = new CheckboxContext{*p};
-        lv_obj_add_event_cb(checkbox, checkbox_changed_cb, LV_EVENT_VALUE_CHANGED, checkbox_ctx);
-        lv_obj_add_event_cb(checkbox, free_checkbox_ctx_cb, LV_EVENT_DELETE, checkbox_ctx);
+        // // Checkbox (before product name)
+        // lv_obj_t *checkbox = lv_checkbox_create(row);
+        // lv_checkbox_set_text(checkbox, "");
+        // lv_obj_set_style_pad_right(checkbox, 8, 0);
+        // lv_obj_add_style(checkbox, &style_checkbox_indicator, LV_PART_INDICATOR);
+        // lv_obj_add_style(checkbox, &style_checkbox_indicator, 0);
+        // lv_obj_set_style_translate_y(checkbox, 5, 0);
+        // // Attach product data to checkbox for selection tracking
+        // CheckboxContext *checkbox_ctx = new CheckboxContext{*p};
+        // lv_obj_add_event_cb(checkbox, checkbox_changed_cb, LV_EVENT_VALUE_CHANGED, checkbox_ctx);
+        // lv_obj_add_event_cb(checkbox, free_checkbox_ctx_cb, LV_EVENT_DELETE, checkbox_ctx);
 
-        // Row click selects the checkbox
-        lv_obj_add_event_cb(row, row_click_cb, LV_EVENT_CLICKED, checkbox);
+        // Selection image — hidden by default, shown when row is selected
+        lv_obj_t *img = lv_image_create(row);
+        lv_image_set_src(img, &img_restaurant);
+        lv_obj_add_flag(img, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_style_translate_y(img, 5, 0);
 
         // Product Name
         lv_obj_t *name = lv_label_create(row);
@@ -506,6 +519,10 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
         lv_obj_set_style_text_color(name, lv_color_hex(0x495057), 0);
         lv_obj_set_style_text_font(name, &ui_font_ext_font_montserrat_18, 0);
         lv_obj_set_style_translate_y(name, 5, 0);
+
+        RowClickCtx *row_ctx = new RowClickCtx{*p, img, false};
+        lv_obj_add_event_cb(row, row_prod_click_cb, LV_EVENT_CLICKED, row_ctx);
+        lv_obj_add_event_cb(row, free_row_click_ctx_cb, LV_EVENT_DELETE, row_ctx);
 
         // Expiry badge
         int days = days_until_expiry(p->expiry);
@@ -586,24 +603,26 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
         lv_obj_add_event_cb(btn_edit, edit_btn_cb, LV_EVENT_CLICKED, edit_id);
         lv_obj_add_event_cb(btn_edit, free_rowid_cb, LV_EVENT_DELETE, edit_id);
 
-        // Delete Button
-        lv_obj_t *btn_del = lv_btn_create(row);
-        lv_obj_add_style(btn_del, &style_del_btn, 0);
-        lv_obj_set_size(btn_del, 50, 50);
+        // // Delete Button
+        // lv_obj_t *btn_del = lv_btn_create(row);
+        // lv_obj_add_style(btn_del, &style_del_btn, 0);
+        // lv_obj_set_size(btn_del, 50, 50);
 
-        lv_obj_t *lbl_del = lv_label_create(btn_del);
-        lv_label_set_text(lbl_del, LV_SYMBOL_TRASH);
-        lv_obj_set_style_text_color(lbl_del, lv_color_hex(0xE74C3C), 0);
-        lv_obj_center(lbl_del);
-        lv_obj_set_style_translate_y(btn_del, 5, 0);
+        // lv_obj_t *lbl_del = lv_label_create(btn_del);
+        // lv_label_set_text(lbl_del, LV_SYMBOL_TRASH);
+        // lv_obj_set_style_text_color(lbl_del, lv_color_hex(0xE74C3C), 0);
+        // lv_obj_center(lbl_del);
+        // lv_obj_set_style_translate_y(btn_del, 5, 0);
 
-        std::string *rowId = new std::string(p->rowId);
-        lv_obj_add_event_cb(btn_del, delete_btn_cb, LV_EVENT_CLICKED, rowId);
-        lv_obj_add_event_cb(btn_del, free_rowid_cb, LV_EVENT_DELETE, rowId);
+        // std::string *rowId = new std::string(p->rowId);
+        // lv_obj_add_event_cb(btn_del, delete_btn_cb, LV_EVENT_CLICKED, rowId);
+        // lv_obj_add_event_cb(btn_del, free_rowid_cb, LV_EVENT_DELETE, rowId);
 
         //
         // lv_obj_add_flag(qty_cont, LV_OBJ_FLAG_HIDDEN);
     }
+    // Restore scroll position
+    lv_obj_scroll_to_y(root, scroll_y, LV_ANIM_OFF);
 
     // Initialize selection UI to correct state (panel hidden, count = 0)
     update_selection_ui();

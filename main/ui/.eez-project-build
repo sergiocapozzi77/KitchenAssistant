@@ -13,6 +13,7 @@
     "ui.h",
     "ui_font_ext_font_montserrat_18.c",
     "ui_image_chef.c",
+    "ui_image_restaurant.c",
     "ui_image_shopping.c",
     "vars.h"
   ]

@@ -18,7 +18,7 @@ public:
     // bool manageUpdateProduct(Product &product);
     bool addProduct(Product &product);
     bool updateProduct(Product &product);
-    bool deleteProduct(std::string &rowId);
+    bool deleteProduct(const std::string &rowId);
 
     // Fetch products expiring today or tomorrow
     std::vector<Product> getExpiringProducts();

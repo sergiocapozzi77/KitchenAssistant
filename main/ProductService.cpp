@@ -11,12 +11,14 @@
 /* =========================================================
  * DATE FORMAT HELPER
  * ========================================================= */
-static std::string extractDatePart(const std::string& isoStr)
+static std::string extractDatePart(const std::string &isoStr)
 {
     // Strip time component from ISO 8601 datetime (e.g., "2026-03-28T00:00:00Z" → "2026-03-28")
-    if (isoStr.empty()) return "";
+    if (isoStr.empty())
+        return "";
     size_t tPos = isoStr.find('T');
-    if (tPos != std::string::npos) {
+    if (tPos != std::string::npos)
+    {
         return isoStr.substr(0, tPos);
     }
     return isoStr;
@@ -365,6 +367,7 @@ std::vector<Product> ProductService::getProducts(const std::vector<std::string> 
             cJSON *id = cJSON_GetObjectItem(item, "$id");
             cJSON *cat = cJSON_GetObjectItem(item, "category");
             cJSON *exp = cJSON_GetObjectItem(item, "expiry");
+            cJSON *barc = cJSON_GetObjectItem(item, "barcode");
 
             if (name && id && cJSON_IsString(name) && cJSON_IsString(id))
             {
@@ -374,6 +377,7 @@ std::vector<Product> ProductService::getProducts(const std::vector<std::string> 
                 p.quantity = (qty && cJSON_IsNumber(qty)) ? qty->valueint : 0;
                 p.category = (cat && cJSON_IsString(cat)) ? cat->valuestring : "Uncategorized";
                 p.expiry = (exp && cJSON_IsString(exp)) ? extractDatePart(exp->valuestring) : "";
+                p.barcode = (barc && cJSON_IsString(barc)) ? barc->valuestring : "";
                 allProducts.push_back(p);
             }
         }
@@ -460,9 +464,9 @@ bool ProductService::manageUpdateProduct(Product &product)
 
 bool ProductService::addProduct(Product &product)
 {
-    ESP_LOGI(TAG, "Adding product: name='%s', qty=%d, category='%s', expiry='%s'",
+    ESP_LOGI(TAG, "Adding product: name='%s', qty=%d, category='%s', expiry='%s', barcode='%s'",
              product.name.c_str(), product.quantity,
-             product.category.c_str(), product.expiry.c_str());
+             product.category.c_str(), product.expiry.c_str(), product.barcode.c_str());
 
     std::string url = Endpoint + "/tablesdb/" + DatabaseId +
                       "/tables/" + CollectionId + "/rows";
@@ -492,6 +496,7 @@ bool ProductService::addProduct(Product &product)
     cJSON_AddNumberToObject(data, "quantity", product.quantity);
     cJSON_AddStringToObject(data, "category", product.category.c_str());
     cJSON_AddStringToObject(data, "expiry", product.expiry.c_str());
+    cJSON_AddStringToObject(data, "barcode", product.barcode.c_str());
 
     char *json = cJSON_PrintUnformatted(root);
     if (!json)
@@ -594,7 +599,7 @@ bool ProductService::updateProduct(Product &product)
     return true;
 }
 
-bool ProductService::deleteProduct(std::string &rowId)
+bool ProductService::deleteProduct(const std::string &rowId)
 {
     std::string url = Endpoint + "/tablesdb/" + DatabaseId +
                       "/tables/" + CollectionId + "/rows/" + rowId;

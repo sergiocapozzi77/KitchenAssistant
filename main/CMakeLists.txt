@@ -5,6 +5,7 @@ idf_component_register(
         ProductService.cpp
         ProductsManager.cpp
         RecipeGoodFoodService.cpp
+        RecipeGialloZafferanoService.cpp
         RecipeSuggestionsManager.cpp
         RecipeDetailService.cpp
         WifiManager.cpp
@@ -20,6 +21,7 @@ idf_component_register(
         ui/ui.c
         ui/ui_image_shopping.c
         ui/ui_image_chef.c
+        ui/ui_image_restaurant.c
         ui/ui_font_ext_font_montserrat_18.c
     INCLUDE_DIRS 
     . 
