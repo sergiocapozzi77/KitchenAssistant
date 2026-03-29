@@ -275,8 +275,16 @@ std::vector<RecipeSuggestion> RecipeGialloZafferanoService::fetchPage(
                     if (spanClose != std::string::npos)
                     {
                         std::string raw = li.substr(spanClose + 7);
+
+                        // Stop at next HTML tag (e.g. </li>)
+                        size_t tagStart = raw.find('<');
+                        if (tagStart != std::string::npos)
+                            raw = raw.substr(0, tagStart);
+
+                        // Trim whitespace
                         size_t s = raw.find_first_not_of(" \t\r\n");
                         size_t e = raw.find_last_not_of(" \t\r\n");
+
                         if (s != std::string::npos)
                         {
                             std::string value = raw.substr(s, e - s + 1);
