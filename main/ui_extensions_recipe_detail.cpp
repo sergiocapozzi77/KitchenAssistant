@@ -365,7 +365,7 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
     lv_obj_set_style_bg_opa(header_img, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(header_img, 0, 0);
     lv_obj_set_style_border_width(header_img, 0, 0);
-    // lv_image_set_inner_align(header_img, LV_IMAGE_ALIGN_COVER);
+    lv_image_set_inner_align(header_img, LV_IMAGE_ALIGN_STRETCH);
 
     // ── Row 3: Scrollable container for remaining content ─────────────────────────
     lv_obj_t *scroll_cont = lv_obj_create(scr);
@@ -433,12 +433,13 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
     make_meta_item(LV_SYMBOL_EDIT, recipe.difficulty, "Difficulty");
 
     // ── Loading spinner (centered in scroll container) ─────────────────────
-    lv_obj_t *detail_spinner = lv_spinner_create(scroll_cont);
+    lv_obj_t *detail_spinner = lv_spinner_create(scr);
+    lv_obj_set_grid_cell(detail_spinner, LV_GRID_ALIGN_CENTER, 0, 1, LV_GRID_ALIGN_CENTER, 2, 1);
     lv_obj_set_size(detail_spinner, 60, 60);
     lv_obj_set_style_arc_color(detail_spinner, lv_color_hex(0x4CAF50), LV_PART_INDICATOR);
     lv_obj_center(detail_spinner);
-    lv_obj_set_style_margin_top(detail_spinner, 40, 0);
-    lv_obj_set_style_margin_bottom(detail_spinner, 40, 0);
+    // lv_obj_set_style_margin_top(detail_spinner, 40, 0);
+    // lv_obj_set_style_margin_bottom(detail_spinner, 40, 0);
 
     // ── Tabview for Ingredients and Method ─────────────────────────────────
     lv_obj_t *detail_tabview = lv_tabview_create(scroll_cont);
