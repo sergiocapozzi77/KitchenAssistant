@@ -316,6 +316,7 @@ static void edit_btn_cb(lv_event_t *e)
     lv_obj_t *name_ta = objects.product_edit__product_edit_name_ta;         // product_edit_name_ta
     lv_obj_t *expiry_ta = objects.product_edit__product_edit_expiry_ta;     // product_edit_expiry_ta
     lv_obj_t *category_dd = objects.product_edit__product_edit_category_dd; // product_edit_category_dd
+    lv_obj_t *frozen_cb = objects.product_edit__product_edit_frozen_cb;     // product_edit_frozen
 
     if (name_ta && lv_obj_is_valid(name_ta))
     {
@@ -329,6 +330,13 @@ static void edit_btn_cb(lv_event_t *e)
     {
         int idx = category_to_index(product.category);
         lv_dropdown_set_selected(category_dd, idx);
+    }
+    if (frozen_cb && lv_obj_is_valid(frozen_cb))
+    {
+        if (product.frozen)
+            lv_obj_add_state(frozen_cb, LV_STATE_CHECKED);
+        else
+            lv_obj_clear_state(frozen_cb, LV_STATE_CHECKED);
     }
 
     // Store rowId in panel user data for save action
@@ -410,7 +418,7 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
     {
         sorted.erase(std::remove_if(sorted.begin(), sorted.end(), [](const Product *p)
                                     {
-        int days = days_until_expiry(p->expiry);
+        int days = days_until_expiry(p->expiry, p->frozen);
         return days == 9999 || days >= 7; }),
                      sorted.end());
     }
@@ -423,8 +431,8 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
     if (sort_idx == 1)
     {
         // Push products with no expiry (9999) to the end
-        bool a_valid = days_until_expiry(a->expiry) != 9999;
-        bool b_valid = days_until_expiry(b->expiry) != 9999;
+        bool a_valid = days_until_expiry(a->expiry, a->frozen) != 9999;
+        bool b_valid = days_until_expiry(b->expiry, b->frozen) != 9999;
         if (a_valid != b_valid)
             return a_valid > b_valid;
         return a->expiry < b->expiry;
@@ -524,8 +532,16 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
         lv_obj_add_event_cb(row, row_prod_click_cb, LV_EVENT_CLICKED, row_ctx);
         lv_obj_add_event_cb(row, free_row_click_ctx_cb, LV_EVENT_DELETE, row_ctx);
 
+        // Frozen indicator
+        if (p->frozen)
+        {
+            lv_obj_t *frozen_img = lv_image_create(row);
+            lv_image_set_src(frozen_img, &img_snowflake);
+            lv_obj_set_style_translate_y(frozen_img, 5, 0);
+        }
+
         // Expiry badge
-        int days = days_until_expiry(p->expiry);
+        int days = days_until_expiry(p->expiry, p->frozen);
 
         if (days != 9999) // Only show expiry if date is valid
         {

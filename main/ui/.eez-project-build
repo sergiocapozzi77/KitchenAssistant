@@ -15,6 +15,7 @@
     "ui_image_chef.c",
     "ui_image_restaurant.c",
     "ui_image_shopping.c",
+    "ui_image_snowflake.c",
     "vars.h"
   ]
 }

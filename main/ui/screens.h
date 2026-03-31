@@ -53,6 +53,7 @@ typedef struct _objects_t {
     lv_obj_t *product_edit__product_edit_selectdate;
     lv_obj_t *product_edit__calendar_editproduct;
     lv_obj_t *product_edit__product_edit_delete_btn;
+    lv_obj_t *product_edit__product_edit_frozen_cb;
     lv_obj_t *recipes_header_pnl;
     lv_obj_t *obj0;
     lv_obj_t *recipe_suggestion_prev_btn;

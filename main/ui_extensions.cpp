@@ -105,7 +105,7 @@ void init_styles()
 
 // === HELPER FUNCTIONS ===
 
-int days_until_expiry(const std::string &isoDate)
+int days_until_expiry(const std::string &isoDate, bool frozen)
 {
     if (isoDate.empty())
         return 9999;
@@ -130,6 +130,17 @@ int days_until_expiry(const std::string &isoDate)
     {
         ESP_LOGW(TAG, "Date out of range: %s", isoDate.c_str());
         return 9999;
+    }
+
+    // If frozen, delay expiry by 4 months
+    if (frozen)
+    {
+        tm_exp.tm_mon += 4;
+        if (tm_exp.tm_mon > 12)
+        {
+            tm_exp.tm_year += (tm_exp.tm_mon - 1) / 12;
+            tm_exp.tm_mon = ((tm_exp.tm_mon - 1) % 12) + 1;
+        }
     }
 
     tm_exp.tm_year -= 1900;

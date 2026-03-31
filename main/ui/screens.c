@@ -706,6 +706,16 @@ void create_user_widget_product_edit(lv_obj_t *parent_obj, int startWidgetIndex)
                 }
             }
         }
+        {
+            // product_edit_frozen_cb
+            lv_obj_t *obj = lv_checkbox_create(parent_obj);
+            ((lv_obj_t **)&objects)[startWidgetIndex + 14] = obj;
+            lv_obj_set_pos(obj, 42, 514);
+            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+            lv_checkbox_set_text(obj, "Frozen");
+            lv_obj_add_event_cb(obj, action_product_edit_frozen, LV_EVENT_VALUE_CHANGED, (void *)0);
+            lv_obj_set_style_text_font(obj, &lv_font_montserrat_20, LV_PART_MAIN | LV_STATE_DEFAULT);
+        }
     }
 }
 

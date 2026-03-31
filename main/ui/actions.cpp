@@ -168,10 +168,12 @@ void action_product_edit_save(lv_event_t *e)
     lv_obj_t *name_ta = objects.product_edit__product_edit_name_ta;         // product_edit_name_ta
     lv_obj_t *expiry_ta = objects.product_edit__product_edit_expiry_ta;     // product_edit_expiry_ta
     lv_obj_t *category_dd = objects.product_edit__product_edit_category_dd; // product_edit_category_dd
+    lv_obj_t *frozen_cb = objects.product_edit__product_edit_frozen_cb;     // product_edit_frozen_cb
 
     if (!name_ta || !lv_obj_is_valid(name_ta) ||
         !expiry_ta || !lv_obj_is_valid(expiry_ta) ||
-        !category_dd || !lv_obj_is_valid(category_dd))
+        !category_dd || !lv_obj_is_valid(category_dd) ||
+        !frozen_cb || !lv_obj_is_valid(frozen_cb))
     {
         ESP_LOGE("actions", "One or more widgets invalid");
         return;
@@ -181,15 +183,17 @@ void action_product_edit_save(lv_event_t *e)
     const char *expiry = lv_textarea_get_text(expiry_ta);
     int cat_idx = lv_dropdown_get_selected(category_dd);
     std::string category = index_to_category(cat_idx);
+    bool frozen = lv_obj_has_state(frozen_cb, LV_STATE_CHECKED);
 
-    ESP_LOGI("actions", "Updating product %s: name='%s', expiry='%s', category='%s'",
-             rowId->c_str(), name, expiry, category.c_str());
+    ESP_LOGI("actions", "Updating product %s: name='%s', expiry='%s', category='%s', frozen='%s'",
+             rowId->c_str(), name, expiry, category.c_str(), frozen ? "true" : "false");
 
     Product product;
     product.rowId = *rowId;
     product.name = name ? name : "";
     product.expiry = expiry ? expiry : "";
     product.category = category;
+    product.frozen = frozen;
 
     // Preserve quantity from existing product
     auto allProducts = productsManager.getAllProducts();
@@ -313,4 +317,15 @@ void action_product_edit_delete(lv_event_t *e)
         lv_async_call([](void *)
                       { close_product_edit_modal(); }, nullptr);
     }
+}
+
+void action_product_edit_frozen(lv_event_t *e)
+{
+    lv_obj_t *checkbox = (lv_obj_t *)lv_event_get_current_target(e);
+    bool frozen = lv_obj_has_state(checkbox, LV_STATE_CHECKED);
+
+    ESP_LOGI("actions", "Product frozen state changed: %s", frozen ? "true" : "false");
+
+    // Store frozen state in checkbox's user data for later retrieval during save
+    lv_obj_set_user_data(checkbox, (void *)frozen);
 }

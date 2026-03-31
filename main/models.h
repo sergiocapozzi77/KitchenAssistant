@@ -35,4 +35,5 @@ struct Product
     std::string rowId;
     std::string expiry;
     std::string barcode;
+    bool frozen = false;
 };

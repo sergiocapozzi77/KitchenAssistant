@@ -23,6 +23,7 @@ idf_component_register(
         ui/ui_image_chef.c
         ui/ui_image_restaurant.c
         ui/ui_font_ext_font_montserrat_18.c
+        ui/ui_image_snowflake.c
     INCLUDE_DIRS 
     . 
     ui)

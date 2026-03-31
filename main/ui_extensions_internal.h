@@ -52,7 +52,7 @@ void free_thumb_data_cb(lv_event_t *e);
 void thumb_obj_deleted_cb(lv_event_t *e);
 
 // Helper functions
-int days_until_expiry(const std::string &isoDate);
+int days_until_expiry(const std::string &isoDate, bool frozen);
 lv_color_t get_expiry_color(int days);
 
 // Global variables (declared extern, defined in ui_extensions.cpp)

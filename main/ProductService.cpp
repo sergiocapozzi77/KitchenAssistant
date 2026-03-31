@@ -367,6 +367,7 @@ std::vector<Product> ProductService::getProducts(const std::vector<std::string> 
             cJSON *id = cJSON_GetObjectItem(item, "$id");
             cJSON *cat = cJSON_GetObjectItem(item, "category");
             cJSON *exp = cJSON_GetObjectItem(item, "expiry");
+            cJSON *frozen = cJSON_GetObjectItem(item, "frozen");
             cJSON *barc = cJSON_GetObjectItem(item, "barcode");
 
             if (name && id && cJSON_IsString(name) && cJSON_IsString(id))
@@ -378,6 +379,7 @@ std::vector<Product> ProductService::getProducts(const std::vector<std::string> 
                 p.category = (cat && cJSON_IsString(cat)) ? cat->valuestring : "Uncategorized";
                 p.expiry = (exp && cJSON_IsString(exp)) ? extractDatePart(exp->valuestring) : "";
                 p.barcode = (barc && cJSON_IsString(barc)) ? barc->valuestring : "";
+                p.frozen = (frozen && cJSON_IsBool(frozen)) ? cJSON_IsTrue(frozen) : false;
                 allProducts.push_back(p);
             }
         }
@@ -464,9 +466,10 @@ bool ProductService::manageUpdateProduct(Product &product)
 
 bool ProductService::addProduct(Product &product)
 {
-    ESP_LOGI(TAG, "Adding product: name='%s', qty=%d, category='%s', expiry='%s', barcode='%s'",
+    ESP_LOGI(TAG, "Adding product: name='%s', qty=%d, category='%s', expiry='%s', frozen=%s, barcode='%s'",
              product.name.c_str(), product.quantity,
-             product.category.c_str(), product.expiry.c_str(), product.barcode.c_str());
+             product.category.c_str(), product.expiry.c_str(),
+             product.frozen ? "true" : "false", product.barcode.c_str());
 
     std::string url = Endpoint + "/tablesdb/" + DatabaseId +
                       "/tables/" + CollectionId + "/rows";
@@ -497,6 +500,7 @@ bool ProductService::addProduct(Product &product)
     cJSON_AddStringToObject(data, "category", product.category.c_str());
     cJSON_AddStringToObject(data, "expiry", product.expiry.c_str());
     cJSON_AddStringToObject(data, "barcode", product.barcode.c_str());
+    cJSON_AddBoolToObject(data, "frozen", product.frozen);
 
     char *json = cJSON_PrintUnformatted(root);
     if (!json)
@@ -559,6 +563,11 @@ bool ProductService::updateProduct(Product &product)
     std::string url = Endpoint + "/tablesdb/" + DatabaseId +
                       "/tables/" + CollectionId + "/rows/" + product.rowId;
 
+    ESP_LOGI(TAG, "Updating product: rowId='%s', name='%s', qty=%d, category='%s', expiry='%s', frozen=%s",
+             product.rowId.c_str(), product.name.c_str(), product.quantity,
+             product.category.c_str(), product.expiry.c_str(),
+             product.frozen ? "true" : "false");
+
     cJSON *root = cJSON_CreateObject();
     if (!root)
         return false;
@@ -570,10 +579,13 @@ bool ProductService::updateProduct(Product &product)
         return false;
     }
 
+    cJSON_AddStringToObject(data, "name", product.name.c_str());
     cJSON_AddNumberToObject(data, "quantity", product.quantity);
     cJSON_AddStringToObject(data, "name", product.name.c_str());
     cJSON_AddStringToObject(data, "category", product.category.c_str());
     cJSON_AddStringToObject(data, "expiry", product.expiry.c_str());
+    cJSON_AddStringToObject(data, "expiry", product.expiry.c_str());
+    cJSON_AddBoolToObject(data, "frozen", product.frozen);
 
     char *json = cJSON_PrintUnformatted(root);
     if (!json)
