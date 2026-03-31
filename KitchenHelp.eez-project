@@ -1430,7 +1430,7 @@
                             {
                               "objID": "527bd5f4-2b1e-432e-da35-44b27e7014fc",
                               "type": "LVGLButtonWidget",
-                              "left": 45,
+                              "left": 9,
                               "top": -7,
                               "width": 156,
                               "height": 50,
@@ -1529,7 +1529,7 @@
                             {
                               "objID": "135c9074-69a0-47b9-9c69-7a525591fc66",
                               "type": "LVGLButtonWidget",
-                              "left": 211,
+                              "left": 175,
                               "top": -6,
                               "width": 156,
                               "height": 50,

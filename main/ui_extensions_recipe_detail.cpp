@@ -225,7 +225,7 @@ static void fetch_recipe_detail_task(void *arg)
                 lv_obj_set_style_pad_column(step_card, 12, 0);
                 lv_obj_set_style_border_width(step_card, 1, 0);
                 lv_obj_set_style_border_color(step_card, lv_color_hex(0xE9ECEF), 0);
-                lv_obj_set_style_radius(step_card, 10, 0);
+                lv_obj_set_style_radius(step_card, 0, 0); // No rounded corners
                 lv_obj_set_style_bg_color(step_card, lv_color_hex(0xFFFFFF), 0);
                 lv_obj_set_style_bg_opa(step_card, LV_OPA_COVER, 0);
 
@@ -305,13 +305,15 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
     lv_obj_t *scr = lv_obj_create(NULL);
     lv_obj_set_style_bg_color(scr, lv_color_hex(0xF8F9FA), 0);
     lv_obj_clear_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_flex_flow(scr, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_all(scr, 0, 0);
+    lv_obj_set_style_pad_row(scr, 0, 0);
 
     s_detail_screen = scr;
 
     // ── Fixed top bar ──────────────────────────────────────────────────────
     lv_obj_t *top_bar = lv_obj_create(scr);
     lv_obj_set_size(top_bar, lv_pct(100), 56);
-    lv_obj_align(top_bar, LV_ALIGN_TOP_MID, 0, 0);
     lv_obj_clear_flag(top_bar, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_flex_flow(top_bar, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(top_bar, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
@@ -328,11 +330,12 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
     // Back button
     lv_obj_t *back_btn = lv_button_create(top_bar);
     lv_obj_set_size(back_btn, 44, 44);
-    lv_obj_set_style_bg_color(back_btn, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_bg_color(back_btn, lv_color_hex(0xF0F0F0), 0);
     lv_obj_set_style_bg_opa(back_btn, LV_OPA_COVER, 0);
     lv_obj_set_style_shadow_opa(back_btn, 0, 0);
-    lv_obj_set_style_border_width(back_btn, 0, 0);
-    lv_obj_set_style_radius(back_btn, 8, 0);
+    lv_obj_set_style_border_width(back_btn, 1, 0);
+    lv_obj_set_style_border_color(back_btn, lv_color_hex(0xE0E0E0), 0);
+    lv_obj_set_style_radius(back_btn, 0, 0);
     lv_obj_t *back_lbl = lv_label_create(back_btn);
     lv_label_set_text(back_lbl, LV_SYMBOL_LEFT);
     lv_obj_set_style_text_font(back_lbl, &lv_font_montserrat_20, 0);
@@ -349,22 +352,8 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
     lv_obj_set_style_text_color(bar_title, lv_color_hex(0x212529), 0);
     lv_obj_set_style_pad_left(bar_title, 8, 0);
 
-    // ── Scrollable content below top bar ──────────────────────────────────
-    lv_obj_t *scroll = lv_obj_create(scr);
-    lv_obj_set_size(scroll, lv_pct(100), LV_SIZE_CONTENT);
-    lv_obj_align(scroll, LV_ALIGN_TOP_MID, 0, 56);
-    // Make it fill remaining height
-    lv_obj_set_height(scroll, LV_VER_RES - 56);
-    lv_obj_set_style_border_width(scroll, 0, 0);
-    lv_obj_set_style_bg_opa(scroll, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_pad_all(scroll, 0, 0);
-    lv_obj_set_style_radius(scroll, 0, 0);
-    lv_obj_set_flex_flow(scroll, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_row(scroll, 0, 0);
-    lv_obj_clear_flag(scroll, LV_OBJ_FLAG_SCROLL_ELASTIC);
-
-    // ── Header image (grey placeholder, filled by task) ────────────────────
-    lv_obj_t *header_img = lv_image_create(scroll);
+    // ── Header image (fixed, not scrollable) ───────────────────────────────
+    lv_obj_t *header_img = lv_image_create(scr);
     lv_obj_set_size(header_img, lv_pct(100), 280);
     lv_obj_set_style_bg_color(header_img, lv_color_hex(0xDEE2E6), 0);
     lv_obj_set_style_bg_opa(header_img, LV_OPA_COVER, 0);
@@ -372,11 +361,20 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
     lv_obj_set_style_border_width(header_img, 0, 0);
     lv_image_set_inner_align(header_img, LV_IMAGE_ALIGN_COVER);
 
-    lv_obj_add_event_cb(scroll, scroll_begin_hide_img_cb, LV_EVENT_SCROLL_BEGIN, header_img);
-    lv_obj_add_event_cb(scroll, scroll_end_show_img_cb, LV_EVENT_SCROLL_END, header_img);
+    // ── Scrollable container for remaining content ─────────────────────────
+    lv_obj_t *scroll_cont = lv_obj_create(scr);
+    lv_obj_set_width(scroll_cont, lv_pct(100));
+    lv_obj_set_flex_grow(scroll_cont, 1); // Takes all remaining space
+    lv_obj_set_flex_flow(scroll_cont, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_all(scroll_cont, 0, 0);
+    lv_obj_set_style_pad_row(scroll_cont, 0, 0);
+    lv_obj_set_style_border_width(scroll_cont, 0, 0);
+    lv_obj_set_style_bg_opa(scroll_cont, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_radius(scroll_cont, 0, 0);
+    lv_obj_set_flag(scroll_cont, LV_OBJ_FLAG_SCROLLABLE, false);
 
     // ── Info card (meta row) ───────────────────────────────────────────────
-    lv_obj_t *meta_card = lv_obj_create(scroll);
+    lv_obj_t *meta_card = lv_obj_create(scroll_cont);
     lv_obj_set_width(meta_card, lv_pct(100));
     lv_obj_set_height(meta_card, LV_SIZE_CONTENT);
     lv_obj_clear_flag(meta_card, LV_OBJ_FLAG_SCROLLABLE);
@@ -395,7 +393,7 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
     auto make_meta_item = [&](const char *symbol, const std::string &val, const char *label_text)
     {
         if (val.empty())
-            return;
+            return (lv_obj_t *)nullptr;
         lv_obj_t *col = lv_obj_create(meta_card);
         lv_obj_set_size(col, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
         lv_obj_clear_flag(col, LV_OBJ_FLAG_SCROLLABLE);
@@ -420,50 +418,95 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
         lv_label_set_text(sub_lbl, label_text);
         lv_obj_set_style_text_color(sub_lbl, lv_color_hex(0x6C757D), 0);
         lv_obj_set_style_text_font(sub_lbl, &lv_font_montserrat_14, 0);
+
+        return col;
     };
 
     make_meta_item(LV_SYMBOL_LOOP, recipe.totalTime, "Total");
     make_meta_item(LV_SYMBOL_EDIT, recipe.difficulty, "Difficulty");
 
-    // ── Content area (padding) ─────────────────────────────────────────────
-    lv_obj_t *content = lv_obj_create(scroll);
-    lv_obj_set_width(content, lv_pct(100));
-    lv_obj_set_height(content, LV_SIZE_CONTENT);
-    lv_obj_clear_flag(content, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_flex_flow(content, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_all(content, 16, 0);
-    lv_obj_set_style_pad_row(content, 8, 0);
-    lv_obj_set_style_border_width(content, 0, 0);
-    lv_obj_set_style_bg_opa(content, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_radius(content, 0, 0);
-
-    // Loading spinner
-    lv_obj_t *detail_spinner = lv_spinner_create(content);
+    // ── Loading spinner (centered in scroll container) ─────────────────────
+    lv_obj_t *detail_spinner = lv_spinner_create(scroll_cont);
     lv_obj_set_size(detail_spinner, 60, 60);
     lv_obj_set_style_arc_color(detail_spinner, lv_color_hex(0x4CAF50), LV_PART_INDICATOR);
+    lv_obj_center(detail_spinner);
+    lv_obj_set_style_margin_top(detail_spinner, 40, 0);
+    lv_obj_set_style_margin_bottom(detail_spinner, 40, 0);
 
-    // Ingredients section
-    make_section_header(content, "Ingredients");
-    lv_obj_t *ing_cont = lv_obj_create(content);
+    // ── Tabview for Ingredients and Method ─────────────────────────────────
+    lv_obj_t *detail_tabview = lv_tabview_create(scroll_cont);
+    lv_obj_set_width(detail_tabview, lv_pct(100));
+    lv_obj_set_height(detail_tabview, lv_pct(100));
+    // lv_obj_set_style_min_height(detail_tabview, 400, 0);
+    lv_obj_clear_flag(detail_tabview, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_border_width(detail_tabview, 0, 0);
+    lv_obj_set_style_bg_opa(detail_tabview, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_radius(detail_tabview, 0, 0);
+    lv_obj_set_style_pad_all(detail_tabview, 0, 0);
+
+    // Style tab buttons
+    lv_obj_t *tab_btns = lv_tabview_get_tab_btns(detail_tabview);
+    lv_obj_clear_flag(tab_btns, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_bg_color(tab_btns, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_border_width(tab_btns, 1, 0);
+    lv_obj_set_style_border_color(tab_btns, lv_color_hex(0xE9ECEF), 0);
+    lv_obj_set_style_border_side(tab_btns, LV_BORDER_SIDE_BOTTOM, 0);
+    lv_obj_set_style_pad_hor(tab_btns, 0, 0);
+    lv_obj_set_style_pad_top(tab_btns, 8, 0);
+    lv_obj_set_style_pad_bottom(tab_btns, 8, 0);
+    lv_obj_set_style_text_font(tab_btns, &lv_font_montserrat_18, 0);
+    lv_obj_set_style_text_color(tab_btns, lv_color_hex(0x6C757D), 0);
+    lv_obj_set_style_text_color(tab_btns, lv_color_hex(theme_colors[active_theme_index][0]), LV_PART_MAIN | LV_STATE_CHECKED);
+    lv_obj_set_style_border_width(tab_btns, 2, LV_PART_MAIN | LV_STATE_CHECKED);
+    lv_obj_set_style_border_color(tab_btns, lv_color_hex(theme_colors[active_theme_index][0]), LV_PART_MAIN | LV_STATE_CHECKED);
+    lv_obj_set_style_border_side(tab_btns, LV_BORDER_SIDE_BOTTOM, LV_PART_MAIN | LV_STATE_CHECKED);
+
+    // Style tabview content area
+    lv_obj_t *tab_content = lv_tabview_get_content(detail_tabview);
+    lv_obj_set_style_border_width(tab_content, 0, 0);
+    lv_obj_set_style_bg_opa(tab_content, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_pad_all(tab_content, 0, 0);
+    lv_obj_set_height(tab_content, LV_SIZE_CONTENT);
+
+    // Add tabs
+    lv_obj_t *ing_tab = lv_tabview_add_tab(detail_tabview, "Ingredients");
+    lv_obj_t *method_tab = lv_tabview_add_tab(detail_tabview, "Method");
+
+    // Style tab pages
+    lv_obj_set_width(ing_tab, lv_pct(100));
+    lv_obj_set_height(ing_tab, lv_pct(100));
+    lv_obj_set_style_pad_all(ing_tab, 0, 0);
+    lv_obj_set_style_border_width(ing_tab, 0, 0);
+    lv_obj_set_style_bg_opa(ing_tab, LV_OPA_TRANSP, 0);
+    lv_obj_clear_flag(ing_tab, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_set_width(method_tab, lv_pct(100));
+    lv_obj_set_height(method_tab, lv_pct(100));
+    lv_obj_set_style_pad_all(method_tab, 0, 0);
+    lv_obj_set_style_border_width(method_tab, 0, 0);
+    lv_obj_set_style_bg_opa(method_tab, LV_OPA_TRANSP, 0);
+    lv_obj_clear_flag(method_tab, LV_OBJ_FLAG_SCROLLABLE);
+
+    // Ingredients container inside its tab
+    lv_obj_t *ing_cont = lv_obj_create(ing_tab);
     lv_obj_set_width(ing_cont, lv_pct(100));
-    lv_obj_set_height(ing_cont, LV_SIZE_CONTENT);
-    lv_obj_clear_flag(ing_cont, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_height(ing_cont, lv_pct(100));
+    lv_obj_add_flag(ing_cont, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_flex_flow(ing_cont, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_all(ing_cont, 12, 0);
-    lv_obj_set_style_pad_row(ing_cont, 16, 0); // Increased row padding for better spacing
+    lv_obj_set_style_pad_row(ing_cont, 16, 0);
     lv_obj_set_style_bg_color(ing_cont, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_bg_opa(ing_cont, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(ing_cont, 1, 0);
     lv_obj_set_style_border_color(ing_cont, lv_color_hex(0xE9ECEF), 0);
-    lv_obj_set_style_radius(ing_cont, 12, 0);
+    lv_obj_set_style_radius(ing_cont, 0, 0);
     lv_obj_set_style_shadow_opa(ing_cont, 0, 0);
 
-    // Method section
-    make_section_header(content, "Method");
-    lv_obj_t *method_cont = lv_obj_create(content);
+    // Method container inside its tab
+    lv_obj_t *method_cont = lv_obj_create(method_tab);
     lv_obj_set_width(method_cont, lv_pct(100));
-    lv_obj_set_height(method_cont, LV_SIZE_CONTENT);
-    lv_obj_clear_flag(method_cont, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_height(method_cont, lv_pct(100));
+    lv_obj_add_flag(method_cont, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_flex_flow(method_cont, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_all(method_cont, 0, 0);
     lv_obj_set_style_pad_row(method_cont, 10, 0);
@@ -471,11 +514,12 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
     lv_obj_set_style_bg_opa(method_cont, LV_OPA_TRANSP, 0);
     lv_obj_set_style_radius(method_cont, 0, 0);
 
-    // Extra bottom padding
-    lv_obj_t *bottom_pad = lv_obj_create(content);
+    // Add bottom padding
+    lv_obj_t *bottom_pad = lv_obj_create(scroll_cont);
     lv_obj_set_size(bottom_pad, 1, 40);
     lv_obj_set_style_border_width(bottom_pad, 0, 0);
     lv_obj_set_style_bg_opa(bottom_pad, LV_OPA_TRANSP, 0);
+    lv_obj_clear_flag(bottom_pad, LV_OBJ_FLAG_SCROLLABLE);
 
     // Transition in
     lv_scr_load_anim(scr, LV_SCR_LOAD_ANIM_MOVE_LEFT, 300, 0, false);
