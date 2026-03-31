@@ -10,6 +10,7 @@
 #include "RecipeDetailService.h"
 
 static const char *TAG = "UIEXTENSIONS";
+static uint32_t s_current_generation = 0;
 
 // External theme variables (defined elsewhere)
 extern uint32_t theme_colors[1][3];
@@ -25,6 +26,7 @@ struct DetailFetchCtx
     lv_obj_t *ingredients_cont;
     lv_obj_t *method_cont;
     lv_obj_t *header_img;
+    uint32_t generation; // to detect stale tasks
 };
 
 struct IngredientCheckboxContext
@@ -123,6 +125,15 @@ static void scroll_end_show_img_cb(lv_event_t *e)
 static void fetch_recipe_detail_task(void *arg)
 {
     DetailFetchCtx *ctx = (DetailFetchCtx *)arg;
+
+    // Check if this task is for the current generation (not stale)
+    if (ctx->generation != s_current_generation) {
+        ESP_LOGI(TAG, "Skipping stale recipe detail task (generation %lu != %lu)",
+                 ctx->generation, s_current_generation);
+        delete ctx;
+        vTaskDelete(NULL);
+        return;
+    }
 
     bool ok = recipeDetailService.fetchDetails(ctx->recipe);
     ESP_LOGI("RecipeDetail", "fetchDetails: %s, ings=%d steps=%d",
@@ -306,6 +317,28 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
     lv_obj_t *total_time_val = objects.recipe_total_time_val;
     lv_obj_t *difficulty_val = objects.recipe_difficulty_val;
 
+    // Clear any previous content and reset UI state
+    if (ing_cont && lv_obj_is_valid(ing_cont)) {
+        lv_obj_clean(ing_cont);
+    }
+    if (method_cont && lv_obj_is_valid(method_cont)) {
+        lv_obj_clean(method_cont);
+    }
+    if (header_img && lv_obj_is_valid(header_img)) {
+        lv_image_set_src(header_img, NULL);
+        lv_obj_set_size(header_img, lv_pct(100), 280);
+    }
+    // Clear meta fields
+    if (total_time_val && lv_obj_is_valid(total_time_val)) {
+        lv_label_set_text(total_time_val, "");
+    }
+    if (difficulty_val && lv_obj_is_valid(difficulty_val)) {
+        lv_label_set_text(difficulty_val, "");
+    }
+
+    // Increment generation to invalidate any previous task
+    s_current_generation++;
+
     // Set recipe title
     lv_label_set_text(bar_title, recipe.name.c_str());
 
@@ -330,7 +363,8 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
         detail_spinner,
         ing_cont,
         method_cont,
-        header_img};
+        header_img,
+        s_current_generation};
 
     // Register delete guard callbacks
     lv_obj_add_event_cb(detail_spinner, detail_widget_deleted_cb, LV_EVENT_DELETE, fctx);
