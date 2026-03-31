@@ -1,6 +1,6 @@
 {
   "navigation": {
-    "selectedUserPageObject": "[KitchenHelp.eez-project]:/userPages/0",
+    "selectedUserPageObject": "[KitchenHelp.eez-project]:/userPages/1",
     "selectedUserWidgetObject": "[KitchenHelp.eez-project]:/userWidgets/0",
     "selectedActionObject": "[KitchenHelp.eez-project]:/actions/4",
     "selectedStyleObject": "[KitchenHelp.eez-project]:/lvglStyles/styles/1",
@@ -26,7 +26,7 @@
           },
           {
             "type": "border",
-            "selected": 0,
+            "selected": 2,
             "size": 240,
             "location": "right",
             "children": [
@@ -169,7 +169,8 @@
                       "enableClose": false,
                       "icon": "svg:hierarchy"
                     }
-                  ]
+                  ],
+                  "active": true
                 },
                 {
                   "type": "tabset",
@@ -193,10 +194,20 @@
               "type": "tabset",
               "id": "EDITORS",
               "weight": 48.879102867338894,
-              "selected": 3,
               "enableDeleteWhenEmpty": false,
               "enableClose": false,
               "children": [
+                {
+                  "type": "tab",
+                  "id": "#d87ad084-60a3-4802-81ee-5afa040eb605",
+                  "name": "RecipeDetail",
+                  "component": "editor",
+                  "config": {
+                    "objectPath": "[KitchenHelp.eez-project]:/userPages/1",
+                    "permanent": false
+                  },
+                  "icon": "svg:page"
+                },
                 {
                   "type": "tab",
                   "id": "#6689bd3f-4ac6-42db-b564-ea503cbc0dca",
@@ -245,8 +256,7 @@
                   },
                   "icon": "svg:page"
                 }
-              ],
-              "active": true
+              ]
             },
             {
               "type": "row",
@@ -1115,7 +1125,7 @@
       "transform": {
         "translate": {
           "x": -293.6461502125806,
-          "y": -503.65458709881295
+          "y": -203.65458709881295
         },
         "scale": 0.75
       },
@@ -1129,19 +1139,16 @@
       "selectionBack": {
         "0": {
           "0": {
-            "0": {
-              "0": {
-                "1": {},
-                "2": {
-                  "1": {
-                    "$selected": true
-                  }
-                }
-              }
-            },
             "1": {
               "0": {
-                "0": {},
+                "0": {
+                  "1": {
+                    "$selected": true
+                  },
+                  "2": {
+                    "$selected": true
+                  }
+                },
                 "1": {}
               }
             }
@@ -1161,7 +1168,8 @@
       "selectionBack": {
         "0": {
           "0": {
-            "0": {
+            "0": {},
+            "2": {
               "$selected": true
             }
           }
@@ -1170,7 +1178,7 @@
       "transform": {
         "translate": {
           "x": -400,
-          "y": -350.8851012505427
+          "y": -50.885101250542675
         },
         "scale": 0.75
       },
@@ -1185,11 +1193,9 @@
       "selectionFront": {},
       "selectionBack": {
         "0": {
-          "7": {}
-        },
-        "1": {
           "$selected": true
-        }
+        },
+        "1": {}
       },
       "transform": {
         "translate": {
@@ -1254,5 +1260,5 @@
   "globalFlowZoom": true,
   "flowZoom": 0.75,
   "implementationLanguage": "C",
-  "openDialogDefaultPath": "C:\\Users\\sergi\\Downloads\\Google_Sans,Montserrat\\Google_Sans\\static\\GoogleSans-Regular.ttf"
+  "openDialogDefaultPath": "C:\\Users\\sergi\\Downloads\\snowflake_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.png"
 }

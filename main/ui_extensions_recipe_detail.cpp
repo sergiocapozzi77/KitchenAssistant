@@ -11,9 +11,6 @@
 
 static const char *TAG = "UIEXTENSIONS";
 
-// Global variable for detail screen
-static lv_obj_t *s_detail_screen = nullptr;
-
 // External theme variables (defined elsewhere)
 extern uint32_t theme_colors[1][3];
 extern uint32_t active_theme_index;
@@ -28,7 +25,6 @@ struct DetailFetchCtx
     lv_obj_t *ingredients_cont;
     lv_obj_t *method_cont;
     lv_obj_t *header_img;
-    lv_obj_t *screen;
 };
 
 struct IngredientCheckboxContext
@@ -60,8 +56,6 @@ static void detail_widget_deleted_cb(lv_event_t *e)
         ctx->method_cont = nullptr;
     if (obj == ctx->header_img)
         ctx->header_img = nullptr;
-    if (obj == ctx->screen)
-        ctx->screen = nullptr;
 }
 
 static void ingredient_checkbox_cb(lv_event_t *e)
@@ -95,7 +89,6 @@ static void recipe_detail_back_cb(lv_event_t *e)
         lv_scr_load_anim(prev, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 300, 0, true);
     else
         lv_scr_load_anim(lv_scr_act(), LV_SCR_LOAD_ANIM_MOVE_RIGHT, 300, 0, true);
-    s_detail_screen = nullptr;
 }
 
 // === HELPER FUNCTIONS ===
@@ -139,7 +132,6 @@ static void fetch_recipe_detail_task(void *arg)
 
     lv_lock();
 
-    // Hide spinner
     if (ctx->spinner && lv_obj_is_valid(ctx->spinner))
         lv_obj_add_flag(ctx->spinner, LV_OBJ_FLAG_HIDDEN);
 
@@ -296,257 +288,55 @@ static void fetch_recipe_detail_task(void *arg)
 }
 
 // === PUBLIC FUNCTION ===
+// === PUBLIC FUNCTION ===
 void showRecipeDetailScreen(const RecipeSuggestion &recipe)
 {
     lv_obj_t *prev_screen = lv_scr_act();
 
-    // Create new full screen
-    lv_obj_t *scr = lv_obj_create(NULL);
-    lv_obj_set_style_bg_color(scr, lv_color_hex(0xF8F9FA), 0);
-    lv_obj_clear_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
+    // Load screen from EEZ Studio UI manager
+    lv_scr_load_anim(objects.recipe_detail, LV_SCR_LOAD_ANIM_MOVE_LEFT, 300, 0, false);
 
-    // Change to grid layout
-    lv_obj_set_layout(scr, LV_LAYOUT_GRID);
-    static lv_coord_t col_dsc[] = {LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
-    static lv_coord_t row_dsc[] = {LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
-    lv_obj_set_grid_dsc_array(scr, col_dsc, row_dsc);
-    lv_obj_set_style_pad_all(scr, 0, 0);
-    lv_obj_set_style_pad_row(scr, 0, 0);
+    // Get UI components by identifier
+    lv_obj_t *bar_title = objects.recipe_title;
+    lv_obj_t *back_btn = objects.recipe_back_btn;
+    lv_obj_t *header_img = objects.recipe_header_img;
+    lv_obj_t *detail_spinner = objects.recipe_detail_spinner;
+    lv_obj_t *ing_cont = objects.recipe_ing_cont;
+    lv_obj_t *method_cont = objects.recipe_method_cont;
+    lv_obj_t *total_time_val = objects.recipe_total_time_val;
+    lv_obj_t *difficulty_val = objects.recipe_difficulty_val;
 
-    s_detail_screen = scr;
-
-    // ── Row 1: Fixed top bar ──────────────────────────────────────────────────────
-    lv_obj_t *top_bar = lv_obj_create(scr);
-    lv_obj_set_grid_cell(top_bar, LV_GRID_ALIGN_STRETCH, 0, 1, LV_GRID_ALIGN_STRETCH, 0, 1);
-    lv_obj_set_size(top_bar, lv_pct(100), LV_SIZE_CONTENT);
-    lv_obj_clear_flag(top_bar, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_flex_flow(top_bar, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(top_bar, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_bg_color(top_bar, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_set_style_bg_opa(top_bar, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_side(top_bar, LV_BORDER_SIDE_BOTTOM, 0);
-    lv_obj_set_style_border_width(top_bar, 1, 0);
-    lv_obj_set_style_border_color(top_bar, lv_color_hex(0xE0E0E0), 0);
-    lv_obj_set_style_pad_hor(top_bar, 8, 0);
-    lv_obj_set_style_pad_ver(top_bar, 0, 0);
-    lv_obj_set_style_shadow_opa(top_bar, 0, 0);
-    lv_obj_set_style_radius(top_bar, 0, 0);
-
-    // Back button
-    lv_obj_t *back_btn = lv_button_create(top_bar);
-    lv_obj_set_size(back_btn, 44, 44);
-    lv_obj_set_style_bg_color(back_btn, lv_color_hex(0xF0F0F0), 0);
-    lv_obj_set_style_bg_opa(back_btn, LV_OPA_COVER, 0);
-    lv_obj_set_style_shadow_opa(back_btn, 0, 0);
-    lv_obj_set_style_border_width(back_btn, 1, 0);
-    lv_obj_set_style_border_color(back_btn, lv_color_hex(0xE0E0E0), 0);
-    lv_obj_set_style_radius(back_btn, 0, 0);
-    lv_obj_t *back_lbl = lv_label_create(back_btn);
-    lv_label_set_text(back_lbl, LV_SYMBOL_LEFT);
-    lv_obj_set_style_text_font(back_lbl, &lv_font_montserrat_20, 0);
-    lv_obj_set_style_text_color(back_lbl, lv_color_hex(0x212529), 0);
-    lv_obj_center(back_lbl);
-    lv_obj_add_event_cb(back_btn, recipe_detail_back_cb, LV_EVENT_CLICKED, prev_screen);
-
-    // Title in top bar
-    lv_obj_t *bar_title = lv_label_create(top_bar);
+    // Set recipe title
     lv_label_set_text(bar_title, recipe.name.c_str());
-    lv_label_set_long_mode(bar_title, LV_LABEL_LONG_DOT);
-    lv_obj_set_flex_grow(bar_title, 1);
-    lv_obj_set_style_text_font(bar_title, &lv_font_montserrat_20, 0);
-    lv_obj_set_style_text_color(bar_title, lv_color_hex(0x212529), 0);
-    lv_obj_set_style_pad_left(bar_title, 8, 0);
 
-    // ── Row 2: Header image (fixed, not scrollable) ───────────────────────────────
-    lv_obj_t *header_img = lv_image_create(scr);
-    lv_obj_set_grid_cell(header_img, LV_GRID_ALIGN_STRETCH, 0, 1, LV_GRID_ALIGN_STRETCH, 1, 1);
-    lv_obj_set_size(header_img, lv_pct(100), 280);
-    lv_obj_set_style_bg_color(header_img, lv_color_hex(0xDEE2E6), 0);
-    lv_obj_set_style_bg_opa(header_img, LV_OPA_COVER, 0);
-    lv_obj_set_style_radius(header_img, 0, 0);
-    lv_obj_set_style_border_width(header_img, 0, 0);
-    lv_image_set_inner_align(header_img, LV_IMAGE_ALIGN_STRETCH);
-
-    // ── Row 3: Scrollable container for remaining content ─────────────────────────
-    lv_obj_t *scroll_cont = lv_obj_create(scr);
-    lv_obj_set_grid_cell(scroll_cont, LV_GRID_ALIGN_STRETCH, 0, 1, LV_GRID_ALIGN_STRETCH, 2, 1);
-    lv_obj_set_width(scroll_cont, lv_pct(100));
-    lv_obj_set_height(scroll_cont, lv_pct(100));
-    lv_obj_set_flex_flow(scroll_cont, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_all(scroll_cont, 0, 0);
-    lv_obj_set_style_pad_row(scroll_cont, 0, 0);
-    lv_obj_set_style_border_width(scroll_cont, 0, 0);
-    lv_obj_set_style_bg_opa(scroll_cont, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_radius(scroll_cont, 0, 0);
-    lv_obj_set_flag(scroll_cont, LV_OBJ_FLAG_SCROLLABLE, false);
-
-    // ── Info card (meta row) ───────────────────────────────────────────────
-    lv_obj_t *meta_card = lv_obj_create(scroll_cont);
-    lv_obj_set_width(meta_card, lv_pct(100));
-    lv_obj_set_height(meta_card, LV_SIZE_CONTENT);
-    lv_obj_clear_flag(meta_card, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_flex_flow(meta_card, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(meta_card, LV_FLEX_ALIGN_SPACE_AROUND, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_bg_color(meta_card, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_set_style_bg_opa(meta_card, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(meta_card, 0, 0);
-    lv_obj_set_style_radius(meta_card, 0, 0);
-    lv_obj_set_style_pad_all(meta_card, 16, 0);
-    lv_obj_set_style_shadow_opa(meta_card, 0, 0);
-    lv_obj_set_style_border_side(meta_card, LV_BORDER_SIDE_BOTTOM, 0);
-    lv_obj_set_style_border_color(meta_card, lv_color_hex(0xE9ECEF), 0);
-    lv_obj_set_style_border_width(meta_card, 1, 0);
-
-    auto make_meta_item = [&](const char *symbol, const std::string &val, const char *label_text)
+    // Set meta information
+    if (!recipe.totalTime.empty())
     {
-        if (val.empty())
-            return (lv_obj_t *)nullptr;
-        lv_obj_t *col = lv_obj_create(meta_card);
-        lv_obj_set_size(col, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-        lv_obj_clear_flag(col, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_set_flex_flow(col, LV_FLEX_FLOW_COLUMN);
-        lv_obj_set_flex_align(col, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-        lv_obj_set_style_pad_all(col, 0, 0);
-        lv_obj_set_style_border_width(col, 0, 0);
-        lv_obj_set_style_bg_opa(col, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_pad_row(col, 2, 0);
+        lv_label_set_text(total_time_val, recipe.totalTime.c_str());
+    }
 
-        lv_obj_t *ico = lv_label_create(col);
-        lv_label_set_text(ico, symbol);
-        lv_obj_set_style_text_color(ico, lv_color_hex(0x4CAF50), 0);
-        lv_obj_set_style_text_font(ico, &lv_font_montserrat_20, 0);
+    if (!recipe.difficulty.empty())
+    {
+        lv_label_set_text(difficulty_val, recipe.difficulty.c_str());
+    }
 
-        lv_obj_t *val_lbl = lv_label_create(col);
-        lv_label_set_text(val_lbl, val.c_str());
-        lv_obj_set_style_text_color(val_lbl, lv_color_hex(0x212529), 0);
-        lv_obj_set_style_text_font(val_lbl, &lv_font_montserrat_16, 0);
+    lv_obj_clear_flag(detail_spinner, LV_OBJ_FLAG_HIDDEN);
 
-        lv_obj_t *sub_lbl = lv_label_create(col);
-        lv_label_set_text(sub_lbl, label_text);
-        lv_obj_set_style_text_color(sub_lbl, lv_color_hex(0x6C757D), 0);
-        lv_obj_set_style_text_font(sub_lbl, &lv_font_montserrat_14, 0);
-
-        return col;
-    };
-
-    make_meta_item(LV_SYMBOL_LOOP, recipe.totalTime, "Total");
-    make_meta_item(LV_SYMBOL_EDIT, recipe.difficulty, "Difficulty");
-
-    // ── Loading spinner (centered in scroll container) ─────────────────────
-    lv_obj_t *detail_spinner = lv_spinner_create(scr);
-    lv_obj_set_grid_cell(detail_spinner, LV_GRID_ALIGN_CENTER, 0, 1, LV_GRID_ALIGN_CENTER, 2, 1);
-    lv_obj_set_size(detail_spinner, 60, 60);
-    lv_obj_set_style_arc_color(detail_spinner, lv_color_hex(0x4CAF50), LV_PART_INDICATOR);
-    lv_obj_center(detail_spinner);
-    // lv_obj_set_style_margin_top(detail_spinner, 40, 0);
-    // lv_obj_set_style_margin_bottom(detail_spinner, 40, 0);
-
-    // ── Tabview for Ingredients and Method ─────────────────────────────────
-    lv_obj_t *detail_tabview = lv_tabview_create(scroll_cont);
-    lv_obj_set_width(detail_tabview, lv_pct(100));
-    lv_obj_set_height(detail_tabview, lv_pct(100));
-    // lv_obj_set_style_min_height(detail_tabview, 400, 0);
-    lv_obj_clear_flag(detail_tabview, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_style_border_width(detail_tabview, 0, 0);
-    lv_obj_set_style_bg_opa(detail_tabview, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_radius(detail_tabview, 0, 0);
-    lv_obj_set_style_pad_all(detail_tabview, 0, 0);
-
-    // Style tab buttons
-    lv_obj_t *tab_btns = lv_tabview_get_tab_btns(detail_tabview);
-    lv_obj_clear_flag(tab_btns, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_style_bg_color(tab_btns, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_set_style_border_width(tab_btns, 1, 0);
-    lv_obj_set_style_border_color(tab_btns, lv_color_hex(0xE9ECEF), 0);
-    lv_obj_set_style_border_side(tab_btns, LV_BORDER_SIDE_BOTTOM, 0);
-    lv_obj_set_style_pad_hor(tab_btns, 0, 0);
-    lv_obj_set_style_pad_top(tab_btns, 8, 0);
-    lv_obj_set_style_pad_bottom(tab_btns, 8, 0);
-    lv_obj_set_style_text_font(tab_btns, &lv_font_montserrat_18, 0);
-    lv_obj_set_style_text_color(tab_btns, lv_color_hex(0x6C757D), 0);
-    lv_obj_set_style_text_color(tab_btns, lv_color_hex(theme_colors[active_theme_index][0]), LV_PART_MAIN | LV_STATE_CHECKED);
-    lv_obj_set_style_border_width(tab_btns, 2, LV_PART_MAIN | LV_STATE_CHECKED);
-    lv_obj_set_style_border_color(tab_btns, lv_color_hex(theme_colors[active_theme_index][0]), LV_PART_MAIN | LV_STATE_CHECKED);
-    lv_obj_set_style_border_side(tab_btns, LV_BORDER_SIDE_BOTTOM, LV_PART_MAIN | LV_STATE_CHECKED);
-
-    // Style tabview content area
-    lv_obj_t *tab_content = lv_tabview_get_content(detail_tabview);
-    lv_obj_set_style_border_width(tab_content, 0, 0);
-    lv_obj_set_style_bg_opa(tab_content, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_pad_all(tab_content, 0, 0);
-    lv_obj_set_height(tab_content, LV_SIZE_CONTENT);
-
-    // Add tabs
-    lv_obj_t *ing_tab = lv_tabview_add_tab(detail_tabview, "Ingredients");
-    lv_obj_t *method_tab = lv_tabview_add_tab(detail_tabview, "Method");
-
-    // Style tab pages
-    lv_obj_set_width(ing_tab, lv_pct(100));
-    lv_obj_set_height(ing_tab, lv_pct(100));
-    lv_obj_set_style_pad_all(ing_tab, 0, 0);
-    lv_obj_set_style_border_width(ing_tab, 0, 0);
-    lv_obj_set_style_bg_opa(ing_tab, LV_OPA_TRANSP, 0);
-    lv_obj_clear_flag(ing_tab, LV_OBJ_FLAG_SCROLLABLE);
-
-    lv_obj_set_width(method_tab, lv_pct(100));
-    lv_obj_set_height(method_tab, lv_pct(100));
-    lv_obj_set_style_pad_all(method_tab, 0, 0);
-    lv_obj_set_style_border_width(method_tab, 0, 0);
-    lv_obj_set_style_bg_opa(method_tab, LV_OPA_TRANSP, 0);
-    lv_obj_clear_flag(method_tab, LV_OBJ_FLAG_SCROLLABLE);
-
-    // Ingredients container inside its tab
-    lv_obj_t *ing_cont = lv_obj_create(ing_tab);
-    lv_obj_set_width(ing_cont, lv_pct(100));
-    lv_obj_set_height(ing_cont, lv_pct(100));
-    lv_obj_add_flag(ing_cont, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_flex_flow(ing_cont, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_all(ing_cont, 12, 0);
-    lv_obj_set_style_pad_row(ing_cont, 16, 0);
-    lv_obj_set_style_bg_color(ing_cont, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_set_style_bg_opa(ing_cont, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(ing_cont, 1, 0);
-    lv_obj_set_style_border_color(ing_cont, lv_color_hex(0xE9ECEF), 0);
-    lv_obj_set_style_radius(ing_cont, 0, 0);
-    lv_obj_set_style_shadow_opa(ing_cont, 0, 0);
-
-    // Method container inside its tab
-    lv_obj_t *method_cont = lv_obj_create(method_tab);
-    lv_obj_set_width(method_cont, lv_pct(100));
-    lv_obj_set_height(method_cont, lv_pct(100));
-    lv_obj_add_flag(method_cont, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_flex_flow(method_cont, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_all(method_cont, 0, 0);
-    lv_obj_set_style_pad_row(method_cont, 10, 0);
-    lv_obj_set_style_border_width(method_cont, 0, 0);
-    lv_obj_set_style_bg_opa(method_cont, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_radius(method_cont, 0, 0);
-
-    // Add bottom padding
-    lv_obj_t *bottom_pad = lv_obj_create(scroll_cont);
-    lv_obj_set_size(bottom_pad, 1, 40);
-    lv_obj_set_style_border_width(bottom_pad, 0, 0);
-    lv_obj_set_style_bg_opa(bottom_pad, LV_OPA_TRANSP, 0);
-    lv_obj_clear_flag(bottom_pad, LV_OBJ_FLAG_SCROLLABLE);
-
-    // Transition in
-    lv_scr_load_anim(scr, LV_SCR_LOAD_ANIM_MOVE_LEFT, 300, 0, false);
-
+    // Set up back button callback
+    lv_obj_add_event_cb(back_btn, recipe_detail_back_cb, LV_EVENT_CLICKED, prev_screen);
     // Kick off detail fetch task
     DetailFetchCtx *fctx = new DetailFetchCtx{
         recipe,
         detail_spinner,
         ing_cont,
         method_cont,
-        header_img,
-        scr};
+        header_img};
 
     // Register delete guard callbacks
     lv_obj_add_event_cb(detail_spinner, detail_widget_deleted_cb, LV_EVENT_DELETE, fctx);
     lv_obj_add_event_cb(ing_cont, detail_widget_deleted_cb, LV_EVENT_DELETE, fctx);
     lv_obj_add_event_cb(method_cont, detail_widget_deleted_cb, LV_EVENT_DELETE, fctx);
     lv_obj_add_event_cb(header_img, detail_widget_deleted_cb, LV_EVENT_DELETE, fctx);
-    lv_obj_add_event_cb(scr, detail_widget_deleted_cb, LV_EVENT_DELETE, fctx);
 
     BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
         fetch_recipe_detail_task, "RecipeDetail",

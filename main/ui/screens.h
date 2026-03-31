@@ -12,11 +12,13 @@ extern "C" {
 enum ScreensEnum {
     _SCREEN_ID_FIRST = 1,
     SCREEN_ID_MAIN = 1,
-    _SCREEN_ID_LAST = 1
+    SCREEN_ID_RECIPE_DETAIL = 2,
+    _SCREEN_ID_LAST = 2
 };
 
 typedef struct _objects_t {
     lv_obj_t *main;
+    lv_obj_t *recipe_detail;
     lv_obj_t *tabview;
     lv_obj_t *products_header_pnl;
     lv_obj_t *product_filter_dropdown;
@@ -65,12 +67,35 @@ typedef struct _objects_t {
     lv_obj_t *snackbar_text;
     lv_obj_t *obj2;
     lv_obj_t *obj3;
+    lv_obj_t *root_container;
+    lv_obj_t *top_bar;
+    lv_obj_t *recipe_back_btn;
+    lv_obj_t *obj4;
+    lv_obj_t *recipe_title;
+    lv_obj_t *recipe_header_img;
+    lv_obj_t *scroll_cont;
+    lv_obj_t *meta_card;
+    lv_obj_t *meta_item_time;
+    lv_obj_t *obj5;
+    lv_obj_t *recipe_total_time_val;
+    lv_obj_t *obj6;
+    lv_obj_t *meta_item_difficulty;
+    lv_obj_t *obj7;
+    lv_obj_t *recipe_difficulty_val;
+    lv_obj_t *obj8;
+    lv_obj_t *detail_tabview;
+    lv_obj_t *recipe_ing_cont;
+    lv_obj_t *recipe_method_cont;
+    lv_obj_t *recipe_detail_spinner;
 } objects_t;
 
 extern objects_t objects;
 
 void create_screen_main();
 void tick_screen_main();
+
+void create_screen_recipe_detail();
+void tick_screen_recipe_detail();
 
 void create_user_widget_product_edit(lv_obj_t *parent_obj, int startWidgetIndex);
 void tick_user_widget_product_edit(int startWidgetIndex);
