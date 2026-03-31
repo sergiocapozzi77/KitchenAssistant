@@ -86,9 +86,9 @@ static void recipe_detail_back_cb(lv_event_t *e)
 {
     lv_obj_t *prev = (lv_obj_t *)lv_event_get_user_data(e);
     if (prev && lv_obj_is_valid(prev))
-        lv_scr_load_anim(prev, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 300, 0, true);
+        lv_scr_load_anim(prev, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 300, 0, false);
     else
-        lv_scr_load_anim(lv_scr_act(), LV_SCR_LOAD_ANIM_MOVE_RIGHT, 300, 0, true);
+        lv_scr_load_anim(lv_scr_act(), LV_SCR_LOAD_ANIM_MOVE_RIGHT, 300, 0, false);
 }
 
 // === HELPER FUNCTIONS ===
