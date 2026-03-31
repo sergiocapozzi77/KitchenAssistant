@@ -296,7 +296,6 @@ static void fetch_recipe_detail_task(void *arg)
 }
 
 // === PUBLIC FUNCTION ===
-
 void showRecipeDetailScreen(const RecipeSuggestion &recipe)
 {
     lv_obj_t *prev_screen = lv_scr_act();
@@ -305,15 +304,21 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
     lv_obj_t *scr = lv_obj_create(NULL);
     lv_obj_set_style_bg_color(scr, lv_color_hex(0xF8F9FA), 0);
     lv_obj_clear_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_flex_flow(scr, LV_FLEX_FLOW_COLUMN);
+
+    // Change to grid layout
+    lv_obj_set_layout(scr, LV_LAYOUT_GRID);
+    static lv_coord_t col_dsc[] = {LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
+    static lv_coord_t row_dsc[] = {LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_FR(1), LV_GRID_TEMPLATE_LAST};
+    lv_obj_set_grid_dsc_array(scr, col_dsc, row_dsc);
     lv_obj_set_style_pad_all(scr, 0, 0);
     lv_obj_set_style_pad_row(scr, 0, 0);
 
     s_detail_screen = scr;
 
-    // ── Fixed top bar ──────────────────────────────────────────────────────
+    // ── Row 1: Fixed top bar ──────────────────────────────────────────────────────
     lv_obj_t *top_bar = lv_obj_create(scr);
-    lv_obj_set_size(top_bar, lv_pct(100), 56);
+    lv_obj_set_grid_cell(top_bar, LV_GRID_ALIGN_STRETCH, 0, 1, LV_GRID_ALIGN_STRETCH, 0, 1);
+    lv_obj_set_size(top_bar, lv_pct(100), LV_SIZE_CONTENT);
     lv_obj_clear_flag(top_bar, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_flex_flow(top_bar, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(top_bar, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
@@ -352,19 +357,21 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
     lv_obj_set_style_text_color(bar_title, lv_color_hex(0x212529), 0);
     lv_obj_set_style_pad_left(bar_title, 8, 0);
 
-    // ── Header image (fixed, not scrollable) ───────────────────────────────
+    // ── Row 2: Header image (fixed, not scrollable) ───────────────────────────────
     lv_obj_t *header_img = lv_image_create(scr);
+    lv_obj_set_grid_cell(header_img, LV_GRID_ALIGN_STRETCH, 0, 1, LV_GRID_ALIGN_STRETCH, 1, 1);
     lv_obj_set_size(header_img, lv_pct(100), 280);
     lv_obj_set_style_bg_color(header_img, lv_color_hex(0xDEE2E6), 0);
     lv_obj_set_style_bg_opa(header_img, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(header_img, 0, 0);
     lv_obj_set_style_border_width(header_img, 0, 0);
-    lv_image_set_inner_align(header_img, LV_IMAGE_ALIGN_COVER);
+    // lv_image_set_inner_align(header_img, LV_IMAGE_ALIGN_COVER);
 
-    // ── Scrollable container for remaining content ─────────────────────────
+    // ── Row 3: Scrollable container for remaining content ─────────────────────────
     lv_obj_t *scroll_cont = lv_obj_create(scr);
+    lv_obj_set_grid_cell(scroll_cont, LV_GRID_ALIGN_STRETCH, 0, 1, LV_GRID_ALIGN_STRETCH, 2, 1);
     lv_obj_set_width(scroll_cont, lv_pct(100));
-    lv_obj_set_flex_grow(scroll_cont, 1); // Takes all remaining space
+    lv_obj_set_height(scroll_cont, lv_pct(100));
     lv_obj_set_flex_flow(scroll_cont, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_all(scroll_cont, 0, 0);
     lv_obj_set_style_pad_row(scroll_cont, 0, 0);
