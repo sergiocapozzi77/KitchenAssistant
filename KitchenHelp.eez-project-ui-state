@@ -158,7 +158,7 @@
                 {
                   "type": "tabset",
                   "id": "#56c946d8-6599-4e8e-a411-e2332a1d066a",
-                  "weight": 1,
+                  "weight": 1.269406392694064,
                   "enableClose": false,
                   "children": [
                     {
@@ -169,13 +169,12 @@
                       "enableClose": false,
                       "icon": "svg:hierarchy"
                     }
-                  ],
-                  "active": true
+                  ]
                 },
                 {
                   "type": "tabset",
                   "id": "#29695f1e-ac04-4b27-99f3-789ecebef27f",
-                  "weight": 1,
+                  "weight": 0.730593607305936,
                   "enableClose": false,
                   "children": [
                     {
@@ -276,7 +275,8 @@
                       "enableClose": false,
                       "icon": "svg:properties"
                     }
-                  ]
+                  ],
+                  "active": true
                 },
                 {
                   "type": "tabset",
@@ -1168,8 +1168,7 @@
       "selectionBack": {
         "0": {
           "0": {
-            "0": {},
-            "2": {
+            "3": {
               "$selected": true
             }
           }
@@ -1178,7 +1177,7 @@
       "transform": {
         "translate": {
           "x": -400,
-          "y": -50.885101250542675
+          "y": -450.8851012505427
         },
         "scale": 0.75
       },
@@ -1252,8 +1251,9 @@
   "lvglState": "DEFAULT",
   "lvglExpandedPropertiesGroup": [
     "BORDER",
-    "TEXT",
     "MISCELLANEOUS",
+    "TEXT",
+    "PADDING",
     "LAYOUT"
   ],
   "showInactiveFlowsInDebugger": true,

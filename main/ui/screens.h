@@ -73,7 +73,6 @@ typedef struct _objects_t {
     lv_obj_t *obj4;
     lv_obj_t *recipe_title;
     lv_obj_t *recipe_header_img;
-    lv_obj_t *scroll_cont;
     lv_obj_t *meta_card;
     lv_obj_t *meta_item_time;
     lv_obj_t *obj5;
