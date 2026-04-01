@@ -130,6 +130,7 @@ void WiFiManager::eventHandler(void *arg,
                      event->reason);
 
             wifi_connected = false;
+            sntp_synced = false;
 
             // Small backoff before reconnect
             vTaskDelay(pdMS_TO_TICKS(1000));
