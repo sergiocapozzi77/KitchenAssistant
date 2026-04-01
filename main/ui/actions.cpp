@@ -11,9 +11,40 @@
 #include "RecipeSuggestionsManager.h"
 #include "filters_ui.h"
 #include <algorithm>
+#include <string>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "esp_heap_caps.h"
 
 filter_panel_t products_panel;
 filter_panel_t recipes_panel;
+
+// Structure for barcode upsert task
+struct BarcodeUpsertCtx
+{
+    std::string barcode;
+    std::string name;
+    std::string category;
+};
+
+static void barcode_upsert_task(void *arg)
+{
+    BarcodeUpsertCtx *ctx = (BarcodeUpsertCtx *)arg;
+    if (ctx && !ctx->barcode.empty())
+    {
+        bool success = productService.upsertBarcode(ctx->barcode, ctx->name, ctx->category);
+        if (success)
+        {
+            ESP_LOGI("actions", "Barcode upserted: %s", ctx->barcode.c_str());
+        }
+        else
+        {
+            ESP_LOGE("actions", "Failed to upsert barcode: %s", ctx->barcode.c_str());
+        }
+    }
+    delete ctx;
+    vTaskDelete(NULL);
+}
 
 static void keyboard_ready_cb(lv_event_t *e)
 {
@@ -237,6 +268,7 @@ void action_product_edit_save(lv_event_t *e)
                            [&rowId](const Product &p)
                            { return p.rowId == *rowId; });
     product.quantity = (it != allProducts.end()) ? it->quantity : 0;
+    std::string barcode = (it != allProducts.end()) ? it->barcode : "";
     // NOTE: do NOT mutate allProducts — it's a local copy
 
     bool success = productService.updateProduct(product);
@@ -245,6 +277,22 @@ void action_product_edit_save(lv_event_t *e)
         ESP_LOGI("actions", "Product updated successfully");
         showSnackbar("Product updated", 3000);
         productsManager.updateProduct(product);
+
+        // Spawn barcode upsert task if barcode exists
+        if (!barcode.empty())
+        {
+            BarcodeUpsertCtx *barcode_ctx = new BarcodeUpsertCtx{barcode, product.name, product.category};
+            BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
+                barcode_upsert_task, "BarcodeUpsert",
+                16384, barcode_ctx, 3, NULL, tskNO_AFFINITY,
+                MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+            
+            if (ret != pdPASS)
+            {
+                ESP_LOGE("actions", "Failed to create barcode upsert task");
+                delete barcode_ctx;
+            }
+        }
 
         // Defer close + refresh — we are still inside the button's event chain.
         // Destroying the modal now would free objects still on the call stack.

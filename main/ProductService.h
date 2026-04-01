@@ -19,6 +19,7 @@ public:
     bool addProduct(Product &product);
     bool updateProduct(Product &product);
     bool deleteProduct(const std::string &rowId);
+    bool upsertBarcode(const std::string &barcode, const std::string &name, const std::string &category);
 
     // Fetch products expiring today or tomorrow
     std::vector<Product> getExpiringProducts();
@@ -31,6 +32,7 @@ private:
     const std::string ProjectId = "6954045e003c75c1c3bf";
     const std::string DatabaseId = "695404ac0021bf7d9707";
     const std::string CollectionId = "products";
+    const std::string BarcodeCollectionId = "barcodes";
 
     // HTTP helper methods
     esp_http_client_handle_t createHttpClient(const std::string &url);

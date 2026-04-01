@@ -633,6 +633,108 @@ bool ProductService::deleteProduct(const std::string &rowId)
     return success;
 }
 
+bool ProductService::upsertBarcode(const std::string &barcode, const std::string &name, const std::string &category)
+{
+    if (barcode.empty())
+    {
+        ESP_LOGW(TAG, "upsertBarcode: barcode is empty");
+        return false;
+    }
+
+    ESP_LOGI(TAG, "Upserting barcode: barcode='%s', name='%s', category='%s'",
+             barcode.c_str(), name.c_str(), category.c_str());
+
+    // Build the update URL (try updating first)
+    std::string updateUrl = Endpoint + "/tablesdb/" + DatabaseId +
+                            "/tables/" + BarcodeCollectionId + "/rows/" + barcode;
+
+    cJSON *root = cJSON_CreateObject();
+    if (!root)
+        return false;
+
+    cJSON *data = cJSON_AddObjectToObject(root, "data");
+    if (!data)
+    {
+        cJSON_Delete(root);
+        return false;
+    }
+
+    cJSON_AddStringToObject(data, "name", name.c_str());
+    cJSON_AddStringToObject(data, "category", category.c_str());
+
+    char *json = cJSON_PrintUnformatted(root);
+    if (!json)
+    {
+        cJSON_Delete(root);
+        return false;
+    }
+
+    // Try to update first
+    int status = -1;
+    std::string response = httpPatch(updateUrl, json, status);
+
+    // If update failed with 404 (not found), try to insert
+    if (status == 404)
+    {
+        ESP_LOGI(TAG, "Barcode not found, creating new entry");
+
+        std::string insertUrl = Endpoint + "/tablesdb/" + DatabaseId +
+                                "/tables/" + BarcodeCollectionId + "/rows";
+
+        // For insert, we need to include the barcode as an ID field
+        cJSON_Delete(root);
+        root = cJSON_CreateObject();
+        if (!root)
+        {
+            free(json);
+            return false;
+        }
+
+        std::string rowId = generateId();
+        ESP_LOGD(TAG, "Generated rowId: %s", rowId.c_str());
+
+        cJSON_AddStringToObject(root, "rowId", rowId.c_str());
+
+        data = cJSON_AddObjectToObject(root, "data");
+        if (!data)
+        {
+            cJSON_Delete(root);
+            free(json);
+            return false;
+        }
+
+        // Add barcode as ID if the table schema requires it
+        cJSON_AddStringToObject(data, "barcode", barcode.c_str());
+        cJSON_AddStringToObject(data, "name", name.c_str());
+        cJSON_AddStringToObject(data, "category", category.c_str());
+
+        free(json);
+        json = cJSON_PrintUnformatted(root);
+        if (!json)
+        {
+            cJSON_Delete(root);
+            return false;
+        }
+
+        response = httpPost(insertUrl, json, status);
+    }
+
+    cJSON_Delete(root);
+    free(json);
+
+    bool success = (status == 200 || status == 201);
+    if (!success)
+    {
+        ESP_LOGE(TAG, "upsertBarcode failed: %d", status);
+    }
+    else
+    {
+        ESP_LOGI(TAG, "Barcode upserted successfully");
+    }
+
+    return success;
+}
+
 std::string ProductService::generateId(int length)
 {
     static const char chars[] =
