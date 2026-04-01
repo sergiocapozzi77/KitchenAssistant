@@ -27,6 +27,12 @@ static void keyboard_cancel_cb(lv_event_t *e)
 
 static void keywords_textarea_focused_cb(lv_event_t *e)
 {
+    // Get the textarea that was focused
+    lv_obj_t *focused_textarea = (lv_obj_t *)lv_event_get_target(e);
+    
+    // Assign keyboard to this textarea
+    lv_keyboard_set_textarea(objects.keywords_keyboard, focused_textarea);
+    
     // Show keyboard and position at bottom of screen
     // Screen height 1280, keyboard height 299, tab bar 60
     // Calculate y position: 1280 - 299 - 60 = 921

@@ -306,8 +306,25 @@ static void dropdown_event_handler(lv_event_t *e)
 
 static void textarea_event_handler(lv_event_t *e)
 {
-    filter_panel_t *panel = (filter_panel_t *)lv_event_get_user_data(e);
-    update_keywords(panel);
+    if (is_syncing)
+        return;
+    
+    is_syncing = true;
+    
+    filter_panel_t *origin_panel = (filter_panel_t *)lv_event_get_user_data(e);
+    const char *text = lv_textarea_get_text(origin_panel->keywords_textarea);
+    
+    // Sync textarea content to all other panels
+    for (auto panel : panels)
+    {
+        if (panel == origin_panel || !panel->keywords_textarea)
+            continue;
+        
+        lv_textarea_set_text(panel->keywords_textarea, text);
+    }
+    
+    update_keywords(origin_panel);
+    is_syncing = false;
 }
 
 static void checkbox_event_handler(lv_event_t *e)
