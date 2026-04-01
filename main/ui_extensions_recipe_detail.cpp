@@ -127,7 +127,8 @@ static void fetch_recipe_detail_task(void *arg)
     DetailFetchCtx *ctx = (DetailFetchCtx *)arg;
 
     // Check if this task is for the current generation (not stale)
-    if (ctx->generation != s_current_generation) {
+    if (ctx->generation != s_current_generation)
+    {
         ESP_LOGI(TAG, "Skipping stale recipe detail task (generation %lu != %lu)",
                  ctx->generation, s_current_generation);
         delete ctx;
@@ -155,12 +156,18 @@ static void fetch_recipe_detail_task(void *arg)
     // Ingredients
     if (ctx->ingredients_cont && lv_obj_is_valid(ctx->ingredients_cont))
     {
+        // Set up container for two-column layout
+        lv_obj_set_flex_flow(ctx->ingredients_cont, LV_FLEX_FLOW_ROW_WRAP);
+        lv_obj_set_flex_align(ctx->ingredients_cont, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+        lv_obj_set_style_pad_column(ctx->ingredients_cont, 12, 0);
+        lv_obj_set_style_pad_row(ctx->ingredients_cont, 12, 0);
+
         if (ok && !ctx->recipe.ingredients.empty())
         {
             for (const auto &ing : ctx->recipe.ingredients)
             {
                 lv_obj_t *row = lv_obj_create(ctx->ingredients_cont);
-                lv_obj_set_width(row, lv_pct(100));
+                lv_obj_set_width(row, lv_pct(48));
                 lv_obj_set_height(row, LV_SIZE_CONTENT);
                 lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
                 lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
@@ -318,21 +325,26 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
     lv_obj_t *difficulty_val = objects.recipe_difficulty_val;
 
     // Clear any previous content and reset UI state
-    if (ing_cont && lv_obj_is_valid(ing_cont)) {
+    if (ing_cont && lv_obj_is_valid(ing_cont))
+    {
         lv_obj_clean(ing_cont);
     }
-    if (method_cont && lv_obj_is_valid(method_cont)) {
+    if (method_cont && lv_obj_is_valid(method_cont))
+    {
         lv_obj_clean(method_cont);
     }
-    if (header_img && lv_obj_is_valid(header_img)) {
+    if (header_img && lv_obj_is_valid(header_img))
+    {
         lv_image_set_src(header_img, NULL);
         lv_obj_set_size(header_img, lv_pct(100), 280);
     }
     // Clear meta fields
-    if (total_time_val && lv_obj_is_valid(total_time_val)) {
+    if (total_time_val && lv_obj_is_valid(total_time_val))
+    {
         lv_label_set_text(total_time_val, "");
     }
-    if (difficulty_val && lv_obj_is_valid(difficulty_val)) {
+    if (difficulty_val && lv_obj_is_valid(difficulty_val))
+    {
         lv_label_set_text(difficulty_val, "");
     }
 
