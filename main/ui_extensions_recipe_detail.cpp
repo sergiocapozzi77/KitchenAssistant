@@ -55,7 +55,13 @@ static void free_ingredient_checkbox_ctx_cb(lv_event_t *e)
 
 static void free_heart_button_ctx_cb(lv_event_t *e)
 {
-    delete (HeartButtonContext *)lv_event_get_user_data(e);
+    HeartButtonContext *ctx =
+        static_cast<HeartButtonContext *>(lv_event_get_user_data(e));
+
+    if (!ctx)
+        return;
+
+    delete ctx;
 }
 
 // === EVENT CALLBACKS ===
@@ -461,6 +467,8 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
     // 1. CLEANUP: Remove any existing callbacks to prevent duplicates
     lv_obj_remove_event_cb(objects.recipe_favourite_add, heart_button_cb);
     lv_obj_remove_event_cb(objects.recipe_favourite_remove, heart_button_cb);
+    lv_obj_remove_event_cb(objects.recipe_favourite_add, free_heart_button_ctx_cb);
+    lv_obj_remove_event_cb(objects.recipe_favourite_remove, free_heart_button_ctx_cb);
 
     // Create context with recipe data
     HeartButtonContext *ctx = new HeartButtonContext{
@@ -473,7 +481,6 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
     lv_obj_add_event_cb(objects.recipe_favourite_add, heart_button_cb, LV_EVENT_CLICKED, ctx);
     lv_obj_add_event_cb(objects.recipe_favourite_add, free_heart_button_ctx_cb, LV_EVENT_DELETE, ctx);
     lv_obj_add_event_cb(objects.recipe_favourite_remove, heart_button_cb, LV_EVENT_CLICKED, ctx);
-    lv_obj_add_event_cb(objects.recipe_favourite_remove, free_heart_button_ctx_cb, LV_EVENT_DELETE, ctx);
 
     // Kick off detail fetch task
     DetailFetchCtx *fctx = new DetailFetchCtx{

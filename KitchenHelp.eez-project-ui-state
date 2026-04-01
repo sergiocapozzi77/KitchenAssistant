@@ -1,11 +1,11 @@
 {
   "navigation": {
-    "selectedUserPageObject": "[KitchenHelp.eez-project]:/userPages/0",
+    "selectedUserPageObject": "[KitchenHelp.eez-project]:/userPages/1",
     "selectedUserWidgetObject": "[KitchenHelp.eez-project]:/userWidgets/1",
     "selectedActionObject": "[KitchenHelp.eez-project]:/actions/4",
     "selectedStyleObject": "[KitchenHelp.eez-project]:/lvglStyles/styles/1",
     "selectedFontObject": "[KitchenHelp.eez-project]:/fonts/0",
-    "selectedBitmapObject": "[KitchenHelp.eez-project]:/bitmaps/1",
+    "selectedBitmapObject": "[KitchenHelp.eez-project]:/bitmaps/6",
     "subnavigationSelectedItems": {}
   },
   "layoutModel": {
@@ -169,8 +169,7 @@
                       "enableClose": false,
                       "icon": "svg:hierarchy"
                     }
-                  ],
-                  "active": true
+                  ]
                 },
                 {
                   "type": "tabset",
@@ -194,7 +193,6 @@
               "type": "tabset",
               "id": "EDITORS",
               "weight": 48.879102867338894,
-              "selected": 4,
               "enableDeleteWhenEmpty": false,
               "enableClose": false,
               "children": [
@@ -277,7 +275,8 @@
                       "enableClose": false,
                       "icon": "svg:properties"
                     }
-                  ]
+                  ],
+                  "active": true
                 },
                 {
                   "type": "tabset",
@@ -1126,7 +1125,7 @@
       "transform": {
         "translate": {
           "x": -293.6461502125806,
-          "y": -203.65458709881295
+          "y": -3.6545870988129536
         },
         "scale": 0.75
       },
@@ -1141,8 +1140,14 @@
         "0": {
           "0": {
             "0": {
-              "0": {},
-              "$selected": true
+              "1": {
+                "0": {
+                  "2": {
+                    "$selected": true
+                  }
+                }
+              },
+              "2": {}
             }
           }
         }
@@ -1159,8 +1164,10 @@
       "selectionBack": {
         "0": {
           "0": {
-            "3": {
-              "$selected": true
+            "0": {
+              "4": {
+                "$selected": true
+              }
             }
           }
         }
@@ -1242,15 +1249,14 @@
   "lvglPart": "MAIN",
   "lvglState": "DEFAULT",
   "lvglExpandedPropertiesGroup": [
-    "BORDER",
     "MISCELLANEOUS",
     "TEXT",
-    "PADDING",
-    "LAYOUT"
+    "LAYOUT",
+    "BORDER"
   ],
   "showInactiveFlowsInDebugger": true,
   "globalFlowZoom": true,
   "flowZoom": 0.75,
   "implementationLanguage": "C",
-  "openDialogDefaultPath": "C:\\Users\\sergi\\Downloads\\snowflake_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.png"
+  "openDialogDefaultPath": "C:\\Users\\sergi\\Downloads\\heart_minus_46dp_1F1F1F_FILL0_wght400_GRAD0_opsz48.png"
 }
