@@ -153,7 +153,7 @@ void fetchRecipesTask(void *param)
     heap_caps_check_integrity_all(true);
     ESP_LOGI("ShowRecipesTask", "Heap OK before building ingredients");
 
-    if (lv_obj_has_state(objects.poducts_selected_cb, LV_STATE_CHECKED))
+    if (lv_obj_has_state(objects.products_filters_panel__poducts_selected_cb, LV_STATE_CHECKED))
     {
         // checkbox is checked
 

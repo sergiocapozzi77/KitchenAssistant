@@ -1,17 +1,14 @@
 #include "filters_ui.h"
 #include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include "styles.h"
 #include "esp_log.h"
-#include "ui.h"
 #include <vector>
 #include <string>
-#include <sstream>
+#include "ui.h"
 
 static const char *TAG = "Filters";
 
-// Filter state
+// ===================== STATE =====================
+
 static filter_state_t current_filters = {
     .meal_type = NULL,
     .total_time = NULL,
@@ -20,6 +17,14 @@ static filter_state_t current_filters = {
     .cuisine = NULL,
     .calories = NULL,
     .source = NULL};
+
+// ===================== OPTIONS =====================
+
+typedef struct
+{
+    const char *display;
+    const char *value;
+} filter_option_t;
 
 // Define all filter options
 static filter_option_t meal_type_options[] = {
@@ -137,48 +142,83 @@ static filter_option_t source_options[] = {
 static const int source_count = sizeof(source_options) / sizeof(source_options[0]);
 
 // LVGL dropdown objects
-static lv_obj_t *meal_type_dropdown = NULL;
-static lv_obj_t *total_time_dropdown = NULL;
-static lv_obj_t *diet_dropdown = NULL;
-static lv_obj_t *difficulty_dropdown = NULL;
-static lv_obj_t *cuisine_dropdown = NULL;
-static lv_obj_t *calories_dropdown = NULL;
-static lv_obj_t *source_dropdown = NULL;
-static lv_obj_t *keywords_textarea = NULL;
 
-// Helper function to create dropdown option string
-static char *create_options_string(filter_option_t options[], int count, const char *label)
+// ===================== PANEL =====================
+
+static std::vector<filter_panel_t *> panels;
+static bool is_syncing = false;
+
+// ===================== HELPERS =====================
+
+static int find_index(const char *value, filter_option_t options[], int count)
 {
-    static char buffer[1024]; // Static buffer for simplicity
-    buffer[0] = '\0';
-
-    // Start with "None" option
-    strcat(buffer, label);
-
-    // Add all other options
+    if (!value)
+        return 0;
     for (int i = 0; i < count; i++)
     {
-        strcat(buffer, "\n");
-        strcat(buffer, options[i].display);
+        if (strcmp(value, options[i].value) == 0)
+            return i + 1;
     }
-
-    return buffer;
+    return 0;
 }
 
-static void update_keywords_from_textarea()
+static void sync_panel(filter_panel_t *panel)
 {
-    if (!keywords_textarea)
+    if (is_syncing)
         return;
-    const char *text = lv_textarea_get_text(keywords_textarea);
+    is_syncing = true;
+
+    lv_dropdown_set_selected(panel->meal_type_dropdown,
+                             find_index(current_filters.meal_type, meal_type_options, meal_type_count));
+
+    lv_dropdown_set_selected(panel->total_time_dropdown,
+                             find_index(current_filters.total_time, total_time_options, total_time_count));
+
+    lv_dropdown_set_selected(panel->diet_dropdown,
+                             find_index(current_filters.diet, diet_options, diet_count));
+
+    lv_dropdown_set_selected(panel->difficulty_dropdown,
+                             find_index(current_filters.difficulty, difficulty_options, difficulty_count));
+
+    lv_dropdown_set_selected(panel->cuisine_dropdown,
+                             find_index(current_filters.cuisine, cuisine_options, cuisine_count));
+
+    lv_dropdown_set_selected(panel->calories_dropdown,
+                             find_index(current_filters.calories, calories_options, calories_count));
+
+    lv_dropdown_set_selected(panel->source_dropdown,
+                             find_index(current_filters.source, source_options, source_count));
+
+    is_syncing = false;
+}
+
+static void sync_all_panels(filter_panel_t *origin_panel)
+{
+    for (auto panel : panels)
+    {
+        if (panel == origin_panel)
+            continue; // Skip the one the user just touched
+        sync_panel(panel);
+    }
+}
+
+static void update_keywords(filter_panel_t *panel)
+{
+    if (!panel->keywords_textarea)
+        return;
+
+    const char *text = lv_textarea_get_text(panel->keywords_textarea);
     if (!text)
         return;
-    std::string input(text);
+
     current_filters.keywords.clear();
+
+    std::string input(text);
     std::string token;
-    for (size_t i = 0; i < input.length(); ++i)
+
+    for (char c : input)
     {
-        char c = input[i];
-        if (c == ',' || c == ' ' || c == '\t' || c == '\n')
+        if (c == ',' || c == ' ' || c == '\n')
         {
             if (!token.empty())
             {
@@ -187,86 +227,139 @@ static void update_keywords_from_textarea()
             }
         }
         else
-        {
             token += c;
-        }
     }
+
     if (!token.empty())
-    {
         current_filters.keywords.push_back(token);
-    }
 }
 
-static void keywords_textarea_event_handler(lv_event_t *e)
-{
-    update_keywords_from_textarea();
-}
+// ===================== EVENTS =====================
 
-// Dropdown event handler
 static void dropdown_event_handler(lv_event_t *e)
 {
+    if (is_syncing)
+        return;
+
+    filter_panel_t *panel = (filter_panel_t *)lv_event_get_user_data(e);
     lv_obj_t *dropdown = (lv_obj_t *)lv_event_get_target(e);
+
     uint16_t selected = lv_dropdown_get_selected(dropdown);
 
-    // Get the options array based on which dropdown
     filter_option_t *options = NULL;
     int count = 0;
-    char **target_field = NULL;
+    char **target = NULL;
 
-    if (dropdown == meal_type_dropdown)
+    if (dropdown == panel->meal_type_dropdown)
     {
         options = meal_type_options;
         count = meal_type_count;
-        target_field = &current_filters.meal_type;
+        target = &current_filters.meal_type;
     }
-    else if (dropdown == total_time_dropdown)
+    else if (dropdown == panel->total_time_dropdown)
     {
         options = total_time_options;
         count = total_time_count;
-        target_field = &current_filters.total_time;
+        target = &current_filters.total_time;
     }
-    else if (dropdown == diet_dropdown)
+    else if (dropdown == panel->diet_dropdown)
     {
         options = diet_options;
         count = diet_count;
-        target_field = &current_filters.diet;
+        target = &current_filters.diet;
     }
-    else if (dropdown == difficulty_dropdown)
+    else if (dropdown == panel->difficulty_dropdown)
     {
         options = difficulty_options;
         count = difficulty_count;
-        target_field = &current_filters.difficulty;
+        target = &current_filters.difficulty;
     }
-    else if (dropdown == cuisine_dropdown)
+    else if (dropdown == panel->cuisine_dropdown)
     {
         options = cuisine_options;
         count = cuisine_count;
-        target_field = &current_filters.cuisine;
+        target = &current_filters.cuisine;
     }
-    else if (dropdown == calories_dropdown)
+    else if (dropdown == panel->calories_dropdown)
     {
         options = calories_options;
         count = calories_count;
-        target_field = &current_filters.calories;
+        target = &current_filters.calories;
     }
-    else if (dropdown == source_dropdown)
+    else if (dropdown == panel->source_dropdown)
     {
         options = source_options;
         count = source_count;
-        target_field = &current_filters.source;
+        target = &current_filters.source;
     }
 
-    if (options && target_field)
+    if (target)
     {
         if (selected == 0 || selected > count)
-        {
-            *target_field = NULL;
-        }
+            *target = NULL;
         else
-        {
-            *target_field = (char *)options[selected - 1].value;
-        }
+            *target = (char *)options[selected - 1].value;
     }
+
+    sync_all_panels(panel);
+}
+
+static void textarea_event_handler(lv_event_t *e)
+{
+    filter_panel_t *panel = (filter_panel_t *)lv_event_get_user_data(e);
+    update_keywords(panel);
+}
+
+static void checkbox_event_handler(lv_event_t *e)
+{
+    if (is_syncing)
+        return;
+
+    is_syncing = true;
+
+    filter_panel_t *origin_panel = (filter_panel_t *)lv_event_get_user_data(e);
+    bool is_checked = lv_obj_has_state(origin_panel->products_selected_cb, LV_STATE_CHECKED);
+
+    // Sync checkbox state to all other panels
+    for (auto panel : panels)
+    {
+        if (panel == origin_panel || !panel->products_selected_cb)
+            continue;
+
+        if (is_checked)
+            lv_obj_add_state(panel->products_selected_cb, LV_STATE_CHECKED);
+        else
+            lv_obj_clear_state(panel->products_selected_cb, LV_STATE_CHECKED);
+    }
+
+    is_syncing = false;
+}
+
+// ===================== PUBLIC =====================
+
+void create_filter_panel(filter_panel_t *panel)
+{
+    panels.push_back(panel);
+
+    lv_obj_add_event_cb(panel->meal_type_dropdown, dropdown_event_handler, LV_EVENT_VALUE_CHANGED, panel);
+    lv_obj_add_event_cb(panel->total_time_dropdown, dropdown_event_handler, LV_EVENT_VALUE_CHANGED, panel);
+    lv_obj_add_event_cb(panel->diet_dropdown, dropdown_event_handler, LV_EVENT_VALUE_CHANGED, panel);
+    lv_obj_add_event_cb(panel->difficulty_dropdown, dropdown_event_handler, LV_EVENT_VALUE_CHANGED, panel);
+    lv_obj_add_event_cb(panel->cuisine_dropdown, dropdown_event_handler, LV_EVENT_VALUE_CHANGED, panel);
+    lv_obj_add_event_cb(panel->calories_dropdown, dropdown_event_handler, LV_EVENT_VALUE_CHANGED, panel);
+    lv_obj_add_event_cb(panel->source_dropdown, dropdown_event_handler, LV_EVENT_VALUE_CHANGED, panel);
+
+    if (panel->keywords_textarea)
+    {
+        lv_obj_add_event_cb(panel->keywords_textarea, textarea_event_handler, LV_EVENT_VALUE_CHANGED, panel);
+    }
+
+    if (panel->products_selected_cb)
+    {
+        lv_obj_add_event_cb(panel->products_selected_cb, checkbox_event_handler, LV_EVENT_VALUE_CHANGED, panel);
+    }
+
+    sync_panel(panel);
 }
 
 // Log initialization (can be called from init or after creation)
@@ -286,54 +379,33 @@ void log_filter_state(void)
     }
 }
 
-// Create the main filter panel
-void create_filter_panel()
-{
-    // Get dropdown objects from the objects array
-    meal_type_dropdown = objects.products_filters_panel__meal_type_dropdown;
-    total_time_dropdown = objects.products_filters_panel__total_time_dropdown;
-    diet_dropdown = objects.products_filters_panel__diet_dropdown;
-    difficulty_dropdown = objects.products_filters_panel__difficulty_dropdown;
-    cuisine_dropdown = objects.products_filters_panel__cuisine_dropdown;
-    calories_dropdown = objects.products_filters_panel__calories_dropdown;
-    source_dropdown = objects.products_filters_panel__source_dropdown;
-    keywords_textarea = objects.products_filters_panel__keywords_text;
-    if (keywords_textarea)
-        update_keywords_from_textarea();
-
-    // Verify dropdowns were created
-    if (!meal_type_dropdown || !total_time_dropdown || !diet_dropdown ||
-        !difficulty_dropdown || !cuisine_dropdown || !calories_dropdown || !source_dropdown)
-    {
-        ESP_LOGE(TAG, "Failed to get dropdown objects from user widget");
-        return;
-    }
-
-    // Set default selection to none (first option)
-    lv_dropdown_set_selected(meal_type_dropdown, 0);
-    lv_dropdown_set_selected(total_time_dropdown, 0);
-    lv_dropdown_set_selected(diet_dropdown, 0);
-    lv_dropdown_set_selected(difficulty_dropdown, 0);
-    lv_dropdown_set_selected(cuisine_dropdown, 0);
-    lv_dropdown_set_selected(calories_dropdown, 0);
-    lv_dropdown_set_selected(source_dropdown, 0);
-
-    // Add event handlers
-    lv_obj_add_event_cb(meal_type_dropdown, dropdown_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
-    lv_obj_add_event_cb(total_time_dropdown, dropdown_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
-    lv_obj_add_event_cb(diet_dropdown, dropdown_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
-    lv_obj_add_event_cb(difficulty_dropdown, dropdown_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
-    lv_obj_add_event_cb(cuisine_dropdown, dropdown_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
-    lv_obj_add_event_cb(calories_dropdown, dropdown_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
-    lv_obj_add_event_cb(source_dropdown, dropdown_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
-    if (keywords_textarea)
-    {
-        lv_obj_add_event_cb(keywords_textarea, keywords_textarea_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
-    }
-}
-
-// Public function to get current filter state
 filter_state_t *get_filter_state(void)
 {
     return &current_filters;
+}
+
+void init_products_filter_panel(filter_panel_t *panel)
+{
+    panel->meal_type_dropdown = objects.products_filters_panel__meal_type_dropdown;
+    panel->total_time_dropdown = objects.products_filters_panel__total_time_dropdown;
+    panel->diet_dropdown = objects.products_filters_panel__diet_dropdown;
+    panel->difficulty_dropdown = objects.products_filters_panel__difficulty_dropdown;
+    panel->cuisine_dropdown = objects.products_filters_panel__cuisine_dropdown;
+    panel->calories_dropdown = objects.products_filters_panel__calories_dropdown;
+    panel->source_dropdown = objects.products_filters_panel__source_dropdown;
+    panel->keywords_textarea = objects.products_filters_panel__keywords_text;
+    panel->products_selected_cb = objects.products_filters_panel__poducts_selected_cb;
+}
+
+void init_recipes_filter_panel(filter_panel_t *panel)
+{
+    panel->meal_type_dropdown = objects.recipes_filters_panel__meal_type_dropdown;
+    panel->total_time_dropdown = objects.recipes_filters_panel__total_time_dropdown;
+    panel->diet_dropdown = objects.recipes_filters_panel__diet_dropdown;
+    panel->difficulty_dropdown = objects.recipes_filters_panel__difficulty_dropdown;
+    panel->cuisine_dropdown = objects.recipes_filters_panel__cuisine_dropdown;
+    panel->calories_dropdown = objects.recipes_filters_panel__calories_dropdown;
+    panel->source_dropdown = objects.recipes_filters_panel__source_dropdown;
+    panel->keywords_textarea = objects.recipes_filters_panel__keywords_text;
+    panel->products_selected_cb = objects.recipes_filters_panel__poducts_selected_cb;
 }

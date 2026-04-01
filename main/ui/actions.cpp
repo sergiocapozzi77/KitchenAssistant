@@ -12,14 +12,17 @@
 #include "filters_ui.h"
 #include <algorithm>
 
+filter_panel_t products_panel;
+filter_panel_t recipes_panel;
+
 static void keyboard_ready_cb(lv_event_t *e)
 {
-    lv_obj_add_flag(objects.obj3, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
 }
 
 static void keyboard_cancel_cb(lv_event_t *e)
 {
-    lv_obj_add_flag(objects.obj3, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
 }
 
 static void keywords_textarea_focused_cb(lv_event_t *e)
@@ -27,14 +30,14 @@ static void keywords_textarea_focused_cb(lv_event_t *e)
     // Show keyboard and position at bottom of screen
     // Screen height 1280, keyboard height 299, tab bar 60
     // Calculate y position: 1280 - 299 - 60 = 921
-    /// lv_obj_set_pos(objects.obj3, 0, 921);
-    lv_obj_clear_flag(objects.obj3, LV_OBJ_FLAG_HIDDEN);
+    /// lv_obj_set_pos(objects.keywords_keyboard, 0, 921);
+    lv_obj_clear_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
 }
 
 static void keywords_textarea_defocused_cb(lv_event_t *e)
 {
     // Hide keyboard when textarea loses focus
-    lv_obj_add_flag(objects.obj3, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
 }
 
 void set_tab_icon(lv_obj_t *tabview, uint32_t index, const void *img_src)
@@ -76,7 +79,7 @@ static void tabview_tab_changed_cb(lv_event_t *e)
         if (recipeSuggestionsManager.getSuggestionSize() > 0)
             recipeSuggestionsManager.showCurrentPageRecipes();
         // Hide keyboard when switching away from products tab
-        lv_obj_add_flag(objects.obj3, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
     }
 }
 
@@ -89,15 +92,42 @@ void action_screen_loading(lv_event_t *e)
 
     lv_obj_add_flag(objects.create_recipe_pnl, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(objects.snackbar, LV_OBJ_FLAG_HIDDEN);
-    create_filter_panel();
+
+    init_products_filter_panel(&products_panel);
+    create_filter_panel(&products_panel);
+
+    init_recipes_filter_panel(&recipes_panel);
+    create_filter_panel(&recipes_panel);
+
+    lv_obj_add_flag(objects.recipe_list_filter_container, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_event_cb(objects.tabview, tabview_tab_changed_cb, LV_EVENT_VALUE_CHANGED, nullptr);
 
     // Keyboard initialization
-    lv_obj_add_flag(objects.obj3, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_event_cb(objects.obj3, keyboard_ready_cb, LV_EVENT_READY, nullptr);
-    lv_obj_add_event_cb(objects.obj3, keyboard_cancel_cb, LV_EVENT_CANCEL, nullptr);
+    lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_event_cb(objects.keywords_keyboard, keyboard_ready_cb, LV_EVENT_READY, nullptr);
+    lv_obj_add_event_cb(objects.keywords_keyboard, keyboard_cancel_cb, LV_EVENT_CANCEL, nullptr);
     lv_obj_add_event_cb(objects.products_filters_panel__keywords_text, keywords_textarea_focused_cb, LV_EVENT_FOCUSED, nullptr);
     lv_obj_add_event_cb(objects.products_filters_panel__keywords_text, keywords_textarea_defocused_cb, LV_EVENT_DEFOCUSED, nullptr);
+    lv_obj_add_event_cb(objects.recipes_filters_panel__keywords_text, keywords_textarea_focused_cb, LV_EVENT_FOCUSED, nullptr);
+    lv_obj_add_event_cb(objects.recipes_filters_panel__keywords_text, keywords_textarea_defocused_cb, LV_EVENT_DEFOCUSED, nullptr);
+}
+
+void action_main_screen_loaded(lv_event_t *e)
+{
+}
+
+void action_update_recipes_from_filter_panel(lv_event_t *e)
+{
+    ESP_LOGI("actions", "Generate Recipe button clicked");
+    log_filter_state();
+
+    lv_lock();
+    lv_tabview_set_active(objects.tabview, 1, LV_ANIM_OFF);
+    lv_unlock();
+
+    // Somewhere in initTasks() or after WiFi connects:
+    recipeSuggestionsManager.reset();
+    recipeSuggestionsManager.loadCurrentPage();
 }
 
 void action_generate_recipe_click(lv_event_t *e)
@@ -328,4 +358,16 @@ void action_product_edit_frozen(lv_event_t *e)
 
     // Store frozen state in checkbox's user data for later retrieval during save
     lv_obj_set_user_data(checkbox, (void *)frozen);
+}
+
+void action_recipes_filter_panel_toggle(lv_event_t *e)
+{
+    if (lv_obj_has_flag(objects.recipe_list_filter_container, LV_OBJ_FLAG_HIDDEN))
+    {
+        lv_obj_clear_flag(objects.recipe_list_filter_container, LV_OBJ_FLAG_HIDDEN);
+    }
+    else
+    {
+        lv_obj_add_flag(objects.recipe_list_filter_container, LV_OBJ_FLAG_HIDDEN);
+    }
 }

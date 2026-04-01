@@ -225,19 +225,13 @@ static void update_selection_ui()
     int selected_count = productsManager.getSelectedCount();
 
     // Update label text - with NULL/validity check
-    if (objects.product_selected_lbl && lv_obj_is_valid(objects.product_selected_lbl))
-    {
-        char buf[64];
-        if (selected_count == 1)
-            snprintf(buf, sizeof(buf), "1 product selected");
-        else
-            snprintf(buf, sizeof(buf), "%d products selected", selected_count);
-        lv_label_set_text(objects.product_selected_lbl, buf);
-    }
+    char buf[64];
+    if (selected_count == 1)
+        snprintf(buf, sizeof(buf), "1 product selected");
     else
-    {
-        ESP_LOGW(TAG, "product_selected_lbl is NULL or invalid, skipping update");
-    }
+        snprintf(buf, sizeof(buf), "%d products selected", selected_count);
+    lv_label_set_text(objects.products_filters_panel__product_selected_lbl, buf);
+    lv_label_set_text(objects.recipes_filters_panel__product_selected_lbl, buf);
 
     ESP_LOGI(TAG, "Selection updated: %d products selected", selected_count);
 

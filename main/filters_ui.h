@@ -19,18 +19,29 @@ typedef struct
     std::vector<std::string> keywords;
 } filter_state_t;
 
-// Filter option structure
 typedef struct
 {
-    const char *display; // Display text for the option
-    const char *value;   // Value to use in API calls
-} filter_option_t;
+    lv_obj_t *meal_type_dropdown;
+    lv_obj_t *total_time_dropdown;
+    lv_obj_t *diet_dropdown;
+    lv_obj_t *difficulty_dropdown;
+    lv_obj_t *cuisine_dropdown;
+    lv_obj_t *calories_dropdown;
+    lv_obj_t *source_dropdown;
+    lv_obj_t *keywords_textarea;
+    lv_obj_t *products_selected_cb;
+} filter_panel_t;
+
+// Filter option structure
 
 // Function to create the filter panel
 /**
  * @brief Create the main filter panel with all dropdowns
  */
-void create_filter_panel();
+void create_filter_panel(filter_panel_t *panel);
+
+void init_products_filter_panel(filter_panel_t *panel);
+void init_recipes_filter_panel(filter_panel_t *panel);
 
 // Function to get current filter state
 /**

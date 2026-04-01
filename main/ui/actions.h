@@ -22,6 +22,9 @@ extern void action_edit_product_panel_clicked(lv_event_t * e);
 extern void action_product_calendar_value_changed(lv_event_t * e);
 extern void action_product_edit_delete(lv_event_t * e);
 extern void action_product_edit_frozen(lv_event_t * e);
+extern void action_recipes_filter_panel_toggle(lv_event_t * e);
+extern void action_main_screen_loaded(lv_event_t * e);
+extern void action_update_recipes_from_filter_panel(lv_event_t * e);
 
 #ifdef __cplusplus
 }
