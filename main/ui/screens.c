@@ -648,12 +648,32 @@ void create_screen_recipe_detail() {
                             lv_obj_t *obj = lv_label_create(parent_obj);
                             objects.recipe_title = obj;
                             lv_obj_set_pos(obj, 60, 14);
-                            lv_obj_set_size(obj, LV_PCT(100), LV_SIZE_CONTENT);
+                            lv_obj_set_size(obj, 500, LV_SIZE_CONTENT);
                             lv_label_set_long_mode(obj, LV_LABEL_LONG_DOT);
                             lv_obj_set_style_text_font(obj, &lv_font_montserrat_20, LV_PART_MAIN | LV_STATE_DEFAULT);
                             lv_obj_set_style_text_color(obj, lv_color_hex(0xff212529), LV_PART_MAIN | LV_STATE_DEFAULT);
                             lv_obj_set_style_pad_left(obj, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
                             lv_label_set_text(obj, "");
+                        }
+                        {
+                            // recipe_favourite_btn
+                            lv_obj_t *obj = lv_button_create(parent_obj);
+                            objects.recipe_favourite_btn = obj;
+                            lv_obj_set_pos(obj, 452, 0);
+                            lv_obj_set_size(obj, 50, 50);
+                            {
+                                lv_obj_t *parent_obj = obj;
+                                {
+                                    // recipe_favourite_btnlbl
+                                    lv_obj_t *obj = lv_label_create(parent_obj);
+                                    objects.recipe_favourite_btnlbl = obj;
+                                    lv_obj_set_pos(obj, 0, 0);
+                                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                                    lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+                                    lv_obj_set_style_text_font(obj, &lv_font_montserrat_20, LV_PART_MAIN | LV_STATE_DEFAULT);
+                                    lv_label_set_text(obj, "F");
+                                }
+                            }
                         }
                     }
                 }

@@ -16,6 +16,7 @@
 #include "ProductService.h"
 #include "ui_extensions.h"
 #include "ProductsManager.h"
+#include "FavouritesManager.h"
 
 static const char *TAG = "APP";
 
@@ -64,6 +65,7 @@ void Application::initTasks()
     // ESP_ERROR_CHECK(product_fetcher->start());
 
     productsManager.fetchProducts();
+    favouritesManager.startBackgroundFetch();
 
     // ESP_LOGI(TAG, "Tasks started");
 }

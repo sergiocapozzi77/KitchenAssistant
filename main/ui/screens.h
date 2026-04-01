@@ -86,6 +86,8 @@ typedef struct _objects_t {
     lv_obj_t *recipe_back_btn;
     lv_obj_t *obj2;
     lv_obj_t *recipe_title;
+    lv_obj_t *recipe_favourite_btn;
+    lv_obj_t *recipe_favourite_btnlbl;
     lv_obj_t *recipe_header_img;
     lv_obj_t *meta_card;
     lv_obj_t *meta_item_time;

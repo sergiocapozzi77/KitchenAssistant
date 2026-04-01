@@ -8,6 +8,8 @@
 #include "fonts.h"
 #include "models.h"
 #include "RecipeDetailService.h"
+#include "FavouritesManager.h"
+#include "FavouriteService.h"
 
 static const char *TAG = "UIEXTENSIONS";
 static uint32_t s_current_generation = 0;
@@ -35,11 +37,25 @@ struct IngredientCheckboxContext
     lv_obj_t *line;
 };
 
+struct HeartButtonContext
+{
+    std::string url;
+    std::string name;
+    std::string imageUrl;
+    lv_obj_t *label;
+    lv_obj_t *button;
+};
+
 // === CLEANUP CALLBACKS ===
 
 static void free_ingredient_checkbox_ctx_cb(lv_event_t *e)
 {
     delete (IngredientCheckboxContext *)lv_event_get_user_data(e);
+}
+
+static void free_heart_button_ctx_cb(lv_event_t *e)
+{
+    delete (HeartButtonContext *)lv_event_get_user_data(e);
 }
 
 // === EVENT CALLBACKS ===
@@ -91,6 +107,58 @@ static void recipe_detail_back_cb(lv_event_t *e)
         lv_scr_load_anim(prev, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 300, 0, false);
     else
         lv_scr_load_anim(lv_scr_act(), LV_SCR_LOAD_ANIM_MOVE_RIGHT, 300, 0, false);
+}
+
+static void heart_button_cb(lv_event_t *e)
+{
+    HeartButtonContext *ctx = static_cast<HeartButtonContext *>(lv_event_get_user_data(e));
+    if (!ctx || !ctx->label || !ctx->button)
+        return;
+
+    bool currentlyFav = favouritesManager.isFavouriteUrl(ctx->url);
+
+    if (currentlyFav)
+    {
+        // Remove from favourites
+        favouritesManager.removeFavourite(ctx->url);
+        lv_obj_set_style_text_color(ctx->label, lv_color_hex(0x666666), 0);
+        showSnackbar("Removed from favourites", 3000);
+
+        // Background task to sync with Appwrite
+        xTaskCreate([](void *param)
+                    {
+            std::string *url = static_cast<std::string *>(param);
+            favouriteService.removeFavourite(*url);
+            delete url;
+            vTaskDelete(nullptr); }, "removeFav", 4096, new std::string(ctx->url), 1, nullptr);
+    }
+    else
+    {
+        // Create a minimal RecipeSuggestion with available data
+        RecipeSuggestion recipe;
+        recipe.url = ctx->url;
+        recipe.name = ctx->name;
+        recipe.imageUrl = ctx->imageUrl;
+        // Other fields remain empty
+
+        // Create Favorite for local cache
+        Favorite fav;
+        fav.url = ctx->url;
+        fav.name = ctx->name;
+        fav.imageUrl = ctx->imageUrl;
+        favouritesManager.addFavourite(fav);
+
+        lv_obj_set_style_text_color(ctx->label, lv_color_hex(0xFF0000), 0);
+        showSnackbar("Added to favourites", 3000);
+
+        // Background task to sync with Appwrite
+        xTaskCreate([](void *param)
+                    {
+            RecipeSuggestion *recipe = static_cast<RecipeSuggestion *>(param);
+            favouriteService.addFavourite(*recipe);
+            delete recipe;
+            vTaskDelete(nullptr); }, "addFav", 4096, new RecipeSuggestion(recipe), 1, nullptr);
+    }
 }
 
 // === HELPER FUNCTIONS ===
@@ -369,6 +437,22 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
 
     // Set up back button callback
     lv_obj_add_event_cb(back_btn, recipe_detail_back_cb, LV_EVENT_CLICKED, prev_screen);
+
+    // Set initial color based on favourite status
+    bool isFav = favouritesManager.isFavouriteUrl(recipe.url);
+    lv_obj_set_style_text_color(objects.recipe_favourite_btnlbl, lv_color_hex(isFav ? 0xFF0000 : 0x666666), 0);
+
+    // Create context with recipe data
+    HeartButtonContext *ctx = new HeartButtonContext{
+        recipe.url,
+        recipe.name,
+        recipe.imageUrl,
+        objects.recipe_favourite_btnlbl,
+        objects.recipe_favourite_btn};
+
+    lv_obj_add_event_cb(objects.recipe_favourite_btn, heart_button_cb, LV_EVENT_CLICKED, ctx);
+    lv_obj_add_event_cb(objects.recipe_favourite_btn, free_heart_button_ctx_cb, LV_EVENT_DELETE, ctx);
+
     // Kick off detail fetch task
     DetailFetchCtx *fctx = new DetailFetchCtx{
         recipe,

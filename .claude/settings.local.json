@@ -1,4 +1,29 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(grep -E \"\\\\.\\(c|cpp\\)$\")",
+      "Bash(rm \"C:/Users/sergi/source/repos/KitchenAssistant/sdkconfig\")",
+      "Bash(grep -r RecipeSuggestion C:/Users/sergi/source/repos/KitchenAssistant --include=*.h --include=*.cpp)",
+      "Bash(xargs grep:*)",
+      "Bash(xargs ls:*)",
+      "Bash(source \"C:\\\\Users\\\\sergi\\\\esp\\\\v5.5.2\\\\esp-idf/export.sh\")",
+      "Bash(grep -r lv_line_set_points C:UserssergisourcereposKitchenAssistantmanaged_componentslvgl__lvgl --include=*.h)",
+      "Bash(grep -r 'struct lv_point' C:UserssergisourcereposKitchenAssistantmanaged_componentslvgl__lvgl --include=*.h)",
+      "Bash(grep -r typedef.*lv_point_t C:UserssergisourcereposKitchenAssistantmanaged_componentslvgl__lvgl)",
+      "Bash(grep -r typedef.*lv_value_precise_t C:UserssergisourcereposKitchenAssistantmanaged_componentslvgl__lvgl)",
+      "Bash(grep -r typedef.*lv_coord_t C:UserssergisourcereposKitchenAssistantmanaged_componentslvgl__lvgl)",
+      "Bash(find /c/Users/sergi/source/repos/KitchenAssistant/managed_components -type f -name *font* -o -name *Font*)",
+      "Skill(update-config)",
+      "Bash(find C:UserssergisourcereposKitchenAssistant -type f -name *.yml -o -name *.yaml -o -name *.ini -o -name *.cfg -o -name *.conf)"
+    ],
+    "deny": [
+      "Bash(idf.py build *)",
+      "Bash(idf.py --version)",
+      "Bash(bash -c \"source '/c/Users/sergi/esp/v5.5.2/esp-idf/export.sh' && which idf.py\" 2>&1)",
+      "Bash(g++ --version)",
+      "Bash(*export.sh* && idf.py build *)"
+    ]
+  },
   "maxTokens": 8192,
   "contextManagement": {
     "autoTruncate": true,
@@ -14,29 +39,5 @@
   "performance": {
     "tokenCountWarning": 80000,
     "enableTokenTracking": true
-  },
-  "permissions": {
-    "allow": [
-      "Bash(grep -E \"\\\\.\\(c|cpp\\)$\")",
-      "Bash(rm \"C:/Users/sergi/source/repos/KitchenAssistant/sdkconfig\")",
-      "Bash(grep -r RecipeSuggestion C:/Users/sergi/source/repos/KitchenAssistant --include=*.h --include=*.cpp)",
-      "Bash(xargs grep:*)",
-      "Bash(xargs ls:*)",
-      "Bash(source \"C:\\\\Users\\\\sergi\\\\esp\\\\v5.5.2\\\\esp-idf/export.sh\")",
-      "Bash(grep -r lv_line_set_points C:UserssergisourcereposKitchenAssistantmanaged_componentslvgl__lvgl --include=*.h)",
-      "Bash(grep -r 'struct lv_point' C:UserssergisourcereposKitchenAssistantmanaged_componentslvgl__lvgl --include=*.h)",
-      "Bash(grep -r typedef.*lv_point_t C:UserssergisourcereposKitchenAssistantmanaged_componentslvgl__lvgl)",
-      "Bash(grep -r typedef.*lv_value_precise_t C:UserssergisourcereposKitchenAssistantmanaged_componentslvgl__lvgl)",
-      "Bash(grep -r typedef.*lv_coord_t C:UserssergisourcereposKitchenAssistantmanaged_componentslvgl__lvgl)",
-      "Bash(find /c/Users/sergi/source/repos/KitchenAssistant/managed_components -type f -name *font* -o -name *Font*)",
-      "Skill(update-config)"
-    ],
-    "deny": [
-      "Bash(idf.py build *)",
-      "Bash(idf.py --version)",
-      "Bash(bash -c \"source '/c/Users/sergi/esp/v5.5.2/esp-idf/export.sh' && which idf.py\" 2>&1)",
-      "Bash(g++ --version)",
-      "Bash(*export.sh* && idf.py build *)"
-    ]
   }
 }

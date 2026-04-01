@@ -8,6 +8,8 @@ idf_component_register(
         RecipeGialloZafferanoService.cpp
         RecipeSuggestionsManager.cpp
         RecipeDetailService.cpp
+        FavouriteService.cpp
+        FavouritesManager.cpp
         WifiManager.cpp
         ui_extensions.cpp
         ui_extensions_products.cpp

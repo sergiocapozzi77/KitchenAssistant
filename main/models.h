@@ -37,3 +37,11 @@ struct Product
     std::string barcode;
     bool frozen = false;
 };
+
+struct Favorite
+{
+    std::string id;       // Appwrite document ID ($id)
+    std::string url;      // Recipe URL (unique identifier)
+    std::string name;     // Recipe name
+    std::string imageUrl; // Recipe image URL
+};
