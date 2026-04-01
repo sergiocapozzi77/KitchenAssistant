@@ -764,24 +764,35 @@ void create_screen_recipe_detail() {
                             lv_label_set_text(obj, "");
                         }
                         {
-                            // recipe_favourite_btn
-                            lv_obj_t *obj = lv_button_create(parent_obj);
-                            objects.recipe_favourite_btn = obj;
-                            lv_obj_set_pos(obj, 452, 0);
-                            lv_obj_set_size(obj, 50, 50);
-                            {
-                                lv_obj_t *parent_obj = obj;
-                                {
-                                    // recipe_favourite_btnlbl
-                                    lv_obj_t *obj = lv_label_create(parent_obj);
-                                    objects.recipe_favourite_btnlbl = obj;
-                                    lv_obj_set_pos(obj, 0, 0);
-                                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-                                    lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
-                                    lv_obj_set_style_text_font(obj, &lv_font_montserrat_20, LV_PART_MAIN | LV_STATE_DEFAULT);
-                                    lv_label_set_text(obj, "F");
-                                }
-                            }
+                            lv_obj_t *obj = lv_obj_create(parent_obj);
+                            lv_obj_set_pos(obj, 0, 0);
+                            lv_obj_set_size(obj, 300, 1);
+                            lv_obj_set_style_pad_left(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+                            lv_obj_set_style_pad_top(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+                            lv_obj_set_style_pad_right(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+                            lv_obj_set_style_pad_bottom(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+                            lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+                            lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+                            lv_obj_set_style_radius(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+                            lv_obj_set_style_flex_grow(obj, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
+                        }
+                        {
+                            // recipe_favourite_add
+                            lv_obj_t *obj = lv_image_create(parent_obj);
+                            objects.recipe_favourite_add = obj;
+                            lv_obj_set_pos(obj, 780, 5);
+                            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                            lv_image_set_src(obj, &img_favourite_add);
+                            lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICKABLE);
+                        }
+                        {
+                            // recipe_favourite_remove
+                            lv_obj_t *obj = lv_image_create(parent_obj);
+                            objects.recipe_favourite_remove = obj;
+                            lv_obj_set_pos(obj, 780, 5);
+                            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                            lv_image_set_src(obj, &img_favourite_remove);
+                            lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICKABLE);
                         }
                     }
                 }

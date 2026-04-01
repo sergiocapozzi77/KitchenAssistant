@@ -199,6 +199,10 @@ void action_screen_loading(lv_event_t *e)
     ESP_LOGI("actions", "Loading screen shown");
     set_tab_icon(objects.tabview, 0, &img_shopping);
     set_tab_icon(objects.tabview, 1, &img_chef);
+    set_tab_icon(objects.tabview, 2, &img_favourite);
+
+    lv_obj_set_parent(objects.snackbar, lv_layer_top());
+    lv_obj_move_foreground(objects.snackbar); // Ensure it's the front-most child of the top layer
 
     lv_obj_add_flag(objects.create_recipe_pnl, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(objects.snackbar, LV_OBJ_FLAG_HIDDEN);

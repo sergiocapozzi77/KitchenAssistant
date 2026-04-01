@@ -42,8 +42,8 @@ struct HeartButtonContext
     std::string url;
     std::string name;
     std::string imageUrl;
-    lv_obj_t *label;
-    lv_obj_t *button;
+    lv_obj_t *add;
+    lv_obj_t *remove;
 };
 
 // === CLEANUP CALLBACKS ===
@@ -112,7 +112,7 @@ static void recipe_detail_back_cb(lv_event_t *e)
 static void heart_button_cb(lv_event_t *e)
 {
     HeartButtonContext *ctx = static_cast<HeartButtonContext *>(lv_event_get_user_data(e));
-    if (!ctx || !ctx->label || !ctx->button)
+    if (!ctx || !ctx->add || !ctx->remove)
         return;
 
     bool currentlyFav = favouritesManager.isFavouriteUrl(ctx->url);
@@ -121,7 +121,10 @@ static void heart_button_cb(lv_event_t *e)
     {
         // Remove from favourites
         favouritesManager.removeFavourite(ctx->url);
-        lv_obj_set_style_text_color(ctx->label, lv_color_hex(0x666666), 0);
+        lv_lock();
+        lv_obj_clear_flag(ctx->add, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(ctx->remove, LV_OBJ_FLAG_HIDDEN);
+        lv_unlock();
         showSnackbar("Removed from favourites", 3000);
 
         // Background task to sync with Appwrite
@@ -148,7 +151,11 @@ static void heart_button_cb(lv_event_t *e)
         fav.imageUrl = ctx->imageUrl;
         favouritesManager.addFavourite(fav);
 
-        lv_obj_set_style_text_color(ctx->label, lv_color_hex(0xFF0000), 0);
+        lv_lock();
+        // UI: Hide "Add" (empty heart), Show "Remove" (full heart)
+        lv_obj_add_flag(ctx->add, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(ctx->remove, LV_OBJ_FLAG_HIDDEN);
+        lv_unlock();
         showSnackbar("Added to favourites", 3000);
 
         // Background task to sync with Appwrite
@@ -440,18 +447,33 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
 
     // Set initial color based on favourite status
     bool isFav = favouritesManager.isFavouriteUrl(recipe.url);
-    lv_obj_set_style_text_color(objects.recipe_favourite_btnlbl, lv_color_hex(isFav ? 0xFF0000 : 0x666666), 0);
+    if (isFav)
+    {
+        lv_obj_add_flag(objects.recipe_favourite_add, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(objects.recipe_favourite_remove, LV_OBJ_FLAG_HIDDEN);
+    }
+    else
+    {
+        lv_obj_clear_flag(objects.recipe_favourite_add, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(objects.recipe_favourite_remove, LV_OBJ_FLAG_HIDDEN);
+    }
+
+    // 1. CLEANUP: Remove any existing callbacks to prevent duplicates
+    lv_obj_remove_event_cb(objects.recipe_favourite_add, heart_button_cb);
+    lv_obj_remove_event_cb(objects.recipe_favourite_remove, heart_button_cb);
 
     // Create context with recipe data
     HeartButtonContext *ctx = new HeartButtonContext{
         recipe.url,
         recipe.name,
         recipe.imageUrl,
-        objects.recipe_favourite_btnlbl,
-        objects.recipe_favourite_btn};
+        objects.recipe_favourite_add,
+        objects.recipe_favourite_remove};
 
-    lv_obj_add_event_cb(objects.recipe_favourite_btn, heart_button_cb, LV_EVENT_CLICKED, ctx);
-    lv_obj_add_event_cb(objects.recipe_favourite_btn, free_heart_button_ctx_cb, LV_EVENT_DELETE, ctx);
+    lv_obj_add_event_cb(objects.recipe_favourite_add, heart_button_cb, LV_EVENT_CLICKED, ctx);
+    lv_obj_add_event_cb(objects.recipe_favourite_add, free_heart_button_ctx_cb, LV_EVENT_DELETE, ctx);
+    lv_obj_add_event_cb(objects.recipe_favourite_remove, heart_button_cb, LV_EVENT_CLICKED, ctx);
+    lv_obj_add_event_cb(objects.recipe_favourite_remove, free_heart_button_ctx_cb, LV_EVENT_DELETE, ctx);
 
     // Kick off detail fetch task
     DetailFetchCtx *fctx = new DetailFetchCtx{

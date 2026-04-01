@@ -2995,81 +2995,28 @@
                       "recolor": false
                     },
                     {
-                      "objID": "85b9a710-714a-4cf7-e61b-80a9212d10ca",
-                      "type": "LVGLButtonWidget",
-                      "left": 452,
+                      "objID": "060485f2-2056-480e-f347-58fd88802029",
+                      "type": "LVGLContainerWidget",
+                      "left": 0,
                       "top": 0,
-                      "width": 50,
-                      "height": 50,
+                      "width": 300,
+                      "height": 1,
                       "customInputs": [],
                       "customOutputs": [],
                       "style": {
-                        "objID": "0af0a369-7b37-4095-91fb-b2f5d96d4f9e",
+                        "objID": "1de331d5-b4e8-4fc5-fae5-4b6fc1467514",
                         "useStyle": "default",
                         "conditionalStyles": [],
                         "childStyles": []
                       },
                       "timeline": [],
                       "eventHandlers": [],
-                      "identifier": "recipe_favourite_btn",
                       "leftUnit": "px",
                       "topUnit": "px",
                       "widthUnit": "px",
                       "heightUnit": "px",
-                      "children": [
-                        {
-                          "objID": "cff13985-a3d6-46af-b0a8-f2d0d2a0b297",
-                          "type": "LVGLLabelWidget",
-                          "left": 0,
-                          "top": 0,
-                          "width": 13,
-                          "height": 22,
-                          "customInputs": [],
-                          "customOutputs": [],
-                          "style": {
-                            "objID": "4dd5daf7-f665-43cc-8bc4-eb8cc3e22cb4",
-                            "useStyle": "default",
-                            "conditionalStyles": [],
-                            "childStyles": []
-                          },
-                          "timeline": [],
-                          "eventHandlers": [],
-                          "identifier": "recipe_favourite_btnlbl",
-                          "leftUnit": "px",
-                          "topUnit": "px",
-                          "widthUnit": "content",
-                          "heightUnit": "content",
-                          "children": [],
-                          "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
-                          "hiddenFlagType": "literal",
-                          "clickableFlagType": "literal",
-                          "flagScrollbarMode": "",
-                          "flagScrollDirection": "",
-                          "scrollSnapX": "",
-                          "scrollSnapY": "",
-                          "checkedStateType": "literal",
-                          "disabledStateType": "literal",
-                          "states": "",
-                          "localStyles": {
-                            "objID": "a36d459f-3ec6-4e7a-afb4-9a9ee8909d26",
-                            "definition": {
-                              "MAIN": {
-                                "DEFAULT": {
-                                  "align": "CENTER",
-                                  "text_font": "MONTSERRAT_20"
-                                }
-                              }
-                            }
-                          },
-                          "group": "",
-                          "groupIndex": 0,
-                          "text": "F",
-                          "textType": "literal",
-                          "longMode": "WRAP",
-                          "recolor": false
-                        }
-                      ],
-                      "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_ON_FOCUS|SCROLL_WITH_ARROW|SNAPPABLE",
+                      "children": [],
+                      "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
                       "hiddenFlagType": "literal",
                       "clickableFlag": true,
                       "clickableFlagType": "literal",
@@ -3081,10 +3028,119 @@
                       "disabledStateType": "literal",
                       "states": "",
                       "localStyles": {
-                        "objID": "5580f389-e652-4a9d-b7cb-6ab752658c2c"
+                        "objID": "07dc9a05-4a81-4aaf-f343-382fabfe6762",
+                        "definition": {
+                          "MAIN": {
+                            "DEFAULT": {
+                              "flex_grow": 1
+                            }
+                          }
+                        }
                       },
                       "group": "",
                       "groupIndex": 0
+                    },
+                    {
+                      "objID": "313f1344-4bbd-48bd-f370-5cfe89f4d08e",
+                      "type": "LVGLImageWidget",
+                      "left": 780,
+                      "top": 5,
+                      "width": 46,
+                      "height": 46,
+                      "customInputs": [],
+                      "customOutputs": [],
+                      "style": {
+                        "objID": "07cf1feb-8221-44df-fac8-69e83b2c6081",
+                        "useStyle": "default",
+                        "conditionalStyles": [],
+                        "childStyles": []
+                      },
+                      "timeline": [],
+                      "eventHandlers": [],
+                      "identifier": "recipe_favourite_add",
+                      "leftUnit": "px",
+                      "topUnit": "px",
+                      "widthUnit": "content",
+                      "heightUnit": "content",
+                      "children": [],
+                      "widgetFlags": "ADV_HITTEST|CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+                      "hiddenFlagType": "literal",
+                      "clickableFlag": true,
+                      "clickableFlagType": "literal",
+                      "flagScrollbarMode": "",
+                      "flagScrollDirection": "",
+                      "scrollSnapX": "",
+                      "scrollSnapY": "",
+                      "checkedStateType": "literal",
+                      "disabledStateType": "literal",
+                      "states": "",
+                      "localStyles": {
+                        "objID": "afca30f0-a652-4566-8117-32df9553804b"
+                      },
+                      "group": "",
+                      "groupIndex": 0,
+                      "image": "FavouriteAdd",
+                      "setPivot": false,
+                      "pivotX": 0,
+                      "pivotY": 0,
+                      "zoom": 256,
+                      "angle": 0,
+                      "innerAlign": "CENTER",
+                      "sizeMode": "VIRTUAL",
+                      "value": 0,
+                      "valueType": "literal",
+                      "previewValue": 0
+                    },
+                    {
+                      "objID": "4f466944-b971-441f-ba1b-6b05ad8badeb",
+                      "type": "LVGLImageWidget",
+                      "left": 780,
+                      "top": 5,
+                      "width": 46,
+                      "height": 46,
+                      "customInputs": [],
+                      "customOutputs": [],
+                      "style": {
+                        "objID": "e9a6adbf-999b-4daa-c449-48019a7e63ec",
+                        "useStyle": "default",
+                        "conditionalStyles": [],
+                        "childStyles": []
+                      },
+                      "timeline": [],
+                      "eventHandlers": [],
+                      "identifier": "recipe_favourite_remove",
+                      "leftUnit": "px",
+                      "topUnit": "px",
+                      "widthUnit": "content",
+                      "heightUnit": "content",
+                      "children": [],
+                      "widgetFlags": "ADV_HITTEST|CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+                      "hiddenFlagType": "literal",
+                      "clickableFlag": true,
+                      "clickableFlagType": "literal",
+                      "flagScrollbarMode": "",
+                      "flagScrollDirection": "",
+                      "scrollSnapX": "",
+                      "scrollSnapY": "",
+                      "checkedStateType": "literal",
+                      "disabledStateType": "literal",
+                      "states": "",
+                      "localStyles": {
+                        "objID": "b0450d1e-2380-4dda-8440-8462528054c7"
+                      },
+                      "group": "",
+                      "groupIndex": 0,
+                      "image": "FavouriteRemove",
+                      "setPivot": false,
+                      "pivotX": 0,
+                      "pivotY": 0,
+                      "zoom": 256,
+                      "angle": 0,
+                      "innerAlign": "CENTER",
+                      "sizeMode": "VIRTUAL",
+                      "value": 0,
+                      "valueType": "literal",
+                      "previewValue": 0
                     }
                   ],
                   "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
@@ -5854,6 +5910,33 @@
       "objID": "20453bc3-8f9f-43b0-9e9c-b2f58d03fa4d",
       "name": "Snowflake",
       "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAACjklEQVR4AcyVrXcTQRTFZ6K2MrIiycrKyDqKI664oigKcODyH3BQ1BEXUOCoI6hWIpHUbRLRutQ1KtvfnezMmdlmm5qe05y5533dee/N16ZlHvn3NArkeX5g+PV6vbIHUA2+F5LbsHUFJDouy/KMxD98sm63O8b3G/nW+5pkYwESZ9Wkq0oeVdJYa4+lt1qtC8mIKzPBxgJ0S4PljZhFUUxIuCM9Br42sXP5IN9ojvQ6kgJ0ctDpdNTdfxGx+5IkWk6nUytdkI7vWnqer8/HGPNXWxbZuIxJCtDJGcseE9kDZrVabd1jOK/FBfusaqQc6GEkBSDshggKtlaDtnnQbQYnnA2sJXYbGUYoAPmQ6pchslYy7S0IN2jtNgbfL/g6J38ZFMrwLZRLhhAKYEyAG5BOtM/Ib85hzBEJy0pXcumHsuGM6HoH6bmG8zlVTAgFcLrlKfFsNvuoIPKNJqMXoD6Kivtec8WVDX83JoYCsTPWNTm2I30Z6bHqbpd3JAVY5kJbwXX7JAJyLBs9B/Wxpxicrwogv8guy/X7kU8IBeKDYZlDkZH+Fp1r+ZogVLo7MzjvKu4HxQRyuW+X9FCArTiFfOfFKhl4LnIMfIMNfHeO5HIvXPxQQEZ9edjhZiheB4mWcEaRP8NeRHb6kuloAGEIwd0aXvV39HsH/D8V4R/6kBzJapMV0NGE6/aZCe5Qsd1S2VP34PC7oT2XT8Z8Pvd3vq+5fo5iQlJADoH9pRHrnjyJ9ulML1ahAPmIucO01rY1JwQjZWMBxenE3Wc+Zs9kg5/AD3eDiPXl8FzpdTQW8EQtmw4HdPjK+9B1g14SO/G+Jrm1gCYW/OlIktgK0vH5vZfZiAcVaJz9gMAtAAAA//+Rr/mHAAAABklEQVQDAGqtMECaw8VZAAAAAElFTkSuQmCC",
+      "bpp": 32,
+      "alwaysBuild": false,
+      "lvglBinaryOutputFormat": 3,
+      "lvglDither": false
+    },
+    {
+      "objID": "7cb127b3-7d6a-426d-d96c-466b60927fd0",
+      "name": "Favourite",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAB6UlEQVR4AcSTMVbCQBRFGSvpZAMQOuigtNMlsARKSyvtpNPS0pIluAPttIMOOxLYAB1UxPvGzJyEJBA8cuTM4/95//3/kklyVjvx738NgiDogPN9N0m9B0o1uTtoNpuPrVYrboE4jmdgrRz+zhkx8EGcQH0CrEa807iYMaBhYoy5d0XiF7AL/on6HMh0ZMmfvylhA2oYjai/KXfwBrh3IHugxrBGFEUmiqIuYGsa4kEApEtr+mjqxpg2Na2rgKNVIngD3CcijDGDMAxXyh20h3cmdrg4V1dkH6IZKGfWh6LgDdjYB4XwlTy34FdcqRGU5wQQ8K73gq1daQNL/PVfzoDzs3fyG6OiXm/Aub1oKNGfn/bHgF77HIlj1+cNFovFTUL2uBL7piT7SoGeAKHtY9aQ3C5voN12u7UFrmBGw1FHRc9cM4i3ig4Zg+VyqVuzHxfCtRMdinxccaKZcvXPSW5DxkAMr2GXaL/MVCNU8Upp9Br3d1U5AwkwqRMPmqSGb+jxHyK9fhUaqEpDxmT3mewMl1ZtOZQaSJk20TORiZAarmMpHa4Zew0kSExC5TIRlIOQWuGxUPProIGUDGoT34Fbnwnn9qWxkoG6GXjN1Y8F8ktxVVDZQMN4x4eC8qo4yqDq0LTu5AbfAAAA//84wu31AAAABklEQVQDACpb8TFFfTWjAAAAAElFTkSuQmCC",
+      "bpp": 32,
+      "alwaysBuild": false,
+      "lvglBinaryOutputFormat": 3,
+      "lvglDither": false
+    },
+    {
+      "objID": "d7c1b966-34d4-4146-c4bc-98dc6d7b322d",
+      "name": "FavouriteAdd",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAC4AAAAuCAYAAABXuSs3AAAD4UlEQVR4AeyYIVQbQRCGc1WtI7KGBAeuOHDUgSuyrnXF4YpsValCtq51rSsOHHXgiiuuCRgcOFCk33+9WfYuu9wlXNLwXng77N7M7Mx3k83e5h41HujfFHzcH9y04tOKV6xA6VJptVoHrVar1wrLYbvdflwl1+zs7KdIDMX+VTWO5YqCk+QQ6eG4gsTaUq/Xu8Lvd8wB4A/Ye0mSvIn5oH+WxfnBuFILgpPogtlLSLEdozhBim2eOb1i1dBdALxVdOZaMY7oLxG/vWDOH18RG/eBM/EC5xkkbVRiq9vtJt1/ski/gKTXQL1LnbJ/+F4ZfDEOLrs2j14xlumbSHJzc/Mau7U2c/fsItbnwPlYv+DooAFrnp6efkQXbJ1O570S+0bBk1hVy8XBb93388dnZ2dfsSeebpUCzHvXfcMcOKCvzINxE7DiR2nmXF9IKltb/ySyVY1DzjnNkVCA6PdGdgdOtd9KkclR1WSZf4OkT2xsPboFG1fpydnBT+ufrtGg6jPpIPDPgZNk2+xUadnGVXuSXlOlz57/CToH4envHMLhcrP2d2LODjzmMIie78MGieck3PxA1bY83KxbnsRxS9fs1tcKrqAkTpvGwwo3ne5a6mMxagePJapbP1HgbKN6/KdSdqMTBV4G69t98O9mKGyNpp6o3oHzDd4wMsZuazTdpPUOnK1A29C1AU561R24gKm023uTJNnmyVXprK2545YcOFXXI3ffIHgSXtm4zp5Pcyckfo6QXTrzyYFLyaa/Ru+WDFuUTnqo6mt8spsh8TOE7NKZTx+4DMD7Byadjw+lnyQJgguQu3NHTK6XqHzp4R6/So3YiyHxJ4fs0plPFFzrHUf3ZWXCKvCVfxPiH23EPg6JPyFkl858ouBywPEEeK15XUr0m7C2yivgsHInuIICv1+AV+UPZPufUgouuAzeHfDRrbBs7vxphc9IWyVwEQB/ROX9Na9XEpW3Sh5modcdCj2UVAZXdOC15v3dRlulXmfIHBUeHJs8zPSCqexGdwliwjDeBgJXGOA7VP6pxpnMsGz0xiu7zHfY9vC334660W95j9srnh/rJrfa8GhgcIUB/hwY/yHVALAPHp0qvKo5Eqqul0svNb6vDAWupMBfUx3/JU4Kz1pOD2ZA65zj3q9wo2v8mI6+XFLMQWRocEuSwbuzDVXVS1BVP70B+QH9lBt1hzfp7iv3BhcA8Fo2Dl46E2wJ0Od2XVdfC7hgABS8jsW6TAVdbimlypr+1QYuHkC1Vf5kfMl4ZNDEb9QKroAAP0eaGo9SagcfJawfewruV2Mc42EqPg6u0hwPFvwvAAAA//9uJgsZAAAABklEQVQDAIZSl2xrbEn5AAAAAElFTkSuQmCC",
+      "bpp": 32,
+      "alwaysBuild": false,
+      "lvglBinaryOutputFormat": 3,
+      "lvglDither": false
+    },
+    {
+      "objID": "03d30af7-9db3-4347-a0ca-99c9abeb2ca3",
+      "name": "FavouriteRemove",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAC4AAAAuCAYAAABXuSs3AAADw0lEQVR4AeyYIVjbQBTHk6rhwIGAFAduOOaYA4mcm9zUcEMytU0hNzc5ORw45pgbbjhazHDgqCL8/iF336XNtWlyFPi+8t3rvb57994vL8nd0Vb0TP+m4JO+cdOKTytesQIjH5UkSY6TJEmTcjlpt9svquRaWlr65omh2H+J064Sx/h4wUmSAeO4gfjaepqmN/j+8zkA/JnxNI7jdz4f7C+Jc47ff/RKrRScAFfMLgM+xX6G9LcV5qRUrVB9bFcA7/Y7810xFKuH7rZ55gzEcR2MPgDOxCsGZ5GskXiv2+3G3XtZo19Fsu8ay5zyD6p2Y+D74+ByYObRK4ZizaATJt5j3DbFsV88SgGc2/oDPxd6rtPpfMJW2jSmxO6gkgJ9jq0QB79tbKVNcaCfcQeJ4X385FcAZ/JbGSXogr6WPkqAivt87IumMcBGxsGnR84FJ86KuXuOzaoWnGp/tNYoOiLQyGSOf0TSQsU0hm1VfVUh5yV37LvxR/9l9P7egpPkixmkSltGr9qTtEcim5R5Z9j0EqJWbxcXF+8d701HL6gWvGCt+UVJKcCyhIsfq9rjpgwKruRUOWvSG8jIxzQ4eANYd2r/+u6OZfpTBZ/P6IZ8PFXwIcj3Qy74wb0pihYXF+16bmyT6lm7V5xc3mfdgrMS2GWo1WppB3XmT069vb39QDYV8QCmV+ilzYKzFFziYV8KNqQdvk+8aUllKd2WwOTdByy4CLlCu/bGcbzPbSuc9uTzVKQAzhV2ADtCssZOeJMpgT+4m/t1xaAUwGXkFmm7t48MpzSd9DQUTLizO3XFQAyAawB498DUBn7oEVNzJi2l4IKgInPqc9F/OMe53rgj9lpdMcm94Dzv1wRfNo70G1T+kL5xI/ZpXTHJveByIHgHeHct3QwFr/hNZCi4AgP/pwT+RGOPKSPBBVcCv07lH/WFrQTuwNsNCpte2MpLJZvZOnOCtcrgykjlz3hs3BdWS6V+ztCwV9hsdtjMTrhLlS/UGywfGAtcc4DXC+vCzwKUaqxMGDvkYvfzMV3oz1xv1I0Nrmw5vLtJRQAOwGNThe0/vFR9l83tjWI0lVrgSgp8D4jC7ymApjzL2cEMXecc+/sKVd/i5PdVc0NIbXCTPIe3Zxuqqh9BVf3sAuQH9AIXag9vsjWVxuACAF6PjYWXzQhjMdA66xtTkD4IuEgAFLyOxfqaCbbCo5QZA30EAxcPoFptfqNfoz8YNPGjoOAKCPBrxD1ZyhxcgoMHJ/QEnIJ7CvNg5joVfzCYcQI/W/A7AAAA//+dLYoQAAAABklEQVQDAB7AoWxkE31ZAAAAAElFTkSuQmCC",
       "bpp": 32,
       "alwaysBuild": false,
       "lvglBinaryOutputFormat": 3,
