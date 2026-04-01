@@ -25,6 +25,8 @@ extern void action_product_edit_frozen(lv_event_t * e);
 extern void action_recipes_filter_panel_toggle(lv_event_t * e);
 extern void action_main_screen_loaded(lv_event_t * e);
 extern void action_update_recipes_from_filter_panel(lv_event_t * e);
+extern void action_favourites_next(lv_event_t * e);
+extern void action_favourites_prev(lv_event_t * e);
 
 #ifdef __cplusplus
 }

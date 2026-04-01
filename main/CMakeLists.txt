@@ -15,6 +15,7 @@ idf_component_register(
         ui_extensions_products.cpp
         ui_extensions_recipes.cpp
         ui_extensions_recipe_detail.cpp
+        ui_extensions_favourites.cpp
         filters_ui.cpp
         ui/screens.c
         ui/styles.c

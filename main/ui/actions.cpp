@@ -8,6 +8,7 @@
 #include "ProductsManager.h"
 #include "ProductService.h"
 #include "ui_extensions.h"
+#include "FavouritesManager.h"
 #include "RecipeSuggestionsManager.h"
 #include "filters_ui.h"
 #include <algorithm>
@@ -18,6 +19,47 @@
 
 filter_panel_t products_panel;
 filter_panel_t recipes_panel;
+
+// Favourites pagination state
+static int favouritesCurrentPage = 1;
+const int favouritesPageSize = 6;
+
+static void showCurrentPageFavourites()
+{
+    std::vector<Favorite> favourites = favouritesManager.getFavourites();
+
+    int start = (favouritesCurrentPage - 1) * favouritesPageSize;
+    int end = std::min(start + favouritesPageSize, (int)favourites.size());
+
+    // If start is beyond the end of the vector, show empty page
+    if (start >= favourites.size() || start < 0)
+    {
+        ESP_LOGI("favourites", "No favourites to show for page %d", favouritesCurrentPage);
+        // Optionally adjust page number to last valid page
+        if (favouritesCurrentPage > 1)
+        {
+            favouritesCurrentPage = (favourites.size() + favouritesPageSize - 1) / favouritesPageSize;
+            if (favouritesCurrentPage < 1)
+                favouritesCurrentPage = 1;
+            start = (favouritesCurrentPage - 1) * favouritesPageSize;
+            end = std::min(start + favouritesPageSize, (int)favourites.size());
+        }
+        else
+        {
+            // Empty list
+            populateFavouritesList(objects.favourites_list, {});
+            return;
+        }
+    }
+
+    std::vector<Favorite> pageItems(
+        favourites.begin() + start,
+        favourites.begin() + end);
+
+    ESP_LOGI("favourites", "Showing favourites page %d, items %d-%d of %d",
+             favouritesCurrentPage, start, end, (int)favourites.size());
+    populateFavouritesList(objects.favourites_list, pageItems);
+}
 
 // Structure for barcode upsert task
 struct BarcodeUpsertCtx
@@ -60,10 +102,10 @@ static void keywords_textarea_focused_cb(lv_event_t *e)
 {
     // Get the textarea that was focused
     lv_obj_t *focused_textarea = (lv_obj_t *)lv_event_get_target(e);
-    
+
     // Assign keyboard to this textarea
     lv_keyboard_set_textarea(objects.keywords_keyboard, focused_textarea);
-    
+
     // Show keyboard and position at bottom of screen
     // Screen height 1280, keyboard height 299, tab bar 60
     // Calculate y position: 1280 - 299 - 60 = 921
@@ -81,7 +123,8 @@ static void product_search_value_changed_cb(lv_event_t *e)
 {
     lv_obj_t *textarea = (lv_obj_t *)lv_event_get_target(e);
     const char *text = lv_textarea_get_text(textarea);
-    if (!text) text = "";
+    if (!text)
+        text = "";
     setProductSearchFilter(text);
     productsManager.populateProductList();
 }
@@ -118,14 +161,35 @@ static void tabview_tab_changed_cb(lv_event_t *e)
         // Cancel any in-flight thumbnail fetches first
         s_thumb_generation++; // defined extern in ui_extensions.h
         lv_obj_clean(objects.recipes_list);
+        lv_obj_clean(objects.favourites_list);
     }
     else if (tab == 1)
     {
         // Switching TO Recipes tab — rebuild from cached data (no network call)
         if (recipeSuggestionsManager.getSuggestionSize() > 0)
+        {
+            lv_obj_clear_flag(objects.recipe_list_filter_container, LV_OBJ_FLAG_HIDDEN);
             recipeSuggestionsManager.showCurrentPageRecipes();
+        }
+        else
+        {
+            lv_obj_clear_flag(objects.recipe_list_filter_container, LV_OBJ_FLAG_HIDDEN);
+        }
         // Hide keyboard when switching away from products tab
         lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
+        // Cancel any in-flight thumbnail fetches for favourites
+        s_thumb_generation++;
+        lv_obj_clean(objects.favourites_list);
+    }
+    else if (tab == 2)
+    {
+        // Switching TO Favourites tab — rebuild from cached favourites
+        // Cancel any in-flight thumbnail fetches for recipes
+        s_thumb_generation++;
+        lv_obj_clean(objects.recipes_list);
+        // Hide keyboard when switching away from products tab
+        lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
+        showCurrentPageFavourites();
     }
 }
 
@@ -206,6 +270,28 @@ void action_recipe_suggestion_next(lv_event_t *e)
 void action_recipe_suggestion_prev(lv_event_t *e)
 {
     recipeSuggestionsManager.loadPrevPage();
+}
+
+void action_favourites_next(lv_event_t *e)
+{
+    std::vector<Favorite> favourites = favouritesManager.getFavourites();
+    int totalPages = (favourites.size() + favouritesPageSize - 1) / favouritesPageSize;
+    if (totalPages == 0)
+        totalPages = 1; // at least one page even if empty
+    if (favouritesCurrentPage < totalPages)
+    {
+        favouritesCurrentPage++;
+        showCurrentPageFavourites();
+    }
+}
+
+void action_favourites_prev(lv_event_t *e)
+{
+    if (favouritesCurrentPage > 1)
+    {
+        favouritesCurrentPage--;
+        showCurrentPageFavourites();
+    }
 }
 
 void action_products_reload_click(lv_event_t *e)
@@ -298,7 +384,7 @@ void action_product_edit_save(lv_event_t *e)
                 barcode_upsert_task, "BarcodeUpsert",
                 16384, barcode_ctx, 3, NULL, tskNO_AFFINITY,
                 MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-            
+
             if (ret != pdPASS)
             {
                 ESP_LOGE("actions", "Failed to create barcode upsert task");

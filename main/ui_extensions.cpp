@@ -382,7 +382,7 @@ void showSnackbar(const char *message, int duration_ms)
         snackbar_timer = nullptr;
     }
 
-        lv_lock();
+    lv_lock();
     lv_label_set_text(objects.snackbar_text, message);
     lv_obj_clear_flag(objects.snackbar, LV_OBJ_FLAG_HIDDEN);
     lv_unlock();
@@ -465,6 +465,7 @@ void thumb_worker_task(void *arg)
         }
 
         delete ctx;
+        vTaskDelay(pdMS_TO_TICKS(50));
     }
 
     delete wctx;
