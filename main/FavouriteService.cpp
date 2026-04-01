@@ -77,41 +77,38 @@ std::string FavouriteService::httpGet(const std::string &url, int &status)
     esp_err_t err = esp_http_client_open(client, 0);
     if (err != ESP_OK)
     {
-        ESP_LOGE(TAG, "Failed to open HTTP connection: %s", esp_err_to_name(err));
-        esp_http_client_cleanup(client);
+        ESP_LOGE(TAG, "HTTP open error: %s", esp_err_to_name(err));
         status = -1;
+        esp_http_client_cleanup(client);
         return {};
     }
 
-    int contentLength = esp_http_client_fetch_headers(client);
+    esp_http_client_fetch_headers(client);
+    int content_len = esp_http_client_get_content_length(client);
+
+    std::string body;
+    body.reserve(content_len > 0 ? content_len : 512);
+
+    char buffer[1024];
+    int bytes_read;
+    while ((bytes_read = esp_http_client_read(client, buffer, sizeof(buffer))) > 0)
+    {
+        body.append(buffer, bytes_read);
+    }
+
+    if (bytes_read < 0)
+    {
+        ESP_LOGE(TAG, "HTTP read error");
+        status = -1;
+        esp_http_client_cleanup(client);
+        return {};
+    }
+
     status = esp_http_client_get_status_code(client);
+    ESP_LOGI(TAG, "Status: %d, Body length: %d", status, body.length());
 
-    std::string response;
-    if (contentLength > 0)
-    {
-        response.resize(contentLength);
-        int readLen = esp_http_client_read(client, &response[0], contentLength);
-        if (readLen != contentLength)
-        {
-            ESP_LOGW(TAG, "Read %d bytes, expected %d", readLen, contentLength);
-        }
-    }
-    else
-    {
-        // Read chunked
-        char buffer[512];
-        int readLen;
-        while ((readLen = esp_http_client_read(client, buffer, sizeof(buffer))) > 0)
-        {
-            response.append(buffer, readLen);
-        }
-    }
-
-    esp_http_client_close(client);
     esp_http_client_cleanup(client);
-
-    ESP_LOGI(TAG, "GET status: %d, response length: %zu", status, response.size());
-    return response;
+    return body;
 }
 
 /* =========================================================
@@ -120,7 +117,6 @@ std::string FavouriteService::httpGet(const std::string &url, int &status)
 std::string FavouriteService::httpPost(const std::string &url, const std::string &body, int &status)
 {
     ESP_LOGI(TAG, "POST: %s", url.c_str());
-    ESP_LOGI(TAG, "Body: %s", body.c_str());
 
     esp_http_client_handle_t client = createHttpClient(url);
     if (!client)
@@ -130,51 +126,43 @@ std::string FavouriteService::httpPost(const std::string &url, const std::string
         return {};
     }
 
+    ESP_LOGI(TAG, "POST Body: %d", body.size());
     esp_http_client_set_method(client, HTTP_METHOD_POST);
     esp_http_client_set_header(client, "Content-Type", "application/json");
 
-    esp_err_t err = esp_http_client_open(client, body.length());
+    esp_err_t err = esp_http_client_open(client, body.size());
     if (err != ESP_OK)
     {
-        ESP_LOGE(TAG, "Failed to open HTTP connection: %s", esp_err_to_name(err));
-        esp_http_client_cleanup(client);
+        ESP_LOGE(TAG, "HTTP open error: %s", esp_err_to_name(err));
         status = -1;
+        esp_http_client_cleanup(client);
         return {};
     }
 
-    int written = esp_http_client_write(client, body.c_str(), body.length());
-    if (written != body.length())
+    ESP_LOGI(TAG, "POST Body write: %d", body.size());
+    int bytes_written = esp_http_client_write(client, body.c_str(), body.size());
+    if (bytes_written != body.size())
     {
-        ESP_LOGW(TAG, "Written %d bytes, expected %zu", written, body.length());
+        ESP_LOGE(TAG, "Write error: wrote %d of %d bytes", bytes_written, body.size());
+        status = -1;
+        esp_http_client_cleanup(client);
+        return {};
     }
 
-    int contentLength = esp_http_client_fetch_headers(client);
+    esp_http_client_fetch_headers(client);
     status = esp_http_client_get_status_code(client);
+    ESP_LOGI(TAG, "POST Status: %d. Reading response", status);
 
     std::string response;
-    if (contentLength > 0)
+    char buffer[1024];
+    int bytes_read;
+    while ((bytes_read = esp_http_client_read(client, buffer, sizeof(buffer))) > 0)
     {
-        response.resize(contentLength);
-        int readLen = esp_http_client_read(client, &response[0], contentLength);
-        if (readLen != contentLength)
-        {
-            ESP_LOGW(TAG, "Read %d bytes, expected %d", readLen, contentLength);
-        }
-    }
-    else
-    {
-        char buffer[512];
-        int readLen;
-        while ((readLen = esp_http_client_read(client, buffer, sizeof(buffer))) > 0)
-        {
-            response.append(buffer, readLen);
-        }
+        response.append(buffer, bytes_read);
     }
 
-    esp_http_client_close(client);
+    ESP_LOGI(TAG, "POST Status: %d", status);
     esp_http_client_cleanup(client);
-
-    ESP_LOGI(TAG, "POST status: %d, response length: %zu", status, response.size());
     return response;
 }
 
@@ -197,7 +185,7 @@ int FavouriteService::httpDelete(const std::string &url)
     esp_err_t err = esp_http_client_open(client, 0);
     if (err != ESP_OK)
     {
-        ESP_LOGE(TAG, "Failed to open HTTP connection: %s", esp_err_to_name(err));
+        ESP_LOGE(TAG, "HTTP open error: %s", esp_err_to_name(err));
         esp_http_client_cleanup(client);
         return -1;
     }
@@ -205,10 +193,8 @@ int FavouriteService::httpDelete(const std::string &url)
     esp_http_client_fetch_headers(client);
     int status = esp_http_client_get_status_code(client);
 
-    esp_http_client_close(client);
+    ESP_LOGI(TAG, "DELETE Status: %d", status);
     esp_http_client_cleanup(client);
-
-    ESP_LOGI(TAG, "DELETE status: %d", status);
     return status;
 }
 
@@ -218,7 +204,6 @@ int FavouriteService::httpDelete(const std::string &url)
 std::string FavouriteService::httpPatch(const std::string &url, const std::string &body, int &status)
 {
     ESP_LOGI(TAG, "PATCH: %s", url.c_str());
-    ESP_LOGI(TAG, "Body: %s", body.c_str());
 
     esp_http_client_handle_t client = createHttpClient(url);
     if (!client)
@@ -231,48 +216,37 @@ std::string FavouriteService::httpPatch(const std::string &url, const std::strin
     esp_http_client_set_method(client, HTTP_METHOD_PATCH);
     esp_http_client_set_header(client, "Content-Type", "application/json");
 
-    esp_err_t err = esp_http_client_open(client, body.length());
+    esp_err_t err = esp_http_client_open(client, body.size());
     if (err != ESP_OK)
     {
-        ESP_LOGE(TAG, "Failed to open HTTP connection: %s", esp_err_to_name(err));
-        esp_http_client_cleanup(client);
+        ESP_LOGE(TAG, "HTTP open error: %s", esp_err_to_name(err));
         status = -1;
+        esp_http_client_cleanup(client);
         return {};
     }
 
-    int written = esp_http_client_write(client, body.c_str(), body.length());
-    if (written != body.length())
+    int bytes_written = esp_http_client_write(client, body.c_str(), body.size());
+    if (bytes_written != body.size())
     {
-        ESP_LOGW(TAG, "Written %d bytes, expected %zu", written, body.length());
+        ESP_LOGE(TAG, "Write error: wrote %d of %d bytes", bytes_written, body.size());
+        status = -1;
+        esp_http_client_cleanup(client);
+        return {};
     }
 
-    int contentLength = esp_http_client_fetch_headers(client);
+    esp_http_client_fetch_headers(client);
     status = esp_http_client_get_status_code(client);
 
     std::string response;
-    if (contentLength > 0)
+    char buffer[1024];
+    int bytes_read;
+    while ((bytes_read = esp_http_client_read(client, buffer, sizeof(buffer))) > 0)
     {
-        response.resize(contentLength);
-        int readLen = esp_http_client_read(client, &response[0], contentLength);
-        if (readLen != contentLength)
-        {
-            ESP_LOGW(TAG, "Read %d bytes, expected %d", readLen, contentLength);
-        }
-    }
-    else
-    {
-        char buffer[512];
-        int readLen;
-        while ((readLen = esp_http_client_read(client, buffer, sizeof(buffer))) > 0)
-        {
-            response.append(buffer, readLen);
-        }
+        response.append(buffer, bytes_read);
     }
 
-    esp_http_client_close(client);
+    ESP_LOGI(TAG, "PATCH Status: %d", status);
     esp_http_client_cleanup(client);
-
-    ESP_LOGI(TAG, "PATCH status: %d, response length: %zu", status, response.size());
     return response;
 }
 
@@ -281,17 +255,20 @@ std::string FavouriteService::httpPatch(const std::string &url, const std::strin
  * ========================================================= */
 std::string FavouriteService::generateId(int length)
 {
-    static const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    static const char chars[] =
+        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     static std::random_device rd;
     static std::mt19937 gen(rd());
-    static std::uniform_int_distribution<> dis(0, sizeof(charset) - 2);
+    static std::uniform_int_distribution<> dist(0, sizeof(chars) - 2);
 
     std::string id;
     id.reserve(length);
-    for (int i = 0; i < length; ++i)
+
+    for (int i = 0; i < length; i++)
     {
-        id += charset[dis(gen)];
+        id += chars[dist(gen)];
     }
+
     return id;
 }
 
@@ -401,49 +378,127 @@ std::string FavouriteService::buildFavouriteJson(const RecipeSuggestion &recipe)
 }
 
 /* =========================================================
- * PUBLIC API: Get all favourites
+ * RETRY WRAPPER (similar to ProductService)
+ * ========================================================= */
+std::vector<Favorite> FavouriteService::getFavouritesRetry(const std::vector<std::string> &queries, int &out)
+{
+    std::vector<Favorite> result;
+    int maxRetry = 5; // Set the limit clearly
+    int attempt = 0;
+
+    while (attempt < maxRetry)
+    {
+        result = getFavourites(queries, out);
+
+        if (out == 0)
+        {
+            ESP_LOGI(TAG, "Successfully fetched %d favourites on attempt %d", result.size(), attempt + 1);
+            return result; // Success! Exit early
+        }
+
+        attempt++;
+        ESP_LOGE(TAG, "Attempt %d/%d failed. Retrying in 2s...", attempt, maxRetry);
+        vTaskDelay(pdMS_TO_TICKS(2000));
+    }
+
+    ESP_LOGE(TAG, "All retry attempts failed.");
+    return result;
+}
+
+/* =========================================================
+ * PUBLIC API: Get all favourites (with pagination)
+ * ========================================================= */
+std::vector<Favorite> FavouriteService::getFavourites(const std::vector<std::string> &queries, int &out)
+{
+    out = -1; // Default to error
+    std::vector<Favorite> allFavourites;
+
+    const int perPage = 25;
+    int offset = 0;
+    int total = 2147483647;
+    int safetyCounter = 0; // Prevent infinite loops
+
+    std::string baseUrl = Endpoint + "/tablesdb/" + DatabaseId + "/tables/" + FavouritesCollectionId + "/rows";
+
+    while ((int)allFavourites.size() < total && safetyCounter++ < 40)
+    {
+        // 1. Give the system a moment to breathe (Reset WDT)
+        vTaskDelay(pdMS_TO_TICKS(50));
+
+        std::string url = baseUrl + "?";
+        int qIdx = 0;
+
+        for (const auto &q : queries)
+        {
+            url += "queries[" + std::to_string(qIdx++) + "]=" + urlEncode(q) + "&";
+        }
+
+        std::string limitJson = "{\"method\":\"limit\",\"values\":[" + std::to_string(perPage) + "]}";
+        std::string offsetJson = "{\"method\":\"offset\",\"values\":[" + std::to_string(offset) + "]}";
+
+        url += "queries[" + std::to_string(qIdx++) + "]=" + urlEncode(limitJson) + "&";
+        url += "queries[" + std::to_string(qIdx++) + "]=" + urlEncode(offsetJson);
+
+        // 2. HTTP Request
+        int status;
+        std::string body = httpGet(url, status);
+
+        if (status != 200)
+        {
+            ESP_LOGE(TAG, "Network Error: %d at offset %d", status, offset);
+            out = -1;
+            return allFavourites; // Returning early ensures getFavouritesRetry sees out != 0
+        }
+
+        // 3. JSON Parsing
+        cJSON *root = cJSON_Parse(body.c_str());
+        if (!root)
+        {
+            ESP_LOGE(TAG, "JSON Parse Error at offset %d", offset);
+            out = -1;
+            return allFavourites;
+        }
+
+        if (total == 2147483647)
+        {
+            cJSON *totalItem = cJSON_GetObjectItem(root, "total");
+            if (totalItem && cJSON_IsNumber(totalItem))
+                total = totalItem->valueint;
+        }
+
+        cJSON *rows = cJSON_GetObjectItem(root, "rows");
+        if (!rows || !cJSON_IsArray(rows) || cJSON_GetArraySize(rows) == 0)
+        {
+            cJSON_Delete(root);
+            break;
+        }
+
+        cJSON *item;
+        cJSON_ArrayForEach(item, rows)
+        {
+            allFavourites.push_back(parseFavouriteFromJson(item));
+        }
+
+        int rowsFetched = cJSON_GetArraySize(rows);
+        cJSON_Delete(root);
+        offset = allFavourites.size();
+
+        if (rowsFetched < perPage || (int)allFavourites.size() >= total)
+            break;
+    }
+
+    out = 0; // Success!
+    ESP_LOGI(TAG, "Loaded %zu favourites", allFavourites.size());
+    return allFavourites;
+}
+
+/* =========================================================
+ * PUBLIC API: Get all favourites (simple version - backwards compatible)
  * ========================================================= */
 std::vector<Favorite> FavouriteService::getFavourites()
 {
-    std::vector<Favorite> favourites;
-
-    // Build URL for listing favourites
-    std::string url = Endpoint + "/tablesdb/" + DatabaseId + "/tables/" + FavouritesCollectionId + "/rows";
-
-    int status = 0;
-    std::string response = httpGet(url, status);
-
-    if (status != 200 || response.empty())
-    {
-        ESP_LOGE(TAG, "Failed to get favourites: status=%d, response=%s", status, response.c_str());
-        return favourites;
-    }
-
-    // Parse JSON response
-    cJSON *root = cJSON_Parse(response.c_str());
-    if (!root)
-    {
-        ESP_LOGE(TAG, "Failed to parse favourites JSON");
-        return favourites;
-    }
-
-    cJSON *rows = cJSON_GetObjectItem(root, "rows");
-    if (!cJSON_IsArray(rows))
-    {
-        ESP_LOGE(TAG, "No 'rows' array in response");
-        cJSON_Delete(root);
-        return favourites;
-    }
-
-    cJSON *item;
-    cJSON_ArrayForEach(item, rows)
-    {
-        favourites.push_back(parseFavouriteFromJson(item));
-    }
-
-    cJSON_Delete(root);
-    ESP_LOGI(TAG, "Loaded %zu favourites", favourites.size());
-    return favourites;
+    int out;
+    return getFavouritesRetry({}, out);
 }
 
 /* =========================================================
@@ -457,6 +512,9 @@ bool FavouriteService::addFavourite(const RecipeSuggestion &recipe)
         return false;
     }
 
+    ESP_LOGI(TAG, "Adding favourite: url='%s', name='%s', imageUrl='%s'",
+             recipe.url.c_str(), recipe.name.c_str(), recipe.imageUrl.c_str());
+
     // Check if already favourited
     if (isFavourite(recipe.url))
     {
@@ -466,20 +524,28 @@ bool FavouriteService::addFavourite(const RecipeSuggestion &recipe)
 
     // Build URL for creating favourite
     std::string url = Endpoint + "/tablesdb/" + DatabaseId + "/tables/" + FavouritesCollectionId + "/rows";
+    ESP_LOGD(TAG, "POST URL: %s", url.c_str());
 
     // Build JSON body
     std::string body = buildFavouriteJson(recipe);
+    ESP_LOGD(TAG, "Request payload: %s", body.c_str());
+    ESP_LOGI(TAG, "Sending HTTP POST request...");
 
     int status = 0;
     std::string response = httpPost(url, body, status);
 
-    if (status != 201) // 201 Created
+    ESP_LOGI(TAG, "HTTP response: status=%d, length=%d", status, response.length());
+
+    if (status != 200 && status != 201)
     {
-        ESP_LOGE(TAG, "Failed to add favourite: status=%d, response=%s", status, response.c_str());
+        ESP_LOGE(TAG, "addFavourite failed: status=%d, response='%s'",
+                 status, response.c_str());
         return false;
     }
 
+    ESP_LOGD(TAG, "Response body: %s", response.c_str());
     ESP_LOGI(TAG, "Added favourite: %s", recipe.url.c_str());
+    ESP_LOGI(TAG, "Favourite addition complete");
     return true;
 }
 
@@ -494,11 +560,13 @@ bool FavouriteService::removeFavourite(const std::string &url)
         return false;
     }
 
+    ESP_LOGI(TAG, "Removing favourite: url='%s'", url.c_str());
+
     // First, find the favourite document ID by URL
-    // Build query URL
+    // Build query URL with proper indexed parameter format
     std::string query = "{\"method\":\"equal\",\"attribute\":\"url\",\"values\":[\"" + url + "\"]}";
     std::string encodedQuery = urlEncode(query);
-    std::string listUrl = Endpoint + "/tablesdb/" + DatabaseId + "/tables/" + FavouritesCollectionId + "/rows?queries=" + encodedQuery;
+    std::string listUrl = Endpoint + "/tablesdb/" + DatabaseId + "/tables/" + FavouritesCollectionId + "/rows?queries[0]=" + encodedQuery;
 
     int status = 0;
     std::string response = httpGet(listUrl, status);
@@ -542,14 +610,18 @@ bool FavouriteService::removeFavourite(const std::string &url)
     std::string deleteUrl = Endpoint + "/tablesdb/" + DatabaseId + "/tables/" + FavouritesCollectionId + "/rows/" + docId;
     int deleteStatus = httpDelete(deleteUrl);
 
-    if (deleteStatus != 204) // 204 No Content
+    bool success = (deleteStatus == 200 || deleteStatus == 204);
+
+    if (success)
+    {
+        ESP_LOGI(TAG, "Removed favourite: %s", url.c_str());
+    }
+    else
     {
         ESP_LOGE(TAG, "Failed to delete favourite: status=%d", deleteStatus);
-        return false;
     }
 
-    ESP_LOGI(TAG, "Removed favourite: %s", url.c_str());
-    return true;
+    return success;
 }
 
 /* =========================================================
@@ -562,10 +634,10 @@ bool FavouriteService::isFavourite(const std::string &url)
         return false;
     }
 
-    // Build query URL
+    // Build query URL with proper indexed parameter format
     std::string query = "{\"method\":\"equal\",\"attribute\":\"url\",\"values\":[\"" + url + "\"]}";
     std::string encodedQuery = urlEncode(query);
-    std::string listUrl = Endpoint + "/tablesdb/" + DatabaseId + "/tables/" + FavouritesCollectionId + "/rows?queries=" + encodedQuery;
+    std::string listUrl = Endpoint + "/tablesdb/" + DatabaseId + "/tables/" + FavouritesCollectionId + "/rows?queries[0]=" + encodedQuery;
 
     int status = 0;
     std::string response = httpGet(listUrl, status);

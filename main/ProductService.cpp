@@ -739,13 +739,12 @@ std::string ProductService::generateId(int length)
 {
     static const char chars[] =
         "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+    static std::uniform_int_distribution<> dist(0, sizeof(chars) - 2);
 
     std::string id;
     id.reserve(length);
-
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> dist(0, sizeof(chars) - 2);
 
     for (int i = 0; i < length; i++)
     {
