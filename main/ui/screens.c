@@ -157,7 +157,7 @@ void create_screen_main() {
                                                     // product_search_ta
                                                     lv_obj_t *obj = lv_textarea_create(parent_obj);
                                                     objects.product_search_ta = obj;
-                                                    lv_obj_set_pos(obj, 58, -6);
+                                                    lv_obj_set_pos(obj, 234, -6);
                                                     lv_obj_set_size(obj, 203, 48);
                                                     lv_textarea_set_max_length(obj, 128);
                                                     lv_textarea_set_one_line(obj, true);
