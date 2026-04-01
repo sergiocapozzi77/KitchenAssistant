@@ -2,6 +2,7 @@
 #include <string>
 #include <algorithm>
 #include <ctime>
+#include <cctype>
 #include "lvgl.h"
 #include "esp_log.h"
 #include "ProductService.h"
@@ -15,6 +16,7 @@
 
 static const char *TAG = "UIEXTENSIONS";
 static bool s_populating = false;
+static std::string s_productSearchFilter;
 
 static void update_selection_ui();
 
@@ -57,6 +59,11 @@ struct RowClickCtx
 static void free_row_click_ctx_cb(lv_event_t *e)
 {
     delete (RowClickCtx *)lv_event_get_user_data(e);
+}
+
+void setProductSearchFilter(const std::string &filter)
+{
+    s_productSearchFilter = filter;
 }
 
 // === CLEANUP CALLBACKS ===
@@ -415,6 +422,19 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
         int days = days_until_expiry(p->expiry, p->frozen);
         return days == 9999 || days >= 7; }),
                      sorted.end());
+    }
+
+    // Search filter
+    if (s_productSearchFilter.length() >= 3) {
+        sorted.erase(std::remove_if(sorted.begin(), sorted.end(),
+            [](const Product *p) {
+                // case-insensitive substring search
+                std::string nameLower = p->name;
+                std::transform(nameLower.begin(), nameLower.end(), nameLower.begin(), ::tolower);
+                std::string filterLower = s_productSearchFilter;
+                std::transform(filterLower.begin(), filterLower.end(), filterLower.begin(), ::tolower);
+                return nameLower.find(filterLower) == std::string::npos;
+            }), sorted.end());
     }
 
     std::sort(sorted.begin(), sorted.end(), [sort_idx](const Product *a, const Product *b)

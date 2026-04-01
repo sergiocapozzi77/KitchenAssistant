@@ -153,6 +153,16 @@ void create_screen_main() {
                                                         }
                                                     }
                                                 }
+                                                {
+                                                    // product_search_ta
+                                                    lv_obj_t *obj = lv_textarea_create(parent_obj);
+                                                    objects.product_search_ta = obj;
+                                                    lv_obj_set_pos(obj, 58, -6);
+                                                    lv_obj_set_size(obj, 203, 48);
+                                                    lv_textarea_set_max_length(obj, 128);
+                                                    lv_textarea_set_one_line(obj, true);
+                                                    lv_textarea_set_password_mode(obj, false);
+                                                }
                                             }
                                         }
                                         {
@@ -207,7 +217,7 @@ void create_screen_main() {
                                                     lv_obj_set_style_pad_bottom(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                                                     lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                                                     lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-                                                    create_user_widget_filters_panel(obj, 10);
+                                                    create_user_widget_filters_panel(obj, 11);
                                                     lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
                                                 }
                                                 {
@@ -278,7 +288,7 @@ void create_screen_main() {
                                             lv_obj_set_style_pad_bottom(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                                             lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                                             lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-                                            create_user_widget_product_edit(obj, 24);
+                                            create_user_widget_product_edit(obj, 25);
                                         }
                                     }
                                 }
@@ -431,7 +441,7 @@ void create_screen_main() {
                                                     lv_obj_set_style_pad_bottom(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                                                     lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                                                     lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-                                                    create_user_widget_filters_panel(obj, 45);
+                                                    create_user_widget_filters_panel(obj, 46);
                                                     lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
                                                 }
                                                 {
@@ -539,15 +549,15 @@ void create_screen_main() {
             }
         }
     }
-    lv_keyboard_set_textarea(objects.keywords_keyboard, ((lv_obj_t **)&objects)[10]);
+    lv_keyboard_set_textarea(objects.keywords_keyboard, ((lv_obj_t **)&objects)[11]);
     
     tick_screen_main();
 }
 
 void tick_screen_main() {
-    tick_user_widget_filters_panel(10);
-    tick_user_widget_product_edit(24);
-    tick_user_widget_filters_panel(45);
+    tick_user_widget_filters_panel(11);
+    tick_user_widget_product_edit(25);
+    tick_user_widget_filters_panel(46);
 }
 
 void create_screen_recipe_detail() {

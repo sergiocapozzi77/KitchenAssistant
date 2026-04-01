@@ -24,6 +24,7 @@ typedef struct _objects_t {
     lv_obj_t *product_filter_dropdown;
     lv_obj_t *product_sort_dropdown;
     lv_obj_t *products_reload_btn;
+    lv_obj_t *product_search_ta;
     lv_obj_t *products_list;
     lv_obj_t *create_recipe_pnl;
     lv_obj_t *products_filters_panel;

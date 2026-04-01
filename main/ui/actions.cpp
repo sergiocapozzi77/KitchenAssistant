@@ -77,6 +77,15 @@ static void keywords_textarea_defocused_cb(lv_event_t *e)
     lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
 }
 
+static void product_search_value_changed_cb(lv_event_t *e)
+{
+    lv_obj_t *textarea = (lv_obj_t *)lv_event_get_target(e);
+    const char *text = lv_textarea_get_text(textarea);
+    if (!text) text = "";
+    setProductSearchFilter(text);
+    productsManager.populateProductList();
+}
+
 void set_tab_icon(lv_obj_t *tabview, uint32_t index, const void *img_src)
 {
     lv_obj_t *tab_btns = lv_tabview_get_tab_btns(tabview);
@@ -147,6 +156,9 @@ void action_screen_loading(lv_event_t *e)
     lv_obj_add_event_cb(objects.products_filters_panel__keywords_text, keywords_textarea_defocused_cb, LV_EVENT_DEFOCUSED, nullptr);
     lv_obj_add_event_cb(objects.recipes_filters_panel__keywords_text, keywords_textarea_focused_cb, LV_EVENT_FOCUSED, nullptr);
     lv_obj_add_event_cb(objects.recipes_filters_panel__keywords_text, keywords_textarea_defocused_cb, LV_EVENT_DEFOCUSED, nullptr);
+    lv_obj_add_event_cb(objects.product_search_ta, keywords_textarea_focused_cb, LV_EVENT_FOCUSED, nullptr);
+    lv_obj_add_event_cb(objects.product_search_ta, keywords_textarea_defocused_cb, LV_EVENT_DEFOCUSED, nullptr);
+    lv_obj_add_event_cb(objects.product_search_ta, product_search_value_changed_cb, LV_EVENT_VALUE_CHANGED, nullptr);
 }
 
 void action_main_screen_loaded(lv_event_t *e)

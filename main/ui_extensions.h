@@ -6,6 +6,7 @@
 #include "lvgl.h"
 
 void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products);
+void setProductSearchFilter(const std::string &filter);
 void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &recipes);
 void showRecipeDetailScreen(const RecipeSuggestion &recipe);
 void showSnackbar(const char *message, int duration_ms);
