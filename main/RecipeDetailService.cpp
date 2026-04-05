@@ -629,6 +629,8 @@ bool RecipeDetailService::fetchDetails(RecipeSuggestion &recipe)
     if (recipe.url.empty())
         return false;
 
+    selectedRecipe = recipe;
+
     std::string nextData, jsonLd, postContent;
     if (!fetchHtmlAndExtract(recipe.url, nextData, jsonLd, postContent))
     {

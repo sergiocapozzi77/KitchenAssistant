@@ -34,237 +34,26 @@ static const char *TAG = "ProductService";
 #endif
 
 ProductService::ProductService()
+    : _httpClient(Endpoint, ProjectId, apiKey)
 {
 }
 
-/* =========================================================
- * URL ENCODING
- * ========================================================= */
-std::string ProductService::urlEncode(const std::string &s)
-{
-    std::ostringstream out;
-    out << std::hex << std::uppercase;
-
-    for (unsigned char c : s)
-    {
-        if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~')
-        {
-            out << c;
-        }
-        else
-        {
-            out << '%' << std::setw(2) << std::setfill('0') << (int)c;
-        }
-    }
-    return out.str();
-}
-
-/* =========================================================
- * HTTP HELPER - DRY PRINCIPLE
- * ========================================================= */
-esp_http_client_handle_t ProductService::createHttpClient(const std::string &url)
-{
-    esp_http_client_config_t cfg = {};
-    cfg.url = url.c_str();
-    cfg.timeout_ms = 30000;
-    cfg.buffer_size = 4096;
-    cfg.buffer_size_tx = 2048;
-    cfg.skip_cert_common_name_check = false;
-    cfg.crt_bundle_attach = esp_crt_bundle_attach;
-
-    esp_http_client_handle_t client = esp_http_client_init(&cfg);
-
-    // Set common headers
-    esp_http_client_set_header(client, "X-Appwrite-Project", ProjectId.c_str());
-    esp_http_client_set_header(client, "X-Appwrite-Key", apiKey.c_str());
-
-    return client;
-}
 
 /* =========================================================
  * HTTP GET
  * ========================================================= */
-std::string ProductService::httpGet(const std::string &url, int &status)
-{
-    ESP_LOGI(TAG, "GET: %s", url.c_str());
-
-    esp_http_client_handle_t client = createHttpClient(url);
-    if (!client)
-    {
-        ESP_LOGE(TAG, "Failed to create HTTP client");
-        status = -1;
-        return {};
-    }
-
-    esp_err_t err = esp_http_client_open(client, 0);
-    if (err != ESP_OK)
-    {
-        ESP_LOGE(TAG, "HTTP open error: %s", esp_err_to_name(err));
-        status = -1;
-        esp_http_client_cleanup(client);
-        return {};
-    }
-
-    esp_http_client_fetch_headers(client);
-    int content_len = esp_http_client_get_content_length(client);
-
-    std::string body;
-    body.reserve(content_len > 0 ? content_len : 512);
-
-    char buffer[1024];
-    int bytes_read;
-    while ((bytes_read = esp_http_client_read(client, buffer, sizeof(buffer))) > 0)
-    {
-        body.append(buffer, bytes_read);
-    }
-
-    if (bytes_read < 0)
-    {
-        ESP_LOGE(TAG, "HTTP read error");
-        status = -1;
-        esp_http_client_cleanup(client);
-        return {};
-    }
-
-    status = esp_http_client_get_status_code(client);
-    ESP_LOGI(TAG, "Status: %d, Body length: %d", status, body.length());
-
-    esp_http_client_cleanup(client);
-    return body;
-}
 
 /* =========================================================
  * HTTP POST
  * ========================================================= */
-std::string ProductService::httpPost(const std::string &url, const std::string &body, int &status)
-{
-    ESP_LOGI(TAG, "POST: %s", url.c_str());
-
-    esp_http_client_handle_t client = createHttpClient(url);
-    if (!client)
-    {
-        ESP_LOGE(TAG, "Failed to create HTTP client");
-        status = -1;
-        return {};
-    }
-
-    ESP_LOGI(TAG, "POST Body: %d", body.size());
-    esp_http_client_set_method(client, HTTP_METHOD_POST);
-    esp_http_client_set_header(client, "Content-Type", "application/json");
-    esp_err_t err = esp_http_client_open(client, body.size());
-    if (err != ESP_OK)
-    {
-        ESP_LOGE(TAG, "HTTP open error: %s", esp_err_to_name(err));
-        status = -1;
-        esp_http_client_cleanup(client);
-        return {};
-    }
-
-    ESP_LOGI(TAG, "POST Body write: %d", body.size());
-    int bytes_written = esp_http_client_write(client, body.c_str(), body.size());
-    if (bytes_written != body.size())
-    {
-        ESP_LOGE(TAG, "Write error: wrote %d of %d bytes", bytes_written, body.size());
-        status = -1;
-        esp_http_client_cleanup(client);
-        return {};
-    }
-
-    esp_http_client_fetch_headers(client);
-    status = esp_http_client_get_status_code(client);
-    ESP_LOGI(TAG, "POST Status: %d. Reading response", status);
-    std::string response;
-    char buffer[1024];
-    int bytes_read;
-    while ((bytes_read = esp_http_client_read(client, buffer, sizeof(buffer))) > 0)
-    {
-        response.append(buffer, bytes_read);
-    }
-
-    ESP_LOGI(TAG, "POST Status: %d", status);
-    esp_http_client_cleanup(client);
-    return response;
-}
 
 /* =========================================================
  * HTTP PATCH
  * ========================================================= */
-std::string ProductService::httpPatch(const std::string &url, const std::string &body, int &status)
-{
-    ESP_LOGI(TAG, "PATCH: %s", url.c_str());
-
-    esp_http_client_handle_t client = createHttpClient(url);
-    if (!client)
-    {
-        status = -1;
-        return {};
-    }
-
-    esp_http_client_set_method(client, HTTP_METHOD_PATCH);
-    esp_http_client_set_header(client, "Content-Type", "application/json");
-
-    esp_err_t err = esp_http_client_open(client, body.size());
-    if (err != ESP_OK)
-    {
-        ESP_LOGE(TAG, "HTTP open error: %s", esp_err_to_name(err));
-        status = -1;
-        esp_http_client_cleanup(client);
-        return {};
-    }
-
-    int bytes_written = esp_http_client_write(client, body.c_str(), body.size());
-    if (bytes_written != body.size())
-    {
-        ESP_LOGE(TAG, "Write error: wrote %d of %d bytes", bytes_written, body.size());
-        status = -1;
-        esp_http_client_cleanup(client);
-        return {};
-    }
-
-    esp_http_client_fetch_headers(client);
-    status = esp_http_client_get_status_code(client);
-
-    std::string response;
-    char buffer[1024];
-    int bytes_read;
-    while ((bytes_read = esp_http_client_read(client, buffer, sizeof(buffer))) > 0)
-    {
-        response.append(buffer, bytes_read);
-    }
-
-    ESP_LOGI(TAG, "PATCH Status: %d", status);
-    esp_http_client_cleanup(client);
-    return response;
-}
 
 /* =========================================================
  * HTTP DELETE
  * ========================================================= */
-int ProductService::httpDelete(const std::string &url)
-{
-    ESP_LOGI(TAG, "DELETE: %s", url.c_str());
-
-    esp_http_client_handle_t client = createHttpClient(url);
-    if (!client)
-        return -1;
-
-    esp_http_client_set_method(client, HTTP_METHOD_DELETE);
-
-    esp_err_t err = esp_http_client_open(client, 0);
-    if (err != ESP_OK)
-    {
-        ESP_LOGE(TAG, "HTTP open error: %s", esp_err_to_name(err));
-        esp_http_client_cleanup(client);
-        return -1;
-    }
-
-    esp_http_client_fetch_headers(client);
-    int status = esp_http_client_get_status_code(client);
-
-    ESP_LOGI(TAG, "DELETE Status: %d", status);
-    esp_http_client_cleanup(client);
-    return status;
-}
 
 std::vector<Product> ProductService::getProductsRetry(const std::vector<std::string> &queries, int &out)
 {
@@ -316,18 +105,18 @@ std::vector<Product> ProductService::getProducts(const std::vector<std::string> 
 
         for (const auto &q : queries)
         {
-            url += "queries[" + std::to_string(qIdx++) + "]=" + urlEncode(q) + "&";
+            url += "queries[" + std::to_string(qIdx++) + "]=" + AppwriteHttpClient::urlEncode(q) + "&";
         }
 
         std::string limitJson = "{\"method\":\"limit\",\"values\":[" + std::to_string(perPage) + "]}";
         std::string offsetJson = "{\"method\":\"offset\",\"values\":[" + std::to_string(offset) + "]}";
 
-        url += "queries[" + std::to_string(qIdx++) + "]=" + urlEncode(limitJson) + "&";
-        url += "queries[" + std::to_string(qIdx++) + "]=" + urlEncode(offsetJson);
+        url += "queries[" + std::to_string(qIdx++) + "]=" + AppwriteHttpClient::urlEncode(limitJson) + "&";
+        url += "queries[" + std::to_string(qIdx++) + "]=" + AppwriteHttpClient::urlEncode(offsetJson);
 
         // 2. HTTP Request
         int status;
-        std::string body = httpGet(url, status);
+        std::string body = _httpClient.httpGet(url, status);
 
         if (status != 200)
         {
@@ -475,7 +264,7 @@ bool ProductService::addProduct(Product &product)
                       "/tables/" + CollectionId + "/rows";
     ESP_LOGD(TAG, "POST URL: %s", url.c_str());
 
-    std::string rowId = generateId();
+    std::string rowId = AppwriteHttpClient::generateId();
     ESP_LOGD(TAG, "Generated rowId: %s", rowId.c_str());
 
     cJSON *root = cJSON_CreateObject();
@@ -514,7 +303,7 @@ bool ProductService::addProduct(Product &product)
     ESP_LOGI(TAG, "Sending HTTP POST request...");
 
     int status = -1;
-    std::string response = httpPost(url, json, status);
+    std::string response = _httpClient.httpPost(url, json, status);
 
     cJSON_Delete(root);
     free(json);
@@ -595,7 +384,7 @@ bool ProductService::updateProduct(Product &product)
     }
 
     int status = -1;
-    std::string response = httpPatch(url, json, status);
+    std::string response = _httpClient.httpPatch(url, json, status);
 
     cJSON_Delete(root);
     free(json);
@@ -616,7 +405,7 @@ bool ProductService::deleteProduct(const std::string &rowId)
     std::string url = Endpoint + "/tablesdb/" + DatabaseId +
                       "/tables/" + CollectionId + "/rows/" + rowId;
 
-    int status = httpDelete(url);
+    int status = _httpClient.httpDelete(url);
     bool success = (status == 200 || status == 204);
 
     if (success)
@@ -671,7 +460,7 @@ bool ProductService::upsertBarcode(const std::string &barcode, const std::string
 
     // Try to update first
     int status = -1;
-    std::string response = httpPatch(updateUrl, json, status);
+    std::string response = _httpClient.httpPatch(updateUrl, json, status);
 
     // If update failed with 404 (not found), try to insert
     if (status == 404)
@@ -690,7 +479,7 @@ bool ProductService::upsertBarcode(const std::string &barcode, const std::string
             return false;
         }
 
-        std::string rowId = generateId();
+        std::string rowId = AppwriteHttpClient::generateId();
         ESP_LOGD(TAG, "Generated rowId: %s", rowId.c_str());
 
         cJSON_AddStringToObject(root, "rowId", rowId.c_str());
@@ -716,7 +505,7 @@ bool ProductService::upsertBarcode(const std::string &barcode, const std::string
             return false;
         }
 
-        response = httpPost(insertUrl, json, status);
+        response = _httpClient.httpPost(insertUrl, json, status);
     }
 
     cJSON_Delete(root);
@@ -735,24 +524,6 @@ bool ProductService::upsertBarcode(const std::string &barcode, const std::string
     return success;
 }
 
-std::string ProductService::generateId(int length)
-{
-    static const char chars[] =
-        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    static std::random_device rd;
-    static std::mt19937 gen(rd());
-    static std::uniform_int_distribution<> dist(0, sizeof(chars) - 2);
-
-    std::string id;
-    id.reserve(length);
-
-    for (int i = 0; i < length; i++)
-    {
-        id += chars[dist(gen)];
-    }
-
-    return id;
-}
 
 std::vector<Product> ProductService::getExpiringProducts()
 {

@@ -6,6 +6,7 @@
 #include "cJSON.h"
 #include "secrets.h"
 #include "models.h"
+#include "AppwriteHttpClient.h"
 
 class ProductService
 {
@@ -34,16 +35,8 @@ private:
     const std::string CollectionId = "products";
     const std::string BarcodeCollectionId = "barcodes";
 
-    // HTTP helper methods
-    esp_http_client_handle_t createHttpClient(const std::string &url);
-    std::string httpGet(const std::string &url, int &status);
-    std::string httpPost(const std::string &url, const std::string &body, int &status);
-    std::string httpPatch(const std::string &url, const std::string &body, int &status);
-    int httpDelete(const std::string &url);
-
-    // Utility methods
-    std::string urlEncode(const std::string &s);
-    std::string generateId(int length = 12);
+    // HTTP client
+    AppwriteHttpClient _httpClient;
 };
 
 extern ProductService productService;

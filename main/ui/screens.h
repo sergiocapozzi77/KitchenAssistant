@@ -92,6 +92,7 @@ typedef struct _objects_t {
     lv_obj_t *recipe_title;
     lv_obj_t *recipe_favourite_add;
     lv_obj_t *recipe_favourite_remove;
+    lv_obj_t *create_steps_btn;
     lv_obj_t *recipe_header_img;
     lv_obj_t *meta_card;
     lv_obj_t *meta_item_time;

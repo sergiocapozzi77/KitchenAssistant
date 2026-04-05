@@ -16,6 +16,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_heap_caps.h"
+#include "RecipeDetailService.h"
+#include "RecipeStepsAggregationService.h"
 
 filter_panel_t products_panel;
 filter_panel_t recipes_panel;
@@ -525,5 +527,64 @@ void action_recipes_filter_panel_toggle(lv_event_t *e)
     else
     {
         lv_obj_add_flag(objects.recipe_list_filter_container, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+void action_create_recipe_steps_click(lv_event_t *e)
+{
+    // Get the URL of the selected recipe from recipe details
+    const char *recipeUrl = recipeDetailService.getSelectedRecipe().url.c_str();
+
+    if (recipeUrl && strlen(recipeUrl) > 0)
+    {
+        // Create a task to call recipeStepsAggregationService.getRecipe
+        xTaskCreate(
+            [](void *param)
+            {
+                const char *url = static_cast<const char *>(param);
+                Recipe recipe;
+                auto success = recipeStepsAggregationService.getRecipe(url, recipe);
+
+                if (success)
+                {
+                    ESP_LOGI("GetRecipeTask", "=== Recipe: %s ===", recipe.title.c_str());
+                    ESP_LOGI("GetRecipeTask", "  Description : %s", recipe.description.c_str());
+                    ESP_LOGI("GetRecipeTask", "  Prep: %s  Cook: %s  Servings: %s",
+                             recipe.prepTime.c_str(), recipe.cookTime.c_str(), recipe.servings.c_str());
+                    ESP_LOGI("GetRecipeTask", "  Ingredients (%d):", (int)recipe.ingredients.size());
+                    for (const auto &ing : recipe.ingredients)
+                        ESP_LOGI("GetRecipeTask", "    - %s %s %s%s",
+                                 ing.quantity.c_str(), ing.unit.c_str(), ing.name.c_str(),
+                                 ing.notes.empty() ? "" : (" (" + ing.notes + ")").c_str());
+
+                    ESP_LOGI("GetRecipeTask", "  Phases (%d):", (int)recipe.aggregatedSteps.size());
+                    for (const auto &phase : recipe.aggregatedSteps)
+                    {
+                        ESP_LOGI("GetRecipeTask", "  [%s] — %d ingredients, %d images",
+                                 phase.title.c_str(),
+                                 (int)phase.ingredients.size(),
+                                 (int)phase.imageRefs.size());
+                        ESP_LOGI("GetRecipeTask", "    Method: %.120s...", phase.method.c_str());
+                    }
+                }
+                else
+                {
+                    ESP_LOGE("GetRecipeTask", "getRecipe failed for: %s", url);
+                }
+
+                ESP_LOGI("GetRecipeTask", "Stack high-water mark: %d bytes remaining",
+                         (int)(uxTaskGetStackHighWaterMark(NULL) * sizeof(StackType_t)));
+
+                vTaskDelete(NULL);
+            },
+            "GetRecipeTask",
+            20480, // 20 KB — revisit after checking high-water mark
+            (void *)recipeUrl,
+            5,
+            NULL);
+    }
+    else
+    {
+        ESP_LOGE("actions", "No recipe URL selected");
     }
 }

@@ -7,9 +7,11 @@ idf_component_register(
         RecipeGoodFoodService.cpp
         RecipeGialloZafferanoService.cpp
         RecipeSuggestionsManager.cpp
+        RecipeStepsAggregationService.cpp
         RecipeDetailService.cpp
         FavouriteService.cpp
         FavouritesManager.cpp
+        AppwriteHttpClient.cpp
         WifiManager.cpp
         ui_extensions.cpp
         ui_extensions_products.cpp

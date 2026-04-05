@@ -794,6 +794,25 @@ void create_screen_recipe_detail() {
                             lv_image_set_src(obj, &img_favourite_remove);
                             lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICKABLE);
                         }
+                        {
+                            // create_steps_btn
+                            lv_obj_t *obj = lv_button_create(parent_obj);
+                            objects.create_steps_btn = obj;
+                            lv_obj_set_pos(obj, -2, 0);
+                            lv_obj_set_size(obj, 65, 50);
+                            lv_obj_add_event_cb(obj, action_create_recipe_steps_click, LV_EVENT_CLICKED, (void *)0);
+                            add_style_main_button(obj);
+                            {
+                                lv_obj_t *parent_obj = obj;
+                                {
+                                    lv_obj_t *obj = lv_label_create(parent_obj);
+                                    lv_obj_set_pos(obj, 0, 0);
+                                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                                    lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+                                    lv_label_set_text(obj, "AI");
+                                }
+                            }
+                        }
                     }
                 }
                 {

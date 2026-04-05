@@ -290,6 +290,15 @@
       "componentGroups": [],
       "userProperties": [],
       "name": "FavouritesPrev"
+    },
+    {
+      "objID": "34b8abac-8b80-419f-86e6-4586e3413083",
+      "components": [],
+      "connectionLines": [],
+      "localVariables": [],
+      "componentGroups": [],
+      "userProperties": [],
+      "name": "CreateRecipeStepsClick"
     }
   ],
   "userPages": [
@@ -3141,6 +3150,105 @@
                       "value": 0,
                       "valueType": "literal",
                       "previewValue": 0
+                    },
+                    {
+                      "objID": "86bdaeba-4db8-481c-f6eb-281d90093d57",
+                      "type": "LVGLButtonWidget",
+                      "left": -2,
+                      "top": 0,
+                      "width": 65,
+                      "height": 50,
+                      "customInputs": [],
+                      "customOutputs": [],
+                      "style": {
+                        "objID": "f78f7890-ceac-40b4-af52-9e3173643afa",
+                        "useStyle": "default",
+                        "conditionalStyles": [],
+                        "childStyles": []
+                      },
+                      "timeline": [],
+                      "eventHandlers": [
+                        {
+                          "objID": "b8c35de4-7d3b-4f83-8565-7d7bd5ecdefe",
+                          "eventName": "CLICKED",
+                          "handlerType": "action",
+                          "action": "CreateRecipeStepsClick",
+                          "userData": 0
+                        }
+                      ],
+                      "identifier": "create_steps_btn",
+                      "leftUnit": "px",
+                      "topUnit": "px",
+                      "widthUnit": "px",
+                      "heightUnit": "px",
+                      "children": [
+                        {
+                          "objID": "ed547ed8-1d79-473f-c601-e23eb6229522",
+                          "type": "LVGLLabelWidget",
+                          "left": 0,
+                          "top": 0,
+                          "width": 27,
+                          "height": 29,
+                          "customInputs": [],
+                          "customOutputs": [],
+                          "style": {
+                            "objID": "dd195a6c-7227-4783-8905-05adae56ea1a",
+                            "useStyle": "default",
+                            "conditionalStyles": [],
+                            "childStyles": []
+                          },
+                          "timeline": [],
+                          "eventHandlers": [],
+                          "leftUnit": "px",
+                          "topUnit": "px",
+                          "widthUnit": "content",
+                          "heightUnit": "content",
+                          "children": [],
+                          "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+                          "hiddenFlagType": "literal",
+                          "clickableFlagType": "literal",
+                          "flagScrollbarMode": "",
+                          "flagScrollDirection": "",
+                          "scrollSnapX": "",
+                          "scrollSnapY": "",
+                          "checkedStateType": "literal",
+                          "disabledStateType": "literal",
+                          "states": "",
+                          "localStyles": {
+                            "objID": "5043fb81-de69-4591-8764-b96a405faf69",
+                            "definition": {
+                              "MAIN": {
+                                "DEFAULT": {
+                                  "align": "CENTER"
+                                }
+                              }
+                            }
+                          },
+                          "group": "",
+                          "groupIndex": 0,
+                          "text": "AI",
+                          "textType": "literal",
+                          "longMode": "WRAP",
+                          "recolor": false
+                        }
+                      ],
+                      "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_ON_FOCUS|SCROLL_WITH_ARROW|SNAPPABLE",
+                      "hiddenFlagType": "literal",
+                      "clickableFlag": true,
+                      "clickableFlagType": "literal",
+                      "flagScrollbarMode": "",
+                      "flagScrollDirection": "",
+                      "scrollSnapX": "",
+                      "scrollSnapY": "",
+                      "checkedStateType": "literal",
+                      "disabledStateType": "literal",
+                      "states": "",
+                      "useStyle": "MainButton",
+                      "localStyles": {
+                        "objID": "3d6e71d1-50f4-4f2c-f783-ac5c7f295ea0"
+                      },
+                      "group": "",
+                      "groupIndex": 0
                     }
                   ],
                   "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
