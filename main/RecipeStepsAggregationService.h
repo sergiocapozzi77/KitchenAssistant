@@ -62,7 +62,6 @@ public:
                    int maxWidth = 320, int maxHeight = 240);
 
 private:
-       AppwriteHttpClient _httpClient;
     const std::string apiKey = APPWRITE_API_KEY;
     const std::string endpoint = "https://fra.cloud.appwrite.io/v1";
     const std::string projectId = "6954045e003c75c1c3bf";
@@ -70,6 +69,7 @@ private:
     const std::string CollectionId = "products";
     const std::string BarcodeCollectionId = "barcodes";
     const std::string functionId = APPWRITE_FUNCTION_ID;
+    AppwriteHttpClient _httpClient;
 
     // JSON helpers
     static std::string safeString(cJSON *obj, const char *key);

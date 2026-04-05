@@ -91,44 +91,86 @@ bool RecipeStepsAggregationService::getRecipe(const std::string &url, Recipe &ou
     // ── Build request ──────────────────────────────────────────────────────
     const std::string functionUrl = endpoint + "/functions/" + functionId + "/executions";
 
-    cJSON *body = cJSON_CreateObject();
-    if (!body)
-    {
-        ESP_LOGE(TAG, "Failed to create JSON body");
-        return false;
-    }
-    cJSON_AddStringToObject(body, "url", url.c_str());
-    cJSON_AddNumberToObject(body, "maxWidth", maxWidth);
-    cJSON_AddNumberToObject(body, "maxHeight", maxHeight);
+    // ── Build Appwrite execution envelope ──────────────────────────────────
+    // Inner body: what your function receives as req.body
+    cJSON *innerBody = cJSON_CreateObject();
+    cJSON_AddStringToObject(innerBody, "url", url.c_str());
+    cJSON_AddNumberToObject(innerBody, "maxWidth", maxWidth);
+    cJSON_AddNumberToObject(innerBody, "maxHeight", maxHeight);
+    char *innerBodyStr = cJSON_PrintUnformatted(innerBody);
+    cJSON_Delete(innerBody);
 
-    char *bodyStr = cJSON_PrintUnformatted(body);
-    cJSON_Delete(body);
+    // Outer envelope: what Appwrite's /executions endpoint expects
+    cJSON *envelope = cJSON_CreateObject();
+    cJSON_AddStringToObject(envelope, "body", innerBodyStr); // body as a string
+    cJSON_AddBoolToObject(envelope, "async", false);         // wait for result
+    char *bodyStr = cJSON_PrintUnformatted(envelope);
+    cJSON_Delete(envelope);
+    free(innerBodyStr);
+
     if (!bodyStr)
     {
-        ESP_LOGE(TAG, "Failed to serialise request body");
+        ESP_LOGE(TAG, "Failed to serialise request envelope");
         return false;
     }
 
-    // ── HTTP POST ──────────────────────────────────────────────────────────
+    ESP_LOGI(TAG, "Request payload: %s", bodyStr);
+
     int status = -1;
     std::string response = _httpClient.httpPost(functionUrl, bodyStr, status);
     free(bodyStr);
 
-    if (status != 200)
+    // Appwrite returns 201 for a new execution, not 200
+    if (status != 201 && status != 200)
     {
-        ESP_LOGE(TAG, "Function call failed: HTTP %d", status);
+        ESP_LOGE(TAG, "HTTP error: %d", status);
         if (!response.empty())
             ESP_LOGE(TAG, "Body: %s", response.c_str());
         return false;
     }
 
-    // ── Parse top-level response ───────────────────────────────────────────
-    cJSON *doc = cJSON_Parse(response.c_str());
-    if (!doc)
+    // ── Unwrap Appwrite execution envelope ─────────────────────────────────
+    // The real payload is inside responseBody (a JSON string) and
+    // responseStatusCode tells us if the function itself succeeded.
+    envelope = cJSON_Parse(response.c_str());
+    if (!envelope)
     {
-        ESP_LOGE(TAG, "Failed to parse response JSON");
+        ESP_LOGE(TAG, "Failed to parse execution envelope");
         return false;
     }
+
+    // Check the function's own HTTP status
+    cJSON *innerStatus = cJSON_GetObjectItem(envelope, "responseStatusCode");
+    if (!innerStatus || !cJSON_IsNumber(innerStatus) || (int)innerStatus->valuedouble != 200)
+    {
+        ESP_LOGE(TAG, "Function inner status: %d",
+                 innerStatus ? (int)innerStatus->valuedouble : -1);
+        // Log responseBody for debugging
+        const std::string innerBody = safeString(envelope, "responseBody");
+        if (!innerBody.empty())
+            ESP_LOGE(TAG, "Function response: %s", innerBody.c_str());
+        cJSON_Delete(envelope);
+        return false;
+    }
+
+    // responseBody is a JSON string — parse it
+    const std::string responseBodyStr = safeString(envelope, "responseBody");
+    cJSON_Delete(envelope);
+
+    if (responseBodyStr.empty())
+    {
+        ESP_LOGE(TAG, "responseBody is empty");
+        return false;
+    }
+
+    cJSON *doc = cJSON_Parse(responseBodyStr.c_str());
+    if (!doc)
+    {
+        ESP_LOGE(TAG, "Failed to parse responseBody JSON");
+        return false;
+    }
+
+    // ... rest of your existing parsing code unchanged
 
     // Check success flag
     cJSON *successItem = cJSON_GetObjectItem(doc, "success");

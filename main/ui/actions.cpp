@@ -13,6 +13,7 @@
 #include "filters_ui.h"
 #include <algorithm>
 #include <string>
+#include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_heap_caps.h"
@@ -533,15 +534,23 @@ void action_recipes_filter_panel_toggle(lv_event_t *e)
 void action_create_recipe_steps_click(lv_event_t *e)
 {
     // Get the URL of the selected recipe from recipe details
-    const char *recipeUrl = recipeDetailService.getSelectedRecipe().url.c_str();
+    std::string urlStr = recipeDetailService.getSelectedRecipe().url;
 
-    if (recipeUrl && strlen(recipeUrl) > 0)
+    if (!urlStr.empty())
     {
+        ESP_LOGI("actions", "Creating recipe steps for URL: %s", urlStr.c_str());
+        // Duplicate the string for the task (task will free it)
+        char *urlCopy = strdup(urlStr.c_str());
+        if (!urlCopy)
+        {
+            ESP_LOGE("actions", "Failed to allocate memory for URL");
+            return;
+        }
         // Create a task to call recipeStepsAggregationService.getRecipe
-        xTaskCreate(
+        xTaskCreatePinnedToCoreWithCaps(
             [](void *param)
             {
-                const char *url = static_cast<const char *>(param);
+                char *url = static_cast<char *>(param);
                 Recipe recipe;
                 auto success = recipeStepsAggregationService.getRecipe(url, recipe);
 
@@ -575,13 +584,14 @@ void action_create_recipe_steps_click(lv_event_t *e)
                 ESP_LOGI("GetRecipeTask", "Stack high-water mark: %d bytes remaining",
                          (int)(uxTaskGetStackHighWaterMark(NULL) * sizeof(StackType_t)));
 
+                free(url);
                 vTaskDelete(NULL);
             },
             "GetRecipeTask",
             20480, // 20 KB — revisit after checking high-water mark
-            (void *)recipeUrl,
+            urlCopy,
             5,
-            NULL);
+            NULL, tskNO_AFFINITY, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     }
     else
     {

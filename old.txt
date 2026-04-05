@@ -1,0 +1,60 @@
+    free(bodyStr);
+
+    if (status != 200)
+    {
+        ESP_LOGE(TAG, "Function call failed: HTTP %d", status);
+        if (!response.empty())
+            ESP_LOGE(TAG, "Body: %s", response.c_str());
+        return false;
+    }
+
+    // ── Parse top-level response ───────────────────────────────────────────
+    cJSON *doc = cJSON_Parse(response.c_str());
+    if (!doc)
+    {
+        ESP_LOGE(TAG, "Failed to parse response JSON");
+        return false;
+    }
+
+    // Check success flag
+    cJSON *successItem = cJSON_GetObjectItem(doc, "success");
+    if (!successItem || !cJSON_IsTrue(successItem))
+    {
+        const std::string errMsg = safeString(doc, "error");
+        ESP_LOGE(TAG, "Function returned success=false: %s",
+                 errMsg.empty() ? "(no error message)" : errMsg.c_str());
+        cJSON_Delete(doc);
+        return false;
+    }
+
+    // documentId
+    outRecipe.documentId = safeString(doc, "documentId");
+
+    // ── Parse recipe object ────────────────────────────────────────────────
+    cJSON *recipe = cJSON_GetObjectItem(doc, "recipe");
+    if (!recipe)
+    {
+        ESP_LOGE(TAG, "Response missing 'recipe' field");
+        cJSON_Delete(doc);
+        return false;
+    }
+
+    outRecipe.title = safeString(recipe, "title");
+    outRecipe.description = safeString(recipe, "description");
+    outRecipe.prepTime = safeString(recipe, "prepTime");
+    outRecipe.cookTime = safeString(recipe, "cookTime");
+    outRecipe.servings = safeString(recipe, "servings");
+
+    parseIngredients(cJSON_GetObjectItem(recipe, "ingredients"), outRecipe.ingredients);
+
+    cJSON *phases = cJSON_GetObjectItem(recipe, "aggregatedSteps");
+    if (phases && cJSON_IsArray(phases))
+    {
+        cJSON *phaseItem = nullptr;
+        cJSON_ArrayForEach(phaseItem, phases)
+        {
+            RecipePhase phase;
+            parsePhase(phaseItem, phase);
+            outRecipe.aggregatedSteps.push_back(std::move(phase));
+        }
+    }

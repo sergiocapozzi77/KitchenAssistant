@@ -287,6 +287,8 @@ static void fetch_recipe_detail_task(void *arg)
                 IngredientCheckboxContext *ctx = new IngredientCheckboxContext{lbl, nullptr};
                 lv_obj_add_event_cb(checkbox, ingredient_checkbox_cb, LV_EVENT_VALUE_CHANGED, ctx);
                 lv_obj_add_event_cb(checkbox, free_ingredient_checkbox_ctx_cb, LV_EVENT_DELETE, ctx);
+
+                vTaskDelay(pdMS_TO_TICKS(10)); // Yield to LVGL to render incrementally
             }
         }
         else
@@ -345,6 +347,7 @@ static void fetch_recipe_detail_task(void *arg)
                 lv_obj_set_flex_grow(text_lbl, 1);
                 lv_obj_set_style_text_font(text_lbl, &ui_font_ext_font_montserrat_18, 0); // Increased from 16 to 18
                 lv_obj_set_style_text_color(text_lbl, lv_color_hex(0x212529), 0);
+                vTaskDelay(pdMS_TO_TICKS(10));
             }
         }
         else if (!ok)
