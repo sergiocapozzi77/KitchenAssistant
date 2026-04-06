@@ -140,7 +140,7 @@ bool RecipeStepsAggregationService::getRecipe(const std::string &url, Recipe &ou
 
     // Extract executionId for polling (in case of async execution)
     std::string executionId = safeString(envelope, "$id");
-    
+
     // Check current execution status
     std::string execStatus = safeString(envelope, "status");
     ESP_LOGI(TAG, "Initial execution status: %s", execStatus.c_str());
@@ -148,37 +148,37 @@ bool RecipeStepsAggregationService::getRecipe(const std::string &url, Recipe &ou
     // ── Poll for async completion (up to 360 seconds) ──────────────────────
     const int maxWaitIterations = 360; // 360 * 1 second = 360 seconds
     const int pollDelayMs = 1000;
-    
+
     if (execStatus == "waiting")
     {
         ESP_LOGI(TAG, "Function is async, polling for completion (executionId: %s)...", executionId.c_str());
-        
+
         for (int i = 0; i < maxWaitIterations; ++i)
         {
             vTaskDelay(pdMS_TO_TICKS(pollDelayMs)); // Wait before polling
-            
+
             // Construct polling URL: /functions/{functionId}/executions/{executionId}
             const std::string pollUrl = endpoint + "/functions/" + functionId + "/executions/" + executionId;
-            
+
             int pollStatus = -1;
             std::string pollResponse = _httpClient.httpGet(pollUrl, pollStatus);
-            
+
             if (pollStatus != 200)
             {
                 ESP_LOGW(TAG, "Poll failed with status %d", pollStatus);
                 continue;
             }
-            
+
             cJSON *pollEnvelope = cJSON_Parse(pollResponse.c_str());
             if (!pollEnvelope)
             {
                 ESP_LOGW(TAG, "Failed to parse poll response");
                 continue;
             }
-            
+
             std::string newStatus = safeString(pollEnvelope, "status");
             ESP_LOGI(TAG, "Poll iteration %d/%d: status=%s", i + 1, maxWaitIterations, newStatus.c_str());
-            
+
             if (newStatus == "completed")
             {
                 ESP_LOGI(TAG, "Function execution completed");
@@ -197,10 +197,10 @@ bool RecipeStepsAggregationService::getRecipe(const std::string &url, Recipe &ou
                 cJSON_Delete(envelope);
                 return false;
             }
-            
+
             cJSON_Delete(pollEnvelope);
         }
-        
+
         if (execStatus == "waiting")
         {
             ESP_LOGE(TAG, "Function execution timed out after %d seconds", maxWaitIterations);
