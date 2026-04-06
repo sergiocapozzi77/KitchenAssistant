@@ -121,8 +121,8 @@ bool RecipeStepsAggregationService::getRecipe(const std::string &url, Recipe &ou
     std::string response = _httpClient.httpPost(functionUrl, bodyStr, status);
     free(bodyStr);
 
-    // Appwrite returns 201 for a new execution, not 200
-    if (status != 201 && status != 200)
+    // Appwrite returns 201 for a new execution, 202 for async execution
+    if (status != 201 && status != 200 && status != 202)
     {
         ESP_LOGE(TAG, "HTTP error: %d", status);
         if (!response.empty())
