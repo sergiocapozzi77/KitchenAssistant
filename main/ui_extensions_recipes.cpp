@@ -197,6 +197,7 @@ void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &rec
 
         // Visual press feedback
         lv_obj_set_style_bg_color(card, lv_color_hex(0xF1F3F5), LV_STATE_PRESSED);
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
     // Restore scroll position
     lv_obj_scroll_to_y(root, scroll_y, LV_ANIM_OFF);

@@ -425,16 +425,19 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
     }
 
     // Search filter
-    if (s_productSearchFilter.length() >= 3) {
+    if (s_productSearchFilter.length() >= 3)
+    {
         sorted.erase(std::remove_if(sorted.begin(), sorted.end(),
-            [](const Product *p) {
-                // case-insensitive substring search
-                std::string nameLower = p->name;
-                std::transform(nameLower.begin(), nameLower.end(), nameLower.begin(), ::tolower);
-                std::string filterLower = s_productSearchFilter;
-                std::transform(filterLower.begin(), filterLower.end(), filterLower.begin(), ::tolower);
-                return nameLower.find(filterLower) == std::string::npos;
-            }), sorted.end());
+                                    [](const Product *p)
+                                    {
+                                        // case-insensitive substring search
+                                        std::string nameLower = p->name;
+                                        std::transform(nameLower.begin(), nameLower.end(), nameLower.begin(), ::tolower);
+                                        std::string filterLower = s_productSearchFilter;
+                                        std::transform(filterLower.begin(), filterLower.end(), filterLower.begin(), ::tolower);
+                                        return nameLower.find(filterLower) == std::string::npos;
+                                    }),
+                     sorted.end());
     }
 
     std::sort(sorted.begin(), sorted.end(), [sort_idx](const Product *a, const Product *b)
@@ -650,6 +653,8 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
 
         //
         // lv_obj_add_flag(qty_cont, LV_OBJ_FLAG_HIDDEN);
+
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
     // Restore scroll position
     lv_obj_scroll_to_y(root, scroll_y, LV_ANIM_OFF);

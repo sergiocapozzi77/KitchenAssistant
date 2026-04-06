@@ -14,7 +14,11 @@
       "Bash(grep -r typedef.*lv_coord_t C:UserssergisourcereposKitchenAssistantmanaged_componentslvgl__lvgl)",
       "Bash(find /c/Users/sergi/source/repos/KitchenAssistant/managed_components -type f -name *font* -o -name *Font*)",
       "Skill(update-config)",
-      "Bash(find C:UserssergisourcereposKitchenAssistant -type f -name *.yml -o -name *.yaml -o -name *.ini -o -name *.cfg -o -name *.conf)"
+      "Bash(find C:UserssergisourcereposKitchenAssistant -type f -name *.yml -o -name *.yaml -o -name *.ini -o -name *.cfg -o -name *.conf)",
+      "Bash(python -c \":*)",
+      "Bash(cd:*)",
+      "Bash(python modify_eez.py)",
+      "Bash(python3:*)"
     ],
     "deny": [
       "Bash(idf.py build *)",
