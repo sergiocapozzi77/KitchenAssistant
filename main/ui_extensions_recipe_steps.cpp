@@ -1,9 +1,11 @@
 #include "ui_extensions_recipe_steps.h"
-#include "objects.h"
-#include "spb.h"
+#include "ui.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "RecipeStepsAggregationService.h"
+#include "RecipeDetailService.h"
+#include "StepProgressBar.h"
 
 void UIExtensionsRecipeSteps::createRecipeStepsTask()
 {

@@ -1100,7 +1100,7 @@ void create_screen_recipe_phase() {
             lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
             lv_obj_set_style_layout(obj, LV_LAYOUT_GRID, LV_PART_MAIN | LV_STATE_DEFAULT);
             {
-                static lv_coord_t dsc[] = {LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_CONTENT, 300, LV_GRID_TEMPLATE_LAST};
+                static lv_coord_t dsc[] = {LV_GRID_CONTENT, LV_GRID_CONTENT, LV_GRID_FR(1), LV_GRID_CONTENT, LV_GRID_TEMPLATE_LAST};
                 lv_obj_set_style_grid_row_dsc_array(obj, dsc, LV_PART_MAIN | LV_STATE_DEFAULT);
             }
             {
@@ -1202,32 +1202,13 @@ void create_screen_recipe_phase() {
                             lv_image_set_src(obj, &img_favourite_remove);
                             lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICKABLE);
                         }
-                        {
-                            // create_steps_phases_btn
-                            lv_obj_t *obj = lv_button_create(parent_obj);
-                            objects.create_steps_phases_btn = obj;
-                            lv_obj_set_pos(obj, -2, 0);
-                            lv_obj_set_size(obj, 65, 50);
-                            lv_obj_add_event_cb(obj, action_create_recipe_steps_click, LV_EVENT_CLICKED, (void *)0);
-                            add_style_main_button(obj);
-                            {
-                                lv_obj_t *parent_obj = obj;
-                                {
-                                    lv_obj_t *obj = lv_label_create(parent_obj);
-                                    lv_obj_set_pos(obj, 0, 0);
-                                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-                                    lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
-                                    lv_label_set_text(obj, "AI");
-                                }
-                            }
-                        }
                     }
                 }
                 {
                     // step_progress
                     lv_obj_t *obj = lv_obj_create(parent_obj);
                     objects.step_progress = obj;
-                    lv_obj_set_pos(obj, 0, 0);
+                    lv_obj_set_pos(obj, 8, 25);
                     lv_obj_set_size(obj, LV_PCT(100), 56);
                     lv_obj_set_style_pad_left(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_pad_top(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -1235,7 +1216,7 @@ void create_screen_recipe_phase() {
                     lv_obj_set_style_pad_bottom(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-                    create_user_widget_step_progress_bar(obj, 100);
+                    create_user_widget_step_progress_bar(obj, 99);
                     lv_obj_set_style_grid_cell_row_pos(obj, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
                 }
                 {
@@ -1246,7 +1227,7 @@ void create_screen_recipe_phase() {
                     lv_obj_set_size(obj, 60, 60);
                     lv_obj_set_style_margin_top(obj, 40, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_margin_bottom(obj, 40, LV_PART_MAIN | LV_STATE_DEFAULT);
-                    lv_obj_set_style_grid_cell_row_pos(obj, 3, LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_obj_set_style_grid_cell_row_pos(obj, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_grid_cell_x_align(obj, LV_GRID_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_grid_cell_y_align(obj, LV_GRID_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_arc_color(obj, lv_color_hex(0xff4caf50), LV_PART_INDICATOR | LV_STATE_DEFAULT);
@@ -1259,7 +1240,7 @@ void create_screen_recipe_phase() {
 }
 
 void tick_screen_recipe_phase() {
-    tick_user_widget_step_progress_bar(100);
+    tick_user_widget_step_progress_bar(99);
 }
 
 void create_user_widget_product_edit(lv_obj_t *parent_obj, int startWidgetIndex) {
@@ -2125,43 +2106,6 @@ void create_user_widget_step_progress_bar(lv_obj_t *parent_obj, int startWidgetI
 }
 
 void tick_user_widget_step_progress_bar(int startWidgetIndex) {
-    (void)startWidgetIndex;
-}
-
-void create_user_widget_step_progress(lv_obj_t *parent_obj, int startWidgetIndex) {
-    (void)startWidgetIndex;
-    lv_obj_t *obj = parent_obj;
-    {
-        lv_obj_t *parent_obj = obj;
-        {
-            // spb_circle_13
-            lv_obj_t *obj = lv_obj_create(parent_obj);
-            ((lv_obj_t **)&objects)[startWidgetIndex + 0] = obj;
-            lv_obj_set_pos(obj, 25, 0);
-            lv_obj_set_size(obj, 50, 50);
-            lv_obj_remove_flag(obj, LV_OBJ_FLAG_CLICKABLE|LV_OBJ_FLAG_SCROLLABLE);
-            lv_obj_set_style_bg_color(obj, lv_color_hex(0xffbdbdbd), LV_PART_MAIN | LV_STATE_DEFAULT);
-            lv_obj_set_style_bg_opa(obj, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-            lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-            lv_obj_set_style_radius(obj, 28, LV_PART_MAIN | LV_STATE_DEFAULT);
-        }
-        {
-            // spb_label_13
-            lv_obj_t *obj = lv_label_create(parent_obj);
-            ((lv_obj_t **)&objects)[startWidgetIndex + 1] = obj;
-            lv_obj_set_pos(obj, 0, 24);
-            lv_obj_set_size(obj, LV_SIZE_CONTENT, 18);
-            lv_label_set_long_mode(obj, LV_LABEL_LONG_CLIP);
-            lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
-            lv_obj_set_style_text_font(obj, &lv_font_montserrat_18, LV_PART_MAIN | LV_STATE_DEFAULT);
-            lv_obj_set_style_text_color(obj, lv_color_hex(0xff212121), LV_PART_MAIN | LV_STATE_DEFAULT);
-            lv_obj_set_style_text_align(obj, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
-            lv_label_set_text(obj, "Step");
-        }
-    }
-}
-
-void tick_user_widget_step_progress(int startWidgetIndex) {
     (void)startWidgetIndex;
 }
 

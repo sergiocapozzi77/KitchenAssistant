@@ -116,7 +116,6 @@ typedef struct _objects_t {
     lv_obj_t *phase_recipe_title;
     lv_obj_t *phase_favourite_add;
     lv_obj_t *phase_favourite_remove;
-    lv_obj_t *create_steps_phases_btn;
     lv_obj_t *step_progress;
     lv_obj_t *step_progress__spb_root;
     lv_obj_t *step_progress__spb_track_bg;
@@ -179,9 +178,6 @@ void tick_user_widget_filters_panel(int startWidgetIndex);
 
 void create_user_widget_step_progress_bar(lv_obj_t *parent_obj, int startWidgetIndex);
 void tick_user_widget_step_progress_bar(int startWidgetIndex);
-
-void create_user_widget_step_progress(lv_obj_t *parent_obj, int startWidgetIndex);
-void tick_user_widget_step_progress(int startWidgetIndex);
 
 void tick_screen_by_id(enum ScreensEnum screenId);
 void tick_screen(int screen_index);
