@@ -419,7 +419,7 @@ void thumb_worker_task(void *arg)
 
     for (ThumbContext *ctx : wctx->items)
     {
-        // esp_task_wdt_reset();
+        esp_task_wdt_reset();
         if (ctx->generation != s_thumb_generation)
         {
             lv_lock();
@@ -435,6 +435,7 @@ void thumb_worker_task(void *arg)
         lv_image_dsc_t *dsc = nullptr;
         uint8_t *px = nullptr;
 
+        vTaskDelay(1);
         if (fetch_and_decode_jpeg(ctx->url, 112, 112, &dsc, &px))
         {
             lv_lock();

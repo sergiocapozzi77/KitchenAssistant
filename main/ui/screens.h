@@ -13,12 +13,14 @@ enum ScreensEnum {
     _SCREEN_ID_FIRST = 1,
     SCREEN_ID_MAIN = 1,
     SCREEN_ID_RECIPE_DETAIL = 2,
-    _SCREEN_ID_LAST = 2
+    SCREEN_ID_RECIPE_PHASE = 3,
+    _SCREEN_ID_LAST = 3
 };
 
 typedef struct _objects_t {
     lv_obj_t *main;
     lv_obj_t *recipe_detail;
+    lv_obj_t *recipe_phase;
     lv_obj_t *tabview;
     lv_obj_t *products_header_pnl;
     lv_obj_t *product_filter_dropdown;
@@ -107,6 +109,55 @@ typedef struct _objects_t {
     lv_obj_t *recipe_ing_cont;
     lv_obj_t *recipe_method_cont;
     lv_obj_t *recipe_detail_spinner;
+    lv_obj_t *root_container_phase;
+    lv_obj_t *top_phase_bar;
+    lv_obj_t *phase_back_btn;
+    lv_obj_t *obj7;
+    lv_obj_t *phase_recipe_title;
+    lv_obj_t *phase_favourite_add;
+    lv_obj_t *phase_favourite_remove;
+    lv_obj_t *create_steps_phases_btn;
+    lv_obj_t *step_progress;
+    lv_obj_t *step_progress__spb_root;
+    lv_obj_t *step_progress__spb_track_bg;
+    lv_obj_t *step_progress__spb_track_fill;
+    lv_obj_t *step_progress__spb_circle_1;
+    lv_obj_t *step_progress__spb_num_1;
+    lv_obj_t *step_progress__spb_label_1;
+    lv_obj_t *step_progress__spb_circle_2;
+    lv_obj_t *step_progress__spb_num_2;
+    lv_obj_t *step_progress__spb_label_2;
+    lv_obj_t *step_progress__spb_circle_3;
+    lv_obj_t *step_progress__spb_num_3;
+    lv_obj_t *step_progress__spb_label_3;
+    lv_obj_t *step_progress__spb_circle_4;
+    lv_obj_t *step_progress__spb_num_4;
+    lv_obj_t *step_progress__spb_label_4;
+    lv_obj_t *step_progress__spb_circle_5;
+    lv_obj_t *step_progress__spb_num_5;
+    lv_obj_t *step_progress__spb_label_5;
+    lv_obj_t *step_progress__spb_circle_6;
+    lv_obj_t *step_progress__spb_num_6;
+    lv_obj_t *step_progress__spb_label_6;
+    lv_obj_t *step_progress__spb_circle_7;
+    lv_obj_t *step_progress__spb_num_7;
+    lv_obj_t *step_progress__spb_label_7;
+    lv_obj_t *step_progress__spb_circle_8;
+    lv_obj_t *step_progress__spb_num_8;
+    lv_obj_t *step_progress__spb_label_8;
+    lv_obj_t *step_progress__spb_circle_9;
+    lv_obj_t *step_progress__spb_num_9;
+    lv_obj_t *step_progress__spb_label_9;
+    lv_obj_t *step_progress__spb_circle_10;
+    lv_obj_t *step_progress__spb_num_10;
+    lv_obj_t *step_progress__spb_label_10;
+    lv_obj_t *step_progress__spb_circle_11;
+    lv_obj_t *step_progress__spb_num_11;
+    lv_obj_t *step_progress__spb_label_11;
+    lv_obj_t *step_progress__spb_circle_12;
+    lv_obj_t *step_progress__spb_num_12;
+    lv_obj_t *step_progress__spb_label_12;
+    lv_obj_t *phase_detail_spinner;
 } objects_t;
 
 extern objects_t objects;
@@ -117,11 +168,20 @@ void tick_screen_main();
 void create_screen_recipe_detail();
 void tick_screen_recipe_detail();
 
+void create_screen_recipe_phase();
+void tick_screen_recipe_phase();
+
 void create_user_widget_product_edit(lv_obj_t *parent_obj, int startWidgetIndex);
 void tick_user_widget_product_edit(int startWidgetIndex);
 
 void create_user_widget_filters_panel(lv_obj_t *parent_obj, int startWidgetIndex);
 void tick_user_widget_filters_panel(int startWidgetIndex);
+
+void create_user_widget_step_progress_bar(lv_obj_t *parent_obj, int startWidgetIndex);
+void tick_user_widget_step_progress_bar(int startWidgetIndex);
+
+void create_user_widget_step_progress(lv_obj_t *parent_obj, int startWidgetIndex);
+void tick_user_widget_step_progress(int startWidgetIndex);
 
 void tick_screen_by_id(enum ScreensEnum screenId);
 void tick_screen(int screen_index);

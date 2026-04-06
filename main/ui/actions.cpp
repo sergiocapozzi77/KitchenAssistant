@@ -19,6 +19,9 @@
 #include "esp_heap_caps.h"
 #include "RecipeDetailService.h"
 #include "RecipeStepsAggregationService.h"
+#include "StepProgressBar.h"
+#include "ui_extensions_internal.h"
+#include "ui_extensions_recipe_steps.h"
 
 filter_panel_t products_panel;
 filter_panel_t recipes_panel;
@@ -196,6 +199,15 @@ static void tabview_tab_changed_cb(lv_event_t *e)
     }
 }
 
+void recipe_detail_back_cb(lv_event_t *e)
+{
+    lv_obj_t *prev = (lv_obj_t *)lv_event_get_user_data(e);
+    if (prev && lv_obj_is_valid(prev))
+        lv_scr_load_anim(prev, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 300, 0, false);
+    else
+        lv_scr_load_anim(lv_scr_act(), LV_SCR_LOAD_ANIM_MOVE_RIGHT, 300, 0, false);
+}
+
 void action_screen_loading(lv_event_t *e)
 {
     // This function can be used to perform actions when the loading screen is shown
@@ -230,6 +242,9 @@ void action_screen_loading(lv_event_t *e)
     lv_obj_add_event_cb(objects.product_search_ta, keywords_textarea_focused_cb, LV_EVENT_FOCUSED, nullptr);
     lv_obj_add_event_cb(objects.product_search_ta, keywords_textarea_defocused_cb, LV_EVENT_DEFOCUSED, nullptr);
     lv_obj_add_event_cb(objects.product_search_ta, product_search_value_changed_cb, LV_EVENT_VALUE_CHANGED, nullptr);
+
+    lv_obj_add_event_cb(objects.recipe_back_btn, recipe_detail_back_cb, LV_EVENT_CLICKED, lv_scr_act());
+    lv_obj_add_event_cb(objects.phase_back_btn, recipe_detail_back_cb, LV_EVENT_CLICKED, objects.recipe_detail);
 }
 
 void action_main_screen_loaded(lv_event_t *e)
@@ -533,68 +548,11 @@ void action_recipes_filter_panel_toggle(lv_event_t *e)
 
 void action_create_recipe_steps_click(lv_event_t *e)
 {
-    // Get the URL of the selected recipe from recipe details
-    std::string urlStr = recipeDetailService.getSelectedRecipe().url;
+    lv_scr_load_anim(objects.recipe_phase, LV_SCR_LOAD_ANIM_MOVE_LEFT, 300, 0, false);
 
-    if (!urlStr.empty())
-    {
-        ESP_LOGI("actions", "Creating recipe steps for URL: %s", urlStr.c_str());
-        // Duplicate the string for the task (task will free it)
-        char *urlCopy = strdup(urlStr.c_str());
-        if (!urlCopy)
-        {
-            ESP_LOGE("actions", "Failed to allocate memory for URL");
-            return;
-        }
-        // Create a task to call recipeStepsAggregationService.getRecipe
-        xTaskCreatePinnedToCoreWithCaps(
-            [](void *param)
-            {
-                char *url = static_cast<char *>(param);
-                Recipe recipe;
-                auto success = recipeStepsAggregationService.getRecipe(url, recipe);
+    lv_obj_clear_flag(objects.phase_detail_spinner, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(objects.step_progress, LV_OBJ_FLAG_HIDDEN);
 
-                if (success)
-                {
-                    ESP_LOGI("GetRecipeTask", "=== Recipe: %s ===", recipe.title.c_str());
-                    ESP_LOGI("GetRecipeTask", "  Description : %s", recipe.description.c_str());
-                    ESP_LOGI("GetRecipeTask", "  Prep: %s  Cook: %s  Servings: %s",
-                             recipe.prepTime.c_str(), recipe.cookTime.c_str(), recipe.servings.c_str());
-                    ESP_LOGI("GetRecipeTask", "  Ingredients (%d):", (int)recipe.ingredients.size());
-                    for (const auto &ing : recipe.ingredients)
-                        ESP_LOGI("GetRecipeTask", "    - %s %s %s%s",
-                                 ing.quantity.c_str(), ing.unit.c_str(), ing.name.c_str(),
-                                 ing.notes.empty() ? "" : (" (" + ing.notes + ")").c_str());
-
-                    ESP_LOGI("GetRecipeTask", "  Phases (%d):", (int)recipe.aggregatedSteps.size());
-                    for (const auto &phase : recipe.aggregatedSteps)
-                    {
-                        ESP_LOGI("GetRecipeTask", "  [%s] — %d ingredients, %d images",
-                                 phase.title.c_str(),
-                                 (int)phase.ingredients.size(),
-                                 (int)phase.imageRefs.size());
-                        ESP_LOGI("GetRecipeTask", "    Method: %.120s...", phase.method.c_str());
-                    }
-                }
-                else
-                {
-                    ESP_LOGE("GetRecipeTask", "getRecipe failed for: %s", url);
-                }
-
-                ESP_LOGI("GetRecipeTask", "Stack high-water mark: %d bytes remaining",
-                         (int)(uxTaskGetStackHighWaterMark(NULL) * sizeof(StackType_t)));
-
-                free(url);
-                vTaskDelete(NULL);
-            },
-            "GetRecipeTask",
-            20480, // 20 KB — revisit after checking high-water mark
-            urlCopy,
-            5,
-            NULL, tskNO_AFFINITY, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    }
-    else
-    {
-        ESP_LOGE("actions", "No recipe URL selected");
-    }
+    // Delegate the task creation to the new class method
+    UIExtensionsRecipeSteps::createRecipeStepsTask();
 }

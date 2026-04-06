@@ -103,7 +103,7 @@ bool RecipeStepsAggregationService::getRecipe(const std::string &url, Recipe &ou
     // Outer envelope: what Appwrite's /executions endpoint expects
     cJSON *envelope = cJSON_CreateObject();
     cJSON_AddStringToObject(envelope, "body", innerBodyStr); // body as a string
-    cJSON_AddBoolToObject(envelope, "async", false);         // wait for result
+    cJSON_AddBoolToObject(envelope, "async", true);          // wait for result
     char *bodyStr = cJSON_PrintUnformatted(envelope);
     cJSON_Delete(envelope);
     free(innerBodyStr);
