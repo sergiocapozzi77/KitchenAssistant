@@ -4723,10 +4723,104 @@
                   }
                 },
                 {
-                  "objID": "302b35a7-b24f-4bec-d172-450e4ede0a62",
+                  "objID": "23ab3d1a-b86e-4876-bc16-739058873294",
                   "type": "LVGLContainerWidget",
                   "left": 0,
                   "top": 0,
+                  "width": 100,
+                  "height": 80,
+                  "customInputs": [],
+                  "customOutputs": [],
+                  "style": {
+                    "objID": "7ee5dd2a-98af-4114-efff-c40adde99272",
+                    "useStyle": "default",
+                    "conditionalStyles": [],
+                    "childStyles": []
+                  },
+                  "timeline": [],
+                  "eventHandlers": [],
+                  "identifier": "recipe_phase_title",
+                  "leftUnit": "px",
+                  "topUnit": "px",
+                  "widthUnit": "%",
+                  "heightUnit": "px",
+                  "children": [
+                    {
+                      "objID": "9b02c0c2-c2a7-4d43-c48e-8dc1db65e64d",
+                      "type": "LVGLLabelWidget",
+                      "left": 0,
+                      "top": 20,
+                      "width": 100,
+                      "height": 40,
+                      "customInputs": [],
+                      "customOutputs": [],
+                      "style": {
+                        "objID": "aaf25766-9f2c-487a-cb62-6a0e784546a3",
+                        "useStyle": "default",
+                        "conditionalStyles": [],
+                        "childStyles": []
+                      },
+                      "timeline": [],
+                      "eventHandlers": [],
+                      "identifier": "recipe_phase_title_txt",
+                      "leftUnit": "px",
+                      "topUnit": "px",
+                      "widthUnit": "%",
+                      "heightUnit": "content",
+                      "children": [],
+                      "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+                      "hiddenFlagType": "literal",
+                      "clickableFlagType": "literal",
+                      "flagScrollbarMode": "",
+                      "flagScrollDirection": "",
+                      "scrollSnapX": "",
+                      "scrollSnapY": "",
+                      "checkedStateType": "literal",
+                      "disabledStateType": "literal",
+                      "states": "",
+                      "localStyles": {
+                        "objID": "a85bca72-5522-43f4-f86b-ac552463ce54"
+                      },
+                      "group": "",
+                      "groupIndex": 0,
+                      "text": "Text",
+                      "textType": "literal",
+                      "longMode": "DOT",
+                      "recolor": false
+                    }
+                  ],
+                  "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+                  "hiddenFlagType": "literal",
+                  "clickableFlag": true,
+                  "clickableFlagType": "literal",
+                  "flagScrollbarMode": "",
+                  "flagScrollDirection": "",
+                  "scrollSnapX": "",
+                  "scrollSnapY": "",
+                  "checkedStateType": "literal",
+                  "disabledStateType": "literal",
+                  "states": "",
+                  "localStyles": {
+                    "objID": "4aab68e4-82c8-4c81-bc56-724eb503e163",
+                    "definition": {
+                      "MAIN": {
+                        "DEFAULT": {
+                          "grid_cell_row_pos": 2,
+                          "text_font": "MONTSERRAT_36",
+                          "pad_left": 20,
+                          "pad_right": 20
+                        }
+                      }
+                    }
+                  },
+                  "group": "",
+                  "groupIndex": 0
+                },
+                {
+                  "objID": "302b35a7-b24f-4bec-d172-450e4ede0a62",
+                  "type": "LVGLContainerWidget",
+                  "left": 45,
+                  "top": -138,
                   "width": 100,
                   "height": 220,
                   "customInputs": [],
@@ -4762,7 +4856,7 @@
                     "definition": {
                       "MAIN": {
                         "DEFAULT": {
-                          "grid_cell_row_pos": 2
+                          "grid_cell_row_pos": 3
                         }
                       }
                     }
@@ -4808,12 +4902,13 @@
                     "definition": {
                       "MAIN": {
                         "DEFAULT": {
-                          "grid_cell_row_pos": 3,
+                          "grid_cell_row_pos": 4,
                           "pad_top": 20,
                           "pad_bottom": 20,
                           "pad_left": 20,
                           "pad_right": 20,
-                          "margin_bottom": 20
+                          "margin_bottom": 20,
+                          "grid_cell_y_align": "STRETCH"
                         }
                       }
                     }
@@ -4827,7 +4922,7 @@
                   "left": 0,
                   "top": 0,
                   "width": 100,
-                  "height": 573,
+                  "height": 100,
                   "customInputs": [],
                   "customOutputs": [],
                   "style": {
@@ -4860,11 +4955,12 @@
                     "definition": {
                       "MAIN": {
                         "DEFAULT": {
-                          "grid_cell_row_pos": 4,
+                          "grid_cell_row_pos": 5,
                           "pad_top": 20,
                           "pad_bottom": 20,
                           "pad_left": 20,
-                          "pad_right": 20
+                          "pad_right": 20,
+                          "grid_cell_y_align": "STRETCH"
                         }
                       }
                     }
@@ -5110,7 +5206,8 @@
                     "definition": {
                       "MAIN": {
                         "DEFAULT": {
-                          "grid_cell_row_pos": 5
+                          "grid_cell_row_pos": 6,
+                          "shadow_opa": 100
                         }
                       }
                     }
@@ -5191,7 +5288,7 @@
                   "MAIN": {
                     "DEFAULT": {
                       "layout": "GRID",
-                      "grid_row_dsc_array": "CONTENT, CONTENT, CONTENT, CONTENT,FR(1),CONTENT",
+                      "grid_row_dsc_array": "CONTENT, CONTENT, CONTENT, CONTENT, FR(1),FR(2),CONTENT",
                       "grid_column_dsc_array": "FR(1)",
                       "bg_color": "#F8F9FA",
                       "pad_all": 0,
@@ -6910,7 +7007,7 @@
                 "definition": {
                   "MAIN": {
                     "DEFAULT": {
-                      "bg_color": "#BDBDBD",
+                      "bg_color": "#555555",
                       "bg_opa": 255,
                       "border_width": 0,
                       "radius": 2
@@ -7119,9 +7216,9 @@
               },
               "group": "",
               "groupIndex": 0,
-              "text": "Prepare the hj  hj k jk ",
+              "text": "Prepare the hj  hj k jk  f fd fd g",
               "textType": "literal",
-              "longMode": "WRAP",
+              "longMode": "DOT",
               "recolor": false
             },
             {
@@ -7276,7 +7373,7 @@
               "groupIndex": 0,
               "text": "Step 2",
               "textType": "literal",
-              "longMode": "WRAP",
+              "longMode": "DOT",
               "recolor": false
             },
             {
@@ -7317,10 +7414,10 @@
                 "definition": {
                   "MAIN": {
                     "DEFAULT": {
-                      "bg_color": "#BDBDBD",
                       "bg_opa": 255,
                       "border_width": 0,
-                      "radius": 14
+                      "radius": 14,
+                      "bg_color": "#555555"
                     }
                   }
                 }
@@ -7431,7 +7528,7 @@
               "groupIndex": 0,
               "text": "Step 3",
               "textType": "literal",
-              "longMode": "WRAP",
+              "longMode": "DOT",
               "recolor": false
             },
             {
@@ -7586,7 +7683,7 @@
               "groupIndex": 0,
               "text": "Step 4",
               "textType": "literal",
-              "longMode": "WRAP",
+              "longMode": "DOT",
               "recolor": false
             },
             {
@@ -7741,7 +7838,7 @@
               "groupIndex": 0,
               "text": "Step 5",
               "textType": "literal",
-              "longMode": "WRAP",
+              "longMode": "DOT",
               "recolor": false
             },
             {
@@ -7896,7 +7993,7 @@
               "groupIndex": 0,
               "text": "Step 6",
               "textType": "literal",
-              "longMode": "WRAP",
+              "longMode": "DOT",
               "recolor": false
             },
             {
@@ -8051,7 +8148,7 @@
               "groupIndex": 0,
               "text": "Step 7",
               "textType": "literal",
-              "longMode": "WRAP",
+              "longMode": "DOT",
               "recolor": false
             },
             {
@@ -8206,7 +8303,7 @@
               "groupIndex": 0,
               "text": "Step 8",
               "textType": "literal",
-              "longMode": "WRAP",
+              "longMode": "DOT",
               "recolor": false
             },
             {
@@ -8361,7 +8458,7 @@
               "groupIndex": 0,
               "text": "Step 9",
               "textType": "literal",
-              "longMode": "WRAP",
+              "longMode": "DOT",
               "recolor": false
             },
             {
@@ -8516,7 +8613,7 @@
               "groupIndex": 0,
               "text": "Step 10",
               "textType": "literal",
-              "longMode": "WRAP",
+              "longMode": "DOT",
               "recolor": false
             },
             {
@@ -8671,7 +8768,7 @@
               "groupIndex": 0,
               "text": "Step 11",
               "textType": "literal",
-              "longMode": "WRAP",
+              "longMode": "DOT",
               "recolor": false
             },
             {
@@ -8826,7 +8923,7 @@
               "groupIndex": 0,
               "text": "Step 12",
               "textType": "literal",
-              "longMode": "WRAP",
+              "longMode": "DOT",
               "recolor": false
             }
           ],
@@ -8923,11 +9020,18 @@
           "definition": {
             "MAIN": {
               "DEFAULT": {
-                "bg_color": "Accent",
+                "bg_color": "#cbe4ff",
                 "bg_grad_dir": "VER",
-                "bg_grad_color": "AccentDark",
-                "text_color": "#ffffff",
-                "text_font": "MONTSERRAT_26"
+                "bg_grad_color": "#90c5ff",
+                "text_color": "#010373",
+                "text_font": "MONTSERRAT_26",
+                "radius": 30,
+                "border_width": 1,
+                "border_color": "#9aa5ff",
+                "shadow_width": 20,
+                "shadow_ofs_x": 2,
+                "shadow_ofs_y": 5,
+                "shadow_spread": 2
               }
             }
           }
@@ -9078,6 +9182,10 @@
     {
       "objID": "a5dee7c3-a317-4a73-a6c2-f800a4c042eb",
       "name": "Border"
+    },
+    {
+      "objID": "1d34ccb1-fa1e-4a95-d13c-e129cacbecf7",
+      "name": "LightAccent"
     }
   ],
   "themes": [
@@ -9087,7 +9195,8 @@
       "colors": [
         "#007aff",
         "#0159b7",
-        "#b5b5b5"
+        "#b5b5b5",
+        "#cbe4ff"
       ]
     }
   ]

@@ -139,7 +139,7 @@ static void spb_init(lv_obj_t *spb, int numSteps, const char *labels[])
         // Number is centered on the circle
         ESP_LOGI("StepProgressBar", "  step %d: setting number position cx=%d", i, cx);
         ESP_LOGI("StepProgressBar", "  step %d: number current size w=%d h=%d, parent=%p", i, lv_obj_get_width(n), lv_obj_get_height(n), lv_obj_get_parent(n));
-        lv_obj_set_pos(n, cx + 6, 5);
+        lv_obj_set_pos(n, cx + 10, 5);
         lv_obj_set_size(n, SPB_CIRCLE_D, SPB_CIRCLE_D);
         // Verify position was set
         int actualNX = lv_obj_get_x(n);
@@ -158,7 +158,7 @@ static void spb_init(lv_obj_t *spb, int numSteps, const char *labels[])
         ESP_LOGI("StepProgressBar", "  step %d: setting label position labelX=%d, y=%d", i, labelX, SPB_CIRCLE_D + SPB_LABEL_GAP);
         ESP_LOGI("StepProgressBar", "  step %d: label current size w=%d h=%d, parent=%p", i, lv_obj_get_width(l), lv_obj_get_height(l), lv_obj_get_parent(l));
         lv_obj_set_pos(l, labelX, SPB_CIRCLE_D + SPB_LABEL_GAP);
-        lv_obj_set_size(l, SPB_LABEL_W, 40);
+        lv_obj_set_size(l, SPB_LABEL_W, 50);
         ESP_LOGI("StepProgressBar", "  step %d: new positions - circle(%d,%d) label(%d,%d)", i,
                  lv_obj_get_x(c), lv_obj_get_y(c), lv_obj_get_x(l), lv_obj_get_y(l));
 
@@ -199,7 +199,7 @@ static void spb_set_step(lv_obj_t *spb, int numSteps, int currentStep)
 
     static const lv_color_t COL_DONE = lv_color_hex(0x4CAF50);
     static const lv_color_t COL_ACTIVE = lv_color_hex(0x2196F3);
-    static const lv_color_t COL_PENDING = lv_color_hex(0xBDBDBD);
+    static const lv_color_t COL_PENDING = lv_color_hex(0x555555);
 
     for (int i = 0; i < numSteps; i++)
     {
@@ -215,12 +215,14 @@ static void spb_set_step(lv_obj_t *spb, int numSteps, int currentStep)
         if (done)
         {
             lv_label_set_text(n, LV_SYMBOL_OK);
+            lv_obj_set_style_translate_x(n, -5, LV_PART_MAIN);
         }
         else
         {
             char buf[4];
             snprintf(buf, sizeof(buf), "%d", i + 1);
             lv_label_set_text(n, buf);
+            lv_obj_set_style_translate_x(n, 0, LV_PART_MAIN);
         }
     }
 

@@ -9,10 +9,6 @@
 #include "StepProgressBar.h"
 #include "ui_extensions_internal.h"
 
-// External theme variables (defined elsewhere)
-extern uint32_t theme_colors[1][3];
-extern uint32_t active_theme_index;
-
 // Static member definitions
 Recipe UIExtensionsRecipeSteps::s_currentRecipe{};
 int UIExtensionsRecipeSteps::s_currentPhaseIndex = 0;
@@ -99,8 +95,8 @@ void UIExtensionsRecipeSteps::createRecipeStepsTask()
                 spb_init(objects.step_progress__spb_root, recipe.aggregatedSteps.size(), labels.data());
                 spb_set_step(objects.step_progress__spb_root, recipe.aggregatedSteps.size(), 1);
                 lv_label_set_text(objects.phase_recipe_title, recipe.title.c_str());
-                UIExtensionsRecipeSteps::populatePhaseIngredients(recipe, 0);
-                UIExtensionsRecipeSteps::populatePhaseMethod(recipe, 0);
+                UIExtensionsRecipeSteps::updateUIForCurrentPhase();
+
                 lv_unlock();
             }
             else
@@ -122,6 +118,69 @@ void UIExtensionsRecipeSteps::createRecipeStepsTask()
         nullptr,
         5,
         NULL, tskNO_AFFINITY, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+}
+
+void UIExtensionsRecipeSteps::populatePhaseTitle(const Recipe &recipe, int phaseIndex)
+{
+    if (!objects.recipe_phase_title_txt || !lv_obj_is_valid(objects.recipe_phase_title_txt))
+        return;
+
+    if (phaseIndex < 0 || phaseIndex >= (int)recipe.aggregatedSteps.size())
+    {
+        ESP_LOGE("UIExtensionsRecipeSteps", "Invalid phase index %d, phases=%d", phaseIndex, (int)recipe.aggregatedSteps.size());
+        return;
+    }
+
+    ESP_LOGI("UIExtensionsRecipeSteps", "Populating phase images, phases=%d, index=%d", (int)recipe.aggregatedSteps.size(), phaseIndex);
+    if (!recipe.aggregatedSteps.empty())
+    {
+        ESP_LOGI("UIExtensionsRecipeSteps", "Phase %d '%s' has %d images",
+                 phaseIndex, recipe.aggregatedSteps[phaseIndex].title.c_str(),
+                 (int)recipe.aggregatedSteps[phaseIndex].imageRefs.size());
+    }
+
+    if (!recipe.aggregatedSteps.empty())
+    {
+        const auto &phase = recipe.aggregatedSteps[phaseIndex];
+        lv_label_set_text(objects.recipe_phase_title_txt, phase.title.c_str());
+    }
+}
+
+void UIExtensionsRecipeSteps::populatePhaseImages(const Recipe &recipe, int phaseIndex)
+{
+    if (!objects.recipe_phase_imgs || !lv_obj_is_valid(objects.recipe_phase_imgs))
+        return;
+
+    if (phaseIndex < 0 || phaseIndex >= (int)recipe.aggregatedSteps.size())
+    {
+        ESP_LOGE("UIExtensionsRecipeSteps", "Invalid phase index %d, phases=%d", phaseIndex, (int)recipe.aggregatedSteps.size());
+        return;
+    }
+
+    ESP_LOGI("UIExtensionsRecipeSteps", "Populating phase images, phases=%d, index=%d", (int)recipe.aggregatedSteps.size(), phaseIndex);
+    if (!recipe.aggregatedSteps.empty())
+    {
+        ESP_LOGI("UIExtensionsRecipeSteps", "Phase %d '%s' has %d images",
+                 phaseIndex, recipe.aggregatedSteps[phaseIndex].title.c_str(),
+                 (int)recipe.aggregatedSteps[phaseIndex].imageRefs.size());
+    }
+
+    if (!recipe.aggregatedSteps.empty())
+    {
+        const auto &phase = recipe.aggregatedSteps[phaseIndex];
+        if (!phase.imageRefs.empty())
+        {
+            // TODO: load images from Appwrite Storage using fileId, create LVGL image objects, and add to objects.recipe_phase_imgs
+        }
+        else
+        {
+            lv_obj_add_flag(objects.recipe_phase_imgs, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+    else
+    {
+        lv_obj_add_flag(objects.recipe_phase_imgs, LV_OBJ_FLAG_HIDDEN);
+    }
 }
 
 void UIExtensionsRecipeSteps::populatePhaseIngredients(const Recipe &recipe, int phaseIndex)
@@ -401,6 +460,8 @@ void UIExtensionsRecipeSteps::updateUIForCurrentPhase()
     // lv_label_set_text(objects.phase_recipe_title, s_currentRecipe.title.c_str());
 
     // Repopulate ingredients and method for current phase
+    populatePhaseTitle(s_currentRecipe, s_currentPhaseIndex);
+    populatePhaseImages(s_currentRecipe, s_currentPhaseIndex);
     populatePhaseIngredients(s_currentRecipe, s_currentPhaseIndex);
     populatePhaseMethod(s_currentRecipe, s_currentPhaseIndex);
 }

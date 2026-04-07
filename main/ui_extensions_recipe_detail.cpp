@@ -14,10 +14,6 @@
 static const char *TAG = "UIEXTENSIONS";
 static uint32_t s_current_generation = 0;
 
-// External theme variables (defined elsewhere)
-extern uint32_t theme_colors[1][3];
-extern uint32_t active_theme_index;
-
 // === RECIPE DETAIL SPECIFIC STRUCTS ===
 
 struct DetailFetchCtx

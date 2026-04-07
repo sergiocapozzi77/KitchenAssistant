@@ -16,8 +16,10 @@ private:
 
 public:
     static void createRecipeStepsTask();
+    static void populatePhaseTitle(const Recipe &recipe, int phaseIndex);
     static void populatePhaseIngredients(const Recipe &recipe, int phaseIndex = 0);
     static void populatePhaseMethod(const Recipe &recipe, int phaseIndex = 0);
+    static void populatePhaseImages(const Recipe &recipe, int phaseIndex = 0);
 
     // Phase navigation
     static void setCurrentRecipe(const Recipe &recipe);

@@ -156,6 +156,8 @@ typedef struct _objects_t {
     lv_obj_t *step_progress__spb_circle_12;
     lv_obj_t *step_progress__spb_num_12;
     lv_obj_t *step_progress__spb_label_12;
+    lv_obj_t *recipe_phase_title;
+    lv_obj_t *recipe_phase_title_txt;
     lv_obj_t *recipe_phase_imgs;
     lv_obj_t *recipe_phase_ingredients;
     lv_obj_t *recipe_phase_method;
@@ -199,9 +201,10 @@ enum Colors {
     COLOR_ID_ACCENT,
     COLOR_ID_ACCENT_DARK,
     COLOR_ID_BORDER,
+    COLOR_ID_LIGHT_ACCENT,
 };
 void change_color_theme(uint32_t themeIndex);
-extern uint32_t theme_colors[1][3];
+extern uint32_t theme_colors[1][4];
 extern uint32_t active_theme_index;
 
 #ifdef __cplusplus
