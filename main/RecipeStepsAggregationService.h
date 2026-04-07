@@ -27,7 +27,7 @@ struct RecipeImageRef
 struct RecipePhase
 {
     std::string title;                         // "Prepare the dough"
-    std::string method;                        // combined instruction text
+    std::vector<std::string> method;           // combined instruction text
     std::vector<RecipeIngredient> ingredients; // ingredients used in this phase
     std::vector<RecipeImageRef> imageRefs;     // uploaded images for this phase
 };
@@ -40,8 +40,7 @@ struct Recipe
     std::string prepTime;
     std::string cookTime;
     std::string servings;
-    std::vector<RecipeIngredient> ingredients; // full ingredient list
-    std::vector<RecipePhase> aggregatedSteps;  // grouped phases with images
+    std::vector<RecipePhase> aggregatedSteps; // grouped phases with images
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -54,12 +53,23 @@ public:
     RecipeStepsAggregationService();
 
     /**
-     * Fetch, scrape, process and store a recipe from a URL via the Appwrite function.
+     * Fetch a recipe from a URL. First checks if the recipe is already stored
+     * in the Appwrite database by querying the sourceUrl column.
+     * If found, returns the cached recipe immediately.
+     * Otherwise, invokes the Appwrite function to scrape, process and store
+     * the recipe from the URL.
      * On success, populates outRecipe and returns true.
      * On failure, logs the error and returns false.
      */
     bool getRecipe(const std::string &url, Recipe &outRecipe,
                    int maxWidth = 320, int maxHeight = 240);
+
+    /**
+     * Fetch a recipe from the Appwrite database by searching for the sourceUrl column.
+     * If a matching recipe is found, populates outRecipe and returns true.
+     * If not found or error, returns false.
+     */
+    bool getRecipeFromDatabase(const std::string &url, Recipe &outRecipe);
 
 private:
     const std::string apiKey = APPWRITE_API_KEY;
@@ -68,6 +78,9 @@ private:
     const std::string DatabaseId = "695404ac0021bf7d9707";
     const std::string CollectionId = "products";
     const std::string BarcodeCollectionId = "barcodes";
+    const std::string RecipesCollectionId = RECIPES_COLLECTION_ID;
+    const std::string RecipeDataColumn = "recipe";
+    const std::string SourceUrlColumn = "sourceUrl";
     const std::string functionId = APPWRITE_FUNCTION_ID;
     AppwriteHttpClient _httpClient;
     // Debug helper: log all keys in a cJSON object

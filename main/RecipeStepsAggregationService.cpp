@@ -210,7 +210,21 @@ void RecipeStepsAggregationService::parsePhase(cJSON *item, RecipePhase &out)
     if (!item)
         return;
     out.title = safeString(item, "title");
-    out.method = safeString(item, "method");
+
+    // Parse method in this phase
+    cJSON *methodArr = cJSON_GetObjectItem(item, "method");
+    if (methodArr && cJSON_IsArray(methodArr))
+    {
+        cJSON *item = nullptr;
+        cJSON_ArrayForEach(item, methodArr)
+        {
+            std::string ing = cJSON_IsString(item) ? item->valuestring : "";
+            if (!ing.empty())
+            {
+                out.method.push_back(ing);
+            }
+        }
+    }
 
     // Parse ingredients in this phase
     cJSON *ingredientsArr = cJSON_GetObjectItem(item, "ingredients");
@@ -270,14 +284,6 @@ bool RecipeStepsAggregationService::parseRecipeResponse(
     out.cookTime = safeString(recipe, "cookTime");
     out.servings = safeString(recipe, "servings");
 
-    // Parse full ingredient list
-    cJSON *ingredientsArr = cJSON_GetObjectItem(recipe, "ingredients");
-    if (ingredientsArr && cJSON_IsArray(ingredientsArr))
-    {
-        parseIngredients(ingredientsArr, out.ingredients);
-        ESP_LOGI(TAG, "Parsed %d ingredients", (int)out.ingredients.size());
-    }
-
     // Parse aggregated steps (phases)
     cJSON *phasesArr = cJSON_GetObjectItem(recipe, "aggregatedSteps");
     if (phasesArr && cJSON_IsArray(phasesArr))
@@ -314,6 +320,14 @@ bool RecipeStepsAggregationService::getRecipe(
     }
 
     ESP_LOGI(TAG, "getRecipe: %s", url.c_str());
+
+    // First, try to fetch from database
+    if (getRecipeFromDatabase(url, outRecipe)) {
+        ESP_LOGI(TAG, "Recipe found in database, skipping function execution");
+        return true;
+    }
+
+    ESP_LOGI(TAG, "Recipe not in database, proceeding with function execution");
 
     // ─────────────────────────────────────────
     // 1. ASYNC EXECUTION
@@ -397,4 +411,121 @@ bool RecipeStepsAggregationService::getRecipe(
     ESP_LOGI(TAG, "Sync success: \n%s", syncBody.c_str());
 
     return parseRecipeResponse(syncBody, outRecipe);
+}
+
+// ─────────────────────────────────────────────────────────────
+// Fetch recipe from Appwrite database by sourceUrl
+// ─────────────────────────────────────────────────────────────
+
+bool RecipeStepsAggregationService::getRecipeFromDatabase(const std::string &url, Recipe &outRecipe)
+{
+    if (url.empty())
+    {
+        ESP_LOGE(TAG, "Empty URL provided");
+        return false;
+    }
+
+    ESP_LOGI(TAG, "Fetching recipe from database for URL: %s", url.c_str());
+
+    // Build base URL for recipes collection
+    std::string baseUrl = endpoint + "/tablesdb/" + DatabaseId + "/tables/" + RecipesCollectionId + "/rows";
+
+    // Build equality query for sourceUrl column using cJSON for proper escaping
+    cJSON *query = cJSON_CreateObject();
+    cJSON_AddStringToObject(query, "method", "equal");
+    cJSON_AddStringToObject(query, "attribute", SourceUrlColumn.c_str());
+    cJSON *values = cJSON_CreateArray();
+    cJSON_AddItemToArray(values, cJSON_CreateString(url.c_str()));
+    cJSON_AddItemToObject(query, "values", values);
+    char *queryStr = cJSON_PrintUnformatted(query);
+    std::string queryJson(queryStr);
+    free(queryStr);
+    cJSON_Delete(query);
+    std::string encodedQuery = AppwriteHttpClient::urlEncode(queryJson);
+
+    std::string fullUrl = baseUrl + "?queries[0]=" + encodedQuery;
+
+    int status = -1;
+    std::string response = _httpClient.httpGet(fullUrl, status);
+
+    if (status != 200)
+    {
+        ESP_LOGE(TAG, "Database query failed with status %d", status);
+        return false;
+    }
+
+    cJSON *root = cJSON_Parse(response.c_str());
+    if (!root)
+    {
+        ESP_LOGE(TAG, "Failed to parse response JSON");
+        return false;
+    }
+
+    cJSON *rows = cJSON_GetObjectItem(root, "rows");
+    if (!rows || !cJSON_IsArray(rows) || cJSON_GetArraySize(rows) == 0)
+    {
+        ESP_LOGI(TAG, "No recipe found for URL");
+        cJSON_Delete(root);
+        return false;
+    }
+
+    // Take first matching row
+    cJSON *firstRow = cJSON_GetArrayItem(rows, 0);
+    if (!firstRow)
+    {
+        ESP_LOGE(TAG, "Unexpected null first row");
+        cJSON_Delete(root);
+        return false;
+    }
+
+    // Get document ID
+    outRecipe.documentId = safeString(firstRow, "$id");
+
+    // Get recipe JSON column
+    cJSON *recipeItem = cJSON_GetObjectItem(firstRow, RecipeDataColumn.c_str());
+    if (!recipeItem)
+    {
+        ESP_LOGE(TAG, "Recipe data column '%s' not found", RecipeDataColumn.c_str());
+        cJSON_Delete(root);
+        return false;
+    }
+
+    std::string recipeJson;
+    if (cJSON_IsString(recipeItem))
+    {
+        recipeJson = recipeItem->valuestring;
+    }
+    else if (cJSON_IsObject(recipeItem) || cJSON_IsArray(recipeItem))
+    {
+        char *printed = cJSON_PrintUnformatted(recipeItem);
+        recipeJson = printed;
+        free(printed);
+    }
+    else
+    {
+        ESP_LOGE(TAG, "Recipe data column '%s' is not a string, object, or array", RecipeDataColumn.c_str());
+        cJSON_Delete(root);
+        return false;
+    }
+
+    if (recipeJson.empty())
+    {
+        ESP_LOGE(TAG, "Recipe data column '%s' is empty", RecipeDataColumn.c_str());
+        cJSON_Delete(root);
+        return false;
+    }
+
+    cJSON_Delete(root);
+
+    // Wrap recipe JSON with success wrapper to reuse parseRecipeResponse
+    std::string wrappedJson = "{\"success\":true,\"recipe\":" + recipeJson + "}";
+
+    if (!parseRecipeResponse(wrappedJson, outRecipe))
+    {
+        ESP_LOGE(TAG, "Failed to parse recipe JSON from database");
+        return false;
+    }
+
+    ESP_LOGI(TAG, "Successfully loaded recipe from database: %s", outRecipe.title.c_str());
+    return true;
 }

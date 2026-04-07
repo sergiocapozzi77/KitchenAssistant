@@ -9,6 +9,10 @@
 #include "StepProgressBar.h"
 #include "ui_extensions_internal.h"
 
+// External theme variables (defined elsewhere)
+extern uint32_t theme_colors[1][3];
+extern uint32_t active_theme_index;
+
 // Static member definitions
 Recipe UIExtensionsRecipeSteps::s_currentRecipe{};
 int UIExtensionsRecipeSteps::s_currentPhaseIndex = 0;
@@ -67,11 +71,6 @@ void UIExtensionsRecipeSteps::createRecipeStepsTask()
                          recipeStepsAggregationService.decodeDuration(recipe.prepTime).c_str(),
                          recipeStepsAggregationService.decodeDuration(recipe.cookTime).c_str(),
                          recipe.servings.c_str());
-                ESP_LOGI("GetRecipeTask", "  Ingredients (%d):", (int)recipe.ingredients.size());
-                for (const auto &ing : recipe.ingredients)
-                    ESP_LOGI("GetRecipeTask", "    - %s %s %s%s",
-                             ing.quantity.c_str(), ing.unit.c_str(), ing.name.c_str(),
-                             ing.notes.empty() ? "" : (" (" + ing.notes + ")").c_str());
 
                 ESP_LOGI("GetRecipeTask", "  Phases (%d):", (int)recipe.aggregatedSteps.size());
 
@@ -86,7 +85,11 @@ void UIExtensionsRecipeSteps::createRecipeStepsTask()
                              phase.title.c_str(),
                              (int)phase.ingredients.size(),
                              (int)phase.imageRefs.size());
-                    ESP_LOGI("GetRecipeTask", "    Method: %.120s...", phase.method.c_str());
+                    ESP_LOGI("GetRecipeTask", "    Method steps: %d", (int)phase.method.size());
+                    if (!phase.method.empty())
+                    {
+                        ESP_LOGI("GetRecipeTask", "      - %.120s...", phase.method[0].c_str());
+                    }
                 }
 
                 setCurrentRecipe(recipe);
@@ -264,32 +267,52 @@ void UIExtensionsRecipeSteps::populatePhaseMethod(const Recipe &recipe, int phas
         const auto &phase = recipe.aggregatedSteps[phaseIndex];
         if (!phase.method.empty())
         {
-            // Create a card similar to method steps in recipe detail
-            lv_obj_t *method_card = lv_obj_create(objects.recipe_phase_method);
-            lv_obj_set_width(method_card, lv_pct(100));
-            lv_obj_set_height(method_card, LV_SIZE_CONTENT);
-            lv_obj_clear_flag(method_card, LV_OBJ_FLAG_SCROLLABLE);
-            lv_obj_set_flex_flow(method_card, LV_FLEX_FLOW_COLUMN);
-            lv_obj_set_flex_align(method_card, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-            lv_obj_set_style_pad_all(method_card, 12, 0);
-            lv_obj_set_style_border_width(method_card, 1, 0);
-            lv_obj_set_style_border_color(method_card, lv_color_hex(0xE9ECEF), 0);
-            lv_obj_set_style_radius(method_card, 0, 0); // No rounded corners
-            lv_obj_set_style_bg_color(method_card, lv_color_hex(0xFFFFFF), 0);
-            lv_obj_set_style_bg_opa(method_card, LV_OPA_COVER, 0);
+            int step_num = 1;
+            for (const auto &step : phase.method)
+            {
+                lv_obj_t *step_card = lv_obj_create(objects.recipe_phase_method);
+                lv_obj_set_width(step_card, lv_pct(100));
+                lv_obj_set_height(step_card, LV_SIZE_CONTENT);
+                lv_obj_clear_flag(step_card, LV_OBJ_FLAG_SCROLLABLE);
+                lv_obj_set_flex_flow(step_card, LV_FLEX_FLOW_ROW);
+                lv_obj_set_flex_align(step_card, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+                lv_obj_set_style_pad_all(step_card, 12, 0);
+                lv_obj_set_style_pad_column(step_card, 12, 0);
+                lv_obj_set_style_border_width(step_card, 1, 0);
+                lv_obj_set_style_border_color(step_card, lv_color_hex(0xE9ECEF), 0);
+                lv_obj_set_style_radius(step_card, 0, 0); // No rounded corners
+                lv_obj_set_style_bg_color(step_card, lv_color_hex(0xFFFFFF), 0);
+                lv_obj_set_style_bg_opa(step_card, LV_OPA_COVER, 0);
 
-            // Method label inside card
-            lv_obj_t *lbl = lv_label_create(method_card);
-            lv_label_set_text(lbl, phase.method.c_str());
-            lv_label_set_long_mode(lbl, LV_LABEL_LONG_WRAP);
-            lv_obj_set_width(lbl, lv_pct(100));
-            lv_obj_set_style_text_font(lbl, &ui_font_ext_font_montserrat_18, 0);
-            lv_obj_set_style_text_color(lbl, lv_color_hex(0x212529), 0);
-            lv_obj_set_style_text_line_space(lbl, 6, 0); // Line spacing for readability
-            lv_obj_set_style_pad_top(lbl, 0, 0);
-            lv_obj_set_style_pad_bottom(lbl, 0, 0);
-            lv_obj_set_style_pad_left(lbl, 0, 0);
-            lv_obj_set_style_pad_right(lbl, 0, 0);
+                // Step number circle
+                lv_obj_t *num_cont = lv_obj_create(step_card);
+                lv_obj_set_size(num_cont, 32, 32);
+                lv_obj_clear_flag(num_cont, LV_OBJ_FLAG_SCROLLABLE);
+                lv_obj_set_style_radius(num_cont, LV_RADIUS_CIRCLE, 0);
+                lv_obj_set_style_bg_color(num_cont, lv_color_hex(theme_colors[active_theme_index][0]), 0);
+                lv_obj_set_style_bg_opa(num_cont, LV_OPA_COVER, 0);
+                lv_obj_set_style_border_width(num_cont, 0, 0);
+                lv_obj_set_style_pad_all(num_cont, 0, 0);
+                lv_obj_set_flex_flow(num_cont, LV_FLEX_FLOW_ROW);
+                lv_obj_set_flex_align(num_cont, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+
+                lv_obj_t *num_lbl = lv_label_create(num_cont);
+                char nbuf[8];
+                snprintf(nbuf, sizeof(nbuf), "%d", step_num++);
+                lv_label_set_text(num_lbl, nbuf);
+                lv_obj_set_style_text_color(num_lbl, lv_color_white(), 0);
+                lv_obj_set_style_text_font(num_lbl, &lv_font_montserrat_16, 0);
+
+                lv_obj_t *text_lbl = lv_label_create(step_card);
+                lv_label_set_text(text_lbl, step.c_str());
+                lv_label_set_long_mode(text_lbl, LV_LABEL_LONG_WRAP);
+                lv_obj_set_flex_grow(text_lbl, 1);
+                lv_obj_set_style_text_font(text_lbl, &ui_font_ext_font_montserrat_18, 0);
+                lv_obj_set_style_text_color(text_lbl, lv_color_hex(0x212529), 0);
+                lv_obj_set_style_text_line_space(text_lbl, 6, 0); // Line spacing for readability
+                lv_obj_set_style_pad_all(text_lbl, 0, 0);
+                vTaskDelay(pdMS_TO_TICKS(10));
+            }
         }
         else
         {
@@ -326,14 +349,17 @@ void UIExtensionsRecipeSteps::setCurrentRecipe(const Recipe &recipe)
 
 int UIExtensionsRecipeSteps::getPhaseCount()
 {
-    if (!s_hasRecipe) return 0;
+    if (!s_hasRecipe)
+        return 0;
     return (int)s_currentRecipe.aggregatedSteps.size();
 }
 
 void UIExtensionsRecipeSteps::navigateToPhase(int index)
 {
-    if (!s_hasRecipe) return;
-    if (index < 0 || index >= (int)s_currentRecipe.aggregatedSteps.size()) return;
+    if (!s_hasRecipe)
+        return;
+    if (index < 0 || index >= (int)s_currentRecipe.aggregatedSteps.size())
+        return;
 
     lv_lock();
     s_currentPhaseIndex = index;
@@ -344,7 +370,8 @@ void UIExtensionsRecipeSteps::navigateToPhase(int index)
 
 void UIExtensionsRecipeSteps::navigateNext()
 {
-    if (!s_hasRecipe) return;
+    if (!s_hasRecipe)
+        return;
     int next = s_currentPhaseIndex + 1;
     if (next < (int)s_currentRecipe.aggregatedSteps.size())
         navigateToPhase(next);
@@ -352,7 +379,8 @@ void UIExtensionsRecipeSteps::navigateNext()
 
 void UIExtensionsRecipeSteps::navigatePrev()
 {
-    if (!s_hasRecipe) return;
+    if (!s_hasRecipe)
+        return;
     int prev = s_currentPhaseIndex - 1;
     if (prev >= 0)
         navigateToPhase(prev);
@@ -360,7 +388,8 @@ void UIExtensionsRecipeSteps::navigatePrev()
 
 void UIExtensionsRecipeSteps::updateUIForCurrentPhase()
 {
-    if (!s_hasRecipe) return;
+    if (!s_hasRecipe)
+        return;
 
     // Update step progress bar
     if (objects.step_progress__spb_root && lv_obj_is_valid(objects.step_progress__spb_root))

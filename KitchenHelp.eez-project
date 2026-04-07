@@ -4746,6 +4746,7 @@
                   "heightUnit": "px",
                   "children": [],
                   "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+                  "hiddenFlag": false,
                   "hiddenFlagType": "literal",
                   "clickableFlag": true,
                   "clickableFlagType": "literal",
@@ -4797,7 +4798,6 @@
                   "clickableFlag": true,
                   "clickableFlagType": "literal",
                   "flagScrollbarMode": "",
-                  "flagScrollDirection": "hor",
                   "scrollSnapX": "",
                   "scrollSnapY": "",
                   "checkedStateType": "literal",
@@ -4812,7 +4812,8 @@
                           "pad_top": 20,
                           "pad_bottom": 20,
                           "pad_left": 20,
-                          "pad_right": 20
+                          "pad_right": 20,
+                          "margin_bottom": 20
                         }
                       }
                     }
@@ -4859,7 +4860,11 @@
                     "definition": {
                       "MAIN": {
                         "DEFAULT": {
-                          "grid_cell_row_pos": 4
+                          "grid_cell_row_pos": 4,
+                          "pad_top": 20,
+                          "pad_bottom": 20,
+                          "pad_left": 20,
+                          "pad_right": 20
                         }
                       }
                     }
@@ -7038,6 +7043,7 @@
               "heightUnit": "px",
               "children": [],
               "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+              "hiddenFlag": true,
               "hiddenFlagType": "literal",
               "clickableFlagType": "literal",
               "flagScrollbarMode": "",
@@ -7069,9 +7075,9 @@
               "objID": "SPB-TL1",
               "type": "LVGLLabelWidget",
               "left": -20,
-              "top": 24,
+              "top": 29,
               "width": 120,
-              "height": 40,
+              "height": 50,
               "customInputs": [],
               "customOutputs": [],
               "style": {
@@ -7104,7 +7110,7 @@
                   "MAIN": {
                     "DEFAULT": {
                       "align": "CENTER",
-                      "text_font": "MONTSERRAT_14",
+                      "text_font": "ext_font_montserrat_18",
                       "text_color": "#212121"
                     }
                   }
@@ -7112,7 +7118,7 @@
               },
               "group": "",
               "groupIndex": 0,
-              "text": "Prepare the",
+              "text": "Prepare the hj  hj k jk ",
               "textType": "literal",
               "longMode": "WRAP",
               "recolor": false
@@ -7190,6 +7196,7 @@
               "heightUnit": "px",
               "children": [],
               "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+              "hiddenFlag": true,
               "hiddenFlagType": "literal",
               "clickableFlagType": "literal",
               "flagScrollbarMode": "",
@@ -7224,7 +7231,7 @@
               "left": 14,
               "top": 24,
               "width": 60,
-              "height": 40,
+              "height": 50,
               "customInputs": [],
               "customOutputs": [],
               "style": {
@@ -7257,8 +7264,9 @@
                   "MAIN": {
                     "DEFAULT": {
                       "align": "CENTER",
-                      "text_font": "MONTSERRAT_14",
-                      "text_color": "#212121"
+                      "text_font": "ext_font_montserrat_18",
+                      "text_color": "#212121",
+                      "text_align": "CENTER"
                     }
                   }
                 }
@@ -7343,6 +7351,7 @@
               "heightUnit": "px",
               "children": [],
               "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+              "hiddenFlag": true,
               "hiddenFlagType": "literal",
               "clickableFlagType": "literal",
               "flagScrollbarMode": "",
@@ -7377,7 +7386,7 @@
               "left": 48,
               "top": 24,
               "width": 60,
-              "height": 40,
+              "height": 50,
               "customInputs": [],
               "customOutputs": [],
               "style": {
@@ -7410,8 +7419,9 @@
                   "MAIN": {
                     "DEFAULT": {
                       "align": "CENTER",
-                      "text_font": "MONTSERRAT_14",
-                      "text_color": "#212121"
+                      "text_font": "ext_font_montserrat_18",
+                      "text_color": "#212121",
+                      "text_align": "CENTER"
                     }
                   }
                 }
@@ -7496,6 +7506,7 @@
               "heightUnit": "px",
               "children": [],
               "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+              "hiddenFlag": true,
               "hiddenFlagType": "literal",
               "clickableFlagType": "literal",
               "flagScrollbarMode": "",
@@ -7530,7 +7541,7 @@
               "left": 82,
               "top": 24,
               "width": 60,
-              "height": 40,
+              "height": 50,
               "customInputs": [],
               "customOutputs": [],
               "style": {
@@ -7563,8 +7574,9 @@
                   "MAIN": {
                     "DEFAULT": {
                       "align": "CENTER",
-                      "text_font": "MONTSERRAT_14",
-                      "text_color": "#212121"
+                      "text_font": "ext_font_montserrat_18",
+                      "text_color": "#212121",
+                      "text_align": "CENTER"
                     }
                   }
                 }
@@ -7649,6 +7661,7 @@
               "heightUnit": "px",
               "children": [],
               "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+              "hiddenFlag": true,
               "hiddenFlagType": "literal",
               "clickableFlagType": "literal",
               "flagScrollbarMode": "",
@@ -7683,7 +7696,7 @@
               "left": 116,
               "top": 24,
               "width": 60,
-              "height": 40,
+              "height": 50,
               "customInputs": [],
               "customOutputs": [],
               "style": {
@@ -7716,8 +7729,9 @@
                   "MAIN": {
                     "DEFAULT": {
                       "align": "CENTER",
-                      "text_font": "MONTSERRAT_14",
-                      "text_color": "#212121"
+                      "text_font": "ext_font_montserrat_18",
+                      "text_color": "#212121",
+                      "text_align": "CENTER"
                     }
                   }
                 }
@@ -7802,6 +7816,7 @@
               "heightUnit": "px",
               "children": [],
               "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+              "hiddenFlag": true,
               "hiddenFlagType": "literal",
               "clickableFlagType": "literal",
               "flagScrollbarMode": "",
@@ -7836,7 +7851,7 @@
               "left": 149,
               "top": 24,
               "width": 60,
-              "height": 40,
+              "height": 50,
               "customInputs": [],
               "customOutputs": [],
               "style": {
@@ -7869,8 +7884,9 @@
                   "MAIN": {
                     "DEFAULT": {
                       "align": "CENTER",
-                      "text_font": "MONTSERRAT_14",
-                      "text_color": "#212121"
+                      "text_font": "ext_font_montserrat_18",
+                      "text_color": "#212121",
+                      "text_align": "CENTER"
                     }
                   }
                 }
@@ -7955,6 +7971,7 @@
               "heightUnit": "px",
               "children": [],
               "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+              "hiddenFlag": true,
               "hiddenFlagType": "literal",
               "clickableFlagType": "literal",
               "flagScrollbarMode": "",
@@ -7989,7 +8006,7 @@
               "left": 183,
               "top": 24,
               "width": 60,
-              "height": 40,
+              "height": 50,
               "customInputs": [],
               "customOutputs": [],
               "style": {
@@ -8022,8 +8039,9 @@
                   "MAIN": {
                     "DEFAULT": {
                       "align": "CENTER",
-                      "text_font": "MONTSERRAT_14",
-                      "text_color": "#212121"
+                      "text_font": "ext_font_montserrat_18",
+                      "text_color": "#212121",
+                      "text_align": "CENTER"
                     }
                   }
                 }
@@ -8108,6 +8126,7 @@
               "heightUnit": "px",
               "children": [],
               "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+              "hiddenFlag": true,
               "hiddenFlagType": "literal",
               "clickableFlagType": "literal",
               "flagScrollbarMode": "",
@@ -8142,7 +8161,7 @@
               "left": 217,
               "top": 24,
               "width": 60,
-              "height": 40,
+              "height": 50,
               "customInputs": [],
               "customOutputs": [],
               "style": {
@@ -8175,8 +8194,9 @@
                   "MAIN": {
                     "DEFAULT": {
                       "align": "CENTER",
-                      "text_font": "MONTSERRAT_14",
-                      "text_color": "#212121"
+                      "text_font": "ext_font_montserrat_18",
+                      "text_color": "#212121",
+                      "text_align": "CENTER"
                     }
                   }
                 }
@@ -8261,6 +8281,7 @@
               "heightUnit": "px",
               "children": [],
               "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+              "hiddenFlag": true,
               "hiddenFlagType": "literal",
               "clickableFlagType": "literal",
               "flagScrollbarMode": "",
@@ -8295,7 +8316,7 @@
               "left": 251,
               "top": 24,
               "width": 60,
-              "height": 40,
+              "height": 50,
               "customInputs": [],
               "customOutputs": [],
               "style": {
@@ -8328,8 +8349,9 @@
                   "MAIN": {
                     "DEFAULT": {
                       "align": "CENTER",
-                      "text_font": "MONTSERRAT_14",
-                      "text_color": "#212121"
+                      "text_font": "ext_font_montserrat_18",
+                      "text_color": "#212121",
+                      "text_align": "CENTER"
                     }
                   }
                 }
@@ -8414,6 +8436,7 @@
               "heightUnit": "px",
               "children": [],
               "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+              "hiddenFlag": true,
               "hiddenFlagType": "literal",
               "clickableFlagType": "literal",
               "flagScrollbarMode": "",
@@ -8448,7 +8471,7 @@
               "left": 285,
               "top": 24,
               "width": 60,
-              "height": 40,
+              "height": 50,
               "customInputs": [],
               "customOutputs": [],
               "style": {
@@ -8481,8 +8504,9 @@
                   "MAIN": {
                     "DEFAULT": {
                       "align": "CENTER",
-                      "text_font": "MONTSERRAT_14",
-                      "text_color": "#212121"
+                      "text_font": "ext_font_montserrat_18",
+                      "text_color": "#212121",
+                      "text_align": "CENTER"
                     }
                   }
                 }
@@ -8567,6 +8591,7 @@
               "heightUnit": "px",
               "children": [],
               "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+              "hiddenFlag": true,
               "hiddenFlagType": "literal",
               "clickableFlagType": "literal",
               "flagScrollbarMode": "",
@@ -8601,7 +8626,7 @@
               "left": 318,
               "top": 24,
               "width": 60,
-              "height": 40,
+              "height": 50,
               "customInputs": [],
               "customOutputs": [],
               "style": {
@@ -8634,8 +8659,9 @@
                   "MAIN": {
                     "DEFAULT": {
                       "align": "CENTER",
-                      "text_font": "MONTSERRAT_14",
-                      "text_color": "#212121"
+                      "text_font": "ext_font_montserrat_18",
+                      "text_color": "#212121",
+                      "text_align": "CENTER"
                     }
                   }
                 }
@@ -8720,6 +8746,7 @@
               "heightUnit": "px",
               "children": [],
               "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+              "hiddenFlag": true,
               "hiddenFlagType": "literal",
               "clickableFlagType": "literal",
               "flagScrollbarMode": "",
@@ -8754,7 +8781,7 @@
               "left": 352,
               "top": 24,
               "width": 60,
-              "height": 40,
+              "height": 50,
               "customInputs": [],
               "customOutputs": [],
               "style": {
@@ -8787,8 +8814,9 @@
                   "MAIN": {
                     "DEFAULT": {
                       "align": "CENTER",
-                      "text_font": "MONTSERRAT_14",
-                      "text_color": "#212121"
+                      "text_font": "ext_font_montserrat_18",
+                      "text_color": "#212121",
+                      "text_align": "CENTER"
                     }
                   }
                 }
@@ -8835,7 +8863,7 @@
       "left": 0,
       "top": 0,
       "width": 800,
-      "height": 90,
+      "height": 110,
       "isUsedAsUserWidget": true,
       "createAtStart": true,
       "deleteOnScreenUnload": false
