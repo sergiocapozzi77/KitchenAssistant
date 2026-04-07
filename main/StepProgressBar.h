@@ -139,7 +139,7 @@ static void spb_init(lv_obj_t *spb, int numSteps, const char *labels[])
         // Number is centered on the circle
         ESP_LOGI("StepProgressBar", "  step %d: setting number position cx=%d", i, cx);
         ESP_LOGI("StepProgressBar", "  step %d: number current size w=%d h=%d, parent=%p", i, lv_obj_get_width(n), lv_obj_get_height(n), lv_obj_get_parent(n));
-        lv_obj_set_pos(n, cx, 0);
+        lv_obj_set_pos(n, cx + 6, 5);
         lv_obj_set_size(n, SPB_CIRCLE_D, SPB_CIRCLE_D);
         // Verify position was set
         int actualNX = lv_obj_get_x(n);

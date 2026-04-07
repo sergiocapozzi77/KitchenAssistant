@@ -1209,7 +1209,7 @@ void create_screen_recipe_phase() {
                     lv_obj_t *obj = lv_obj_create(parent_obj);
                     objects.step_progress = obj;
                     lv_obj_set_pos(obj, 8, 25);
-                    lv_obj_set_size(obj, LV_PCT(100), 90);
+                    lv_obj_set_size(obj, LV_PCT(100), 125);
                     lv_obj_set_style_pad_left(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_pad_top(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_pad_right(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -1795,6 +1795,7 @@ void create_user_widget_step_progress_bar(lv_obj_t *parent_obj, int startWidgetI
                     lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
                     lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_text_font(obj, &lv_font_montserrat_16, LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_obj_set_style_text_color(obj, lv_color_hex(0xffffffff), LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_label_set_text(obj, "1");
                 }
                 {
