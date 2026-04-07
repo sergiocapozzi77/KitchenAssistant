@@ -156,6 +156,12 @@ typedef struct _objects_t {
     lv_obj_t *step_progress__spb_circle_12;
     lv_obj_t *step_progress__spb_num_12;
     lv_obj_t *step_progress__spb_label_12;
+    lv_obj_t *recipe_phase_imgs;
+    lv_obj_t *recipe_phase_ingredients;
+    lv_obj_t *recipe_phase_method;
+    lv_obj_t *recipe_phase_footer;
+    lv_obj_t *recipe_phase_next;
+    lv_obj_t *recipe_phase_prev;
     lv_obj_t *phase_detail_spinner;
 } objects_t;
 

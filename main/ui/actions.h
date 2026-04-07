@@ -28,6 +28,8 @@ extern void action_update_recipes_from_filter_panel(lv_event_t * e);
 extern void action_favourites_next(lv_event_t * e);
 extern void action_favourites_prev(lv_event_t * e);
 extern void action_create_recipe_steps_click(lv_event_t * e);
+extern void action_recipe_phase_next(lv_event_t * e);
+extern void action_recipe_phase_prev(lv_event_t * e);
 
 #ifdef __cplusplus
 }

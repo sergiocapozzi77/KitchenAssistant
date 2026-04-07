@@ -127,7 +127,6 @@
                   "type": "tabset",
                   "id": "#b72c0808-5062-4fa9-921b-7cce841c406f",
                   "weight": 1,
-                  "selected": 1,
                   "enableClose": false,
                   "children": [
                     {
@@ -194,7 +193,6 @@
               "type": "tabset",
               "id": "EDITORS",
               "weight": 48.879102867338894,
-              "selected": 1,
               "enableDeleteWhenEmpty": false,
               "enableClose": false,
               "children": [
@@ -1237,11 +1235,21 @@
     },
     "[KitchenHelp.eez-project]:/userPages/2[flow-state]": {
       "selectionFront": {},
-      "selectionBack": {},
+      "selectionBack": {
+        "0": {
+          "0": {
+            "1": {
+              "$selected": true
+            },
+            "2": {},
+            "3": {}
+          }
+        }
+      },
       "transform": {
         "translate": {
           "x": -291.6666675673589,
-          "y": -381.3889155917697
+          "y": -181.38891559176977
         },
         "scale": 0.75
       },
@@ -1262,7 +1270,7 @@
       "transform": {
         "translate": {
           "x": -200,
-          "y": -26
+          "y": 74
         },
         "scale": 0.75
       },

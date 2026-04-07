@@ -553,6 +553,21 @@ void action_create_recipe_steps_click(lv_event_t *e)
     lv_obj_clear_flag(objects.phase_detail_spinner, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(objects.step_progress, LV_OBJ_FLAG_HIDDEN);
 
+    // Disable navigation buttons until recipe is loaded
+    lv_lock();
+    UIExtensionsRecipeSteps::updatePhaseNavigationButtons();
+    lv_unlock();
+
     // Delegate the task creation to the new class method
     UIExtensionsRecipeSteps::createRecipeStepsTask();
+}
+
+void action_recipe_phase_next(lv_event_t *e)
+{
+    UIExtensionsRecipeSteps::navigateNext();
+}
+
+void action_recipe_phase_prev(lv_event_t *e)
+{
+    UIExtensionsRecipeSteps::navigatePrev();
 }

@@ -299,6 +299,24 @@
       "componentGroups": [],
       "userProperties": [],
       "name": "CreateRecipeStepsClick"
+    },
+    {
+      "objID": "f842ec30-400d-4135-aed7-17aeea1810d5",
+      "components": [],
+      "connectionLines": [],
+      "localVariables": [],
+      "componentGroups": [],
+      "userProperties": [],
+      "name": "RecipePhaseNext"
+    },
+    {
+      "objID": "b21078f9-bd0f-4238-c479-c5f6845e63e2",
+      "components": [],
+      "connectionLines": [],
+      "localVariables": [],
+      "componentGroups": [],
+      "userProperties": [],
+      "name": "RecipePhasePrev"
     }
   ],
   "userPages": [
@@ -4658,7 +4676,7 @@
                   "left": 8,
                   "top": 25,
                   "width": 100,
-                  "height": 56,
+                  "height": 90,
                   "customInputs": [],
                   "customOutputs": [],
                   "style": {
@@ -4703,6 +4721,397 @@
                     "objID": "e4a25f54-5b1a-4ce3-9079-bc05c3c30700",
                     "values": {}
                   }
+                },
+                {
+                  "objID": "302b35a7-b24f-4bec-d172-450e4ede0a62",
+                  "type": "LVGLContainerWidget",
+                  "left": 0,
+                  "top": 0,
+                  "width": 100,
+                  "height": 220,
+                  "customInputs": [],
+                  "customOutputs": [],
+                  "style": {
+                    "objID": "c15d30b1-29d0-4c10-8803-2b16db1f1bdb",
+                    "useStyle": "default",
+                    "conditionalStyles": [],
+                    "childStyles": []
+                  },
+                  "timeline": [],
+                  "eventHandlers": [],
+                  "identifier": "recipe_phase_imgs",
+                  "leftUnit": "px",
+                  "topUnit": "px",
+                  "widthUnit": "%",
+                  "heightUnit": "px",
+                  "children": [],
+                  "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+                  "hiddenFlagType": "literal",
+                  "clickableFlag": true,
+                  "clickableFlagType": "literal",
+                  "flagScrollbarMode": "",
+                  "flagScrollDirection": "hor",
+                  "scrollSnapX": "",
+                  "scrollSnapY": "",
+                  "checkedStateType": "literal",
+                  "disabledStateType": "literal",
+                  "states": "",
+                  "localStyles": {
+                    "objID": "5d5894b2-a84e-46e9-d59f-f69d2c1af39e",
+                    "definition": {
+                      "MAIN": {
+                        "DEFAULT": {
+                          "grid_cell_row_pos": 2
+                        }
+                      }
+                    }
+                  },
+                  "group": "",
+                  "groupIndex": 0
+                },
+                {
+                  "objID": "eba81a20-c216-4d99-803a-df8c9404c799",
+                  "type": "LVGLContainerWidget",
+                  "left": 0,
+                  "top": 0,
+                  "width": 100,
+                  "height": 274,
+                  "customInputs": [],
+                  "customOutputs": [],
+                  "style": {
+                    "objID": "ea22eaf0-9ca3-4157-b15c-2951ca646b4c",
+                    "useStyle": "default",
+                    "conditionalStyles": [],
+                    "childStyles": []
+                  },
+                  "timeline": [],
+                  "eventHandlers": [],
+                  "identifier": "recipe_phase_ingredients",
+                  "leftUnit": "px",
+                  "topUnit": "px",
+                  "widthUnit": "%",
+                  "heightUnit": "px",
+                  "children": [],
+                  "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+                  "hiddenFlagType": "literal",
+                  "clickableFlag": true,
+                  "clickableFlagType": "literal",
+                  "flagScrollbarMode": "",
+                  "flagScrollDirection": "hor",
+                  "scrollSnapX": "",
+                  "scrollSnapY": "",
+                  "checkedStateType": "literal",
+                  "disabledStateType": "literal",
+                  "states": "",
+                  "localStyles": {
+                    "objID": "0f45edc8-83d1-41f1-a441-71c729e9d8fc",
+                    "definition": {
+                      "MAIN": {
+                        "DEFAULT": {
+                          "grid_cell_row_pos": 3,
+                          "pad_top": 20,
+                          "pad_bottom": 20,
+                          "pad_left": 20,
+                          "pad_right": 20
+                        }
+                      }
+                    }
+                  },
+                  "group": "",
+                  "groupIndex": 0
+                },
+                {
+                  "objID": "a47f534a-605b-474f-9740-4ba5486905fb",
+                  "type": "LVGLContainerWidget",
+                  "left": 0,
+                  "top": 0,
+                  "width": 100,
+                  "height": 573,
+                  "customInputs": [],
+                  "customOutputs": [],
+                  "style": {
+                    "objID": "a94d0649-a05b-4b19-c472-01e35a444d8c",
+                    "useStyle": "default",
+                    "conditionalStyles": [],
+                    "childStyles": []
+                  },
+                  "timeline": [],
+                  "eventHandlers": [],
+                  "identifier": "recipe_phase_method",
+                  "leftUnit": "px",
+                  "topUnit": "px",
+                  "widthUnit": "%",
+                  "heightUnit": "px",
+                  "children": [],
+                  "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+                  "hiddenFlagType": "literal",
+                  "clickableFlag": true,
+                  "clickableFlagType": "literal",
+                  "flagScrollbarMode": "",
+                  "flagScrollDirection": "hor",
+                  "scrollSnapX": "",
+                  "scrollSnapY": "",
+                  "checkedStateType": "literal",
+                  "disabledStateType": "literal",
+                  "states": "",
+                  "localStyles": {
+                    "objID": "0e9faa88-6f5d-4922-db3e-8b6eb7cfe2d0",
+                    "definition": {
+                      "MAIN": {
+                        "DEFAULT": {
+                          "grid_cell_row_pos": 4
+                        }
+                      }
+                    }
+                  },
+                  "group": "",
+                  "groupIndex": 0
+                },
+                {
+                  "objID": "85a41bb6-a48e-4652-9d5b-063c707b5471",
+                  "type": "LVGLContainerWidget",
+                  "left": 0,
+                  "top": -11,
+                  "width": 100,
+                  "height": 67,
+                  "customInputs": [],
+                  "customOutputs": [],
+                  "style": {
+                    "objID": "db2429fc-e983-40cf-d3bd-4e86774dd37e",
+                    "useStyle": "default",
+                    "conditionalStyles": [],
+                    "childStyles": []
+                  },
+                  "timeline": [],
+                  "eventHandlers": [],
+                  "identifier": "recipe_phase_footer",
+                  "leftUnit": "px",
+                  "topUnit": "px",
+                  "widthUnit": "%",
+                  "heightUnit": "px",
+                  "children": [
+                    {
+                      "objID": "d7c41db0-fab4-4514-f299-a3165746b12f",
+                      "type": "LVGLButtonWidget",
+                      "left": 461,
+                      "top": 9,
+                      "width": 100,
+                      "height": 50,
+                      "customInputs": [],
+                      "customOutputs": [],
+                      "style": {
+                        "objID": "035b35dd-4e4d-4253-aebb-6a4be2b7a515",
+                        "useStyle": "default",
+                        "conditionalStyles": [],
+                        "childStyles": []
+                      },
+                      "timeline": [],
+                      "eventHandlers": [
+                        {
+                          "objID": "74303e74-d449-4280-e425-36c3cd598297",
+                          "eventName": "CLICKED",
+                          "handlerType": "action",
+                          "action": "RecipePhaseNext",
+                          "userData": 0
+                        }
+                      ],
+                      "identifier": "recipe_phase_next",
+                      "leftUnit": "px",
+                      "topUnit": "px",
+                      "widthUnit": "px",
+                      "heightUnit": "px",
+                      "children": [
+                        {
+                          "objID": "74d34b02-8ce2-423b-bbb7-9bbe54cd5b79",
+                          "type": "LVGLLabelWidget",
+                          "left": 0,
+                          "top": 0,
+                          "width": 70,
+                          "height": 29,
+                          "customInputs": [],
+                          "customOutputs": [],
+                          "style": {
+                            "objID": "808fe7f0-8b8b-4b48-f64a-c1b0f76ad03a",
+                            "useStyle": "default",
+                            "conditionalStyles": [],
+                            "childStyles": []
+                          },
+                          "timeline": [],
+                          "eventHandlers": [],
+                          "leftUnit": "px",
+                          "topUnit": "px",
+                          "widthUnit": "content",
+                          "heightUnit": "content",
+                          "children": [],
+                          "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+                          "hiddenFlagType": "literal",
+                          "clickableFlagType": "literal",
+                          "flagScrollbarMode": "",
+                          "flagScrollDirection": "",
+                          "scrollSnapX": "",
+                          "scrollSnapY": "",
+                          "checkedStateType": "literal",
+                          "disabledStateType": "literal",
+                          "states": "",
+                          "localStyles": {
+                            "objID": "0fe38d24-e227-468f-a076-36789c8a5562",
+                            "definition": {
+                              "MAIN": {
+                                "DEFAULT": {
+                                  "align": "CENTER"
+                                }
+                              }
+                            }
+                          },
+                          "group": "",
+                          "groupIndex": 0,
+                          "text": "NEXT",
+                          "textType": "literal",
+                          "longMode": "WRAP",
+                          "recolor": false
+                        }
+                      ],
+                      "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_ON_FOCUS|SCROLL_WITH_ARROW|SNAPPABLE",
+                      "hiddenFlagType": "literal",
+                      "clickableFlag": true,
+                      "clickableFlagType": "literal",
+                      "flagScrollbarMode": "",
+                      "flagScrollDirection": "",
+                      "scrollSnapX": "",
+                      "scrollSnapY": "",
+                      "checkedStateType": "literal",
+                      "disabledStateType": "literal",
+                      "states": "",
+                      "useStyle": "MainButton",
+                      "localStyles": {
+                        "objID": "c1f2f8de-a6d0-46d8-9b0e-f1ae00d369b7"
+                      },
+                      "group": "",
+                      "groupIndex": 0
+                    },
+                    {
+                      "objID": "eaba088a-8030-439c-a4fa-19b3faef317e",
+                      "type": "LVGLButtonWidget",
+                      "left": 247,
+                      "top": 9,
+                      "width": 100,
+                      "height": 50,
+                      "customInputs": [],
+                      "customOutputs": [],
+                      "style": {
+                        "objID": "5c8fec8f-f096-4911-860a-4e1e10055d07",
+                        "useStyle": "default",
+                        "conditionalStyles": [],
+                        "childStyles": []
+                      },
+                      "timeline": [],
+                      "eventHandlers": [
+                        {
+                          "objID": "c11710b4-e6d2-4a6b-bfed-a21f66fad49d",
+                          "eventName": "CLICKED",
+                          "handlerType": "action",
+                          "action": "RecipePhasePrev",
+                          "userData": 0
+                        }
+                      ],
+                      "identifier": "recipe_phase_prev",
+                      "leftUnit": "px",
+                      "topUnit": "px",
+                      "widthUnit": "px",
+                      "heightUnit": "px",
+                      "children": [
+                        {
+                          "objID": "9064ff6a-8b61-400b-c46f-527609ca091a",
+                          "type": "LVGLLabelWidget",
+                          "left": 0,
+                          "top": 0,
+                          "width": 74,
+                          "height": 29,
+                          "customInputs": [],
+                          "customOutputs": [],
+                          "style": {
+                            "objID": "6d0e5eae-185c-42d8-8011-d945ab83146d",
+                            "useStyle": "default",
+                            "conditionalStyles": [],
+                            "childStyles": []
+                          },
+                          "timeline": [],
+                          "eventHandlers": [],
+                          "leftUnit": "px",
+                          "topUnit": "px",
+                          "widthUnit": "content",
+                          "heightUnit": "content",
+                          "children": [],
+                          "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+                          "hiddenFlagType": "literal",
+                          "clickableFlagType": "literal",
+                          "flagScrollbarMode": "",
+                          "flagScrollDirection": "",
+                          "scrollSnapX": "",
+                          "scrollSnapY": "",
+                          "checkedStateType": "literal",
+                          "disabledStateType": "literal",
+                          "states": "",
+                          "localStyles": {
+                            "objID": "8bae8351-cc8b-4fed-aa8a-1e7ab94bbe74",
+                            "definition": {
+                              "MAIN": {
+                                "DEFAULT": {
+                                  "align": "CENTER"
+                                }
+                              }
+                            }
+                          },
+                          "group": "",
+                          "groupIndex": 0,
+                          "text": "PREV",
+                          "textType": "literal",
+                          "longMode": "WRAP",
+                          "recolor": false
+                        }
+                      ],
+                      "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_ON_FOCUS|SCROLL_WITH_ARROW|SNAPPABLE",
+                      "hiddenFlagType": "literal",
+                      "clickableFlag": true,
+                      "clickableFlagType": "literal",
+                      "flagScrollbarMode": "",
+                      "flagScrollDirection": "",
+                      "scrollSnapX": "",
+                      "scrollSnapY": "",
+                      "checkedStateType": "literal",
+                      "disabledStateType": "literal",
+                      "states": "",
+                      "useStyle": "MainButton",
+                      "localStyles": {
+                        "objID": "514be6d5-fba5-478c-93c8-65e3e35c8534"
+                      },
+                      "group": "",
+                      "groupIndex": 0
+                    }
+                  ],
+                  "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+                  "hiddenFlagType": "literal",
+                  "clickableFlag": true,
+                  "clickableFlagType": "literal",
+                  "flagScrollbarMode": "",
+                  "flagScrollDirection": "hor",
+                  "scrollSnapX": "",
+                  "scrollSnapY": "",
+                  "checkedStateType": "literal",
+                  "disabledStateType": "literal",
+                  "states": "",
+                  "localStyles": {
+                    "objID": "24412e8b-14db-4498-f56e-5827c8090d5a",
+                    "definition": {
+                      "MAIN": {
+                        "DEFAULT": {
+                          "grid_cell_row_pos": 5
+                        }
+                      }
+                    }
+                  },
+                  "group": "",
+                  "groupIndex": 0
                 },
                 {
                   "objID": "recipe-phase-obj-0018",
@@ -4777,7 +5186,7 @@
                   "MAIN": {
                     "DEFAULT": {
                       "layout": "GRID",
-                      "grid_row_dsc_array": "CONTENT, CONTENT, FR(1),CONTENT",
+                      "grid_row_dsc_array": "CONTENT, CONTENT, CONTENT, CONTENT,FR(1),CONTENT",
                       "grid_column_dsc_array": "FR(1)",
                       "bg_color": "#F8F9FA",
                       "pad_all": 0,
@@ -6644,8 +7053,7 @@
                   "MAIN": {
                     "DEFAULT": {
                       "align": "CENTER",
-                      "text_font": "MONTSERRAT_16",
-                      "text_color": "#FFFFFF"
+                      "text_font": "MONTSERRAT_16"
                     }
                   }
                 }
@@ -6661,9 +7069,9 @@
               "objID": "SPB-TL1",
               "type": "LVGLLabelWidget",
               "left": -20,
-              "top": 34,
-              "width": 68,
-              "height": 18,
+              "top": 24,
+              "width": 120,
+              "height": 40,
               "customInputs": [],
               "customOutputs": [],
               "style": {
@@ -6704,9 +7112,9 @@
               },
               "group": "",
               "groupIndex": 0,
-              "text": "Step 1",
+              "text": "Prepare the",
               "textType": "literal",
-              "longMode": "CLIP",
+              "longMode": "WRAP",
               "recolor": false
             },
             {
@@ -6814,9 +7222,9 @@
               "objID": "SPB-TL2",
               "type": "LVGLLabelWidget",
               "left": 14,
-              "top": 34,
-              "width": 68,
-              "height": 18,
+              "top": 24,
+              "width": 60,
+              "height": 40,
               "customInputs": [],
               "customOutputs": [],
               "style": {
@@ -6859,7 +7267,7 @@
               "groupIndex": 0,
               "text": "Step 2",
               "textType": "literal",
-              "longMode": "CLIP",
+              "longMode": "WRAP",
               "recolor": false
             },
             {
@@ -6967,9 +7375,9 @@
               "objID": "SPB-TL3",
               "type": "LVGLLabelWidget",
               "left": 48,
-              "top": 34,
-              "width": 68,
-              "height": 18,
+              "top": 24,
+              "width": 60,
+              "height": 40,
               "customInputs": [],
               "customOutputs": [],
               "style": {
@@ -7012,7 +7420,7 @@
               "groupIndex": 0,
               "text": "Step 3",
               "textType": "literal",
-              "longMode": "CLIP",
+              "longMode": "WRAP",
               "recolor": false
             },
             {
@@ -7120,9 +7528,9 @@
               "objID": "SPB-TL4",
               "type": "LVGLLabelWidget",
               "left": 82,
-              "top": 34,
-              "width": 68,
-              "height": 18,
+              "top": 24,
+              "width": 60,
+              "height": 40,
               "customInputs": [],
               "customOutputs": [],
               "style": {
@@ -7165,7 +7573,7 @@
               "groupIndex": 0,
               "text": "Step 4",
               "textType": "literal",
-              "longMode": "CLIP",
+              "longMode": "WRAP",
               "recolor": false
             },
             {
@@ -7273,9 +7681,9 @@
               "objID": "SPB-TL5",
               "type": "LVGLLabelWidget",
               "left": 116,
-              "top": 34,
-              "width": 68,
-              "height": 18,
+              "top": 24,
+              "width": 60,
+              "height": 40,
               "customInputs": [],
               "customOutputs": [],
               "style": {
@@ -7318,7 +7726,7 @@
               "groupIndex": 0,
               "text": "Step 5",
               "textType": "literal",
-              "longMode": "CLIP",
+              "longMode": "WRAP",
               "recolor": false
             },
             {
@@ -7426,9 +7834,9 @@
               "objID": "SPB-TL6",
               "type": "LVGLLabelWidget",
               "left": 149,
-              "top": 34,
-              "width": 68,
-              "height": 18,
+              "top": 24,
+              "width": 60,
+              "height": 40,
               "customInputs": [],
               "customOutputs": [],
               "style": {
@@ -7471,7 +7879,7 @@
               "groupIndex": 0,
               "text": "Step 6",
               "textType": "literal",
-              "longMode": "CLIP",
+              "longMode": "WRAP",
               "recolor": false
             },
             {
@@ -7579,9 +7987,9 @@
               "objID": "SPB-TL7",
               "type": "LVGLLabelWidget",
               "left": 183,
-              "top": 34,
-              "width": 68,
-              "height": 18,
+              "top": 24,
+              "width": 60,
+              "height": 40,
               "customInputs": [],
               "customOutputs": [],
               "style": {
@@ -7624,7 +8032,7 @@
               "groupIndex": 0,
               "text": "Step 7",
               "textType": "literal",
-              "longMode": "CLIP",
+              "longMode": "WRAP",
               "recolor": false
             },
             {
@@ -7732,9 +8140,9 @@
               "objID": "SPB-TL8",
               "type": "LVGLLabelWidget",
               "left": 217,
-              "top": 34,
-              "width": 68,
-              "height": 18,
+              "top": 24,
+              "width": 60,
+              "height": 40,
               "customInputs": [],
               "customOutputs": [],
               "style": {
@@ -7777,7 +8185,7 @@
               "groupIndex": 0,
               "text": "Step 8",
               "textType": "literal",
-              "longMode": "CLIP",
+              "longMode": "WRAP",
               "recolor": false
             },
             {
@@ -7885,9 +8293,9 @@
               "objID": "SPB-TL9",
               "type": "LVGLLabelWidget",
               "left": 251,
-              "top": 34,
-              "width": 68,
-              "height": 18,
+              "top": 24,
+              "width": 60,
+              "height": 40,
               "customInputs": [],
               "customOutputs": [],
               "style": {
@@ -7930,7 +8338,7 @@
               "groupIndex": 0,
               "text": "Step 9",
               "textType": "literal",
-              "longMode": "CLIP",
+              "longMode": "WRAP",
               "recolor": false
             },
             {
@@ -8038,9 +8446,9 @@
               "objID": "SPB-TL10",
               "type": "LVGLLabelWidget",
               "left": 285,
-              "top": 34,
-              "width": 68,
-              "height": 18,
+              "top": 24,
+              "width": 60,
+              "height": 40,
               "customInputs": [],
               "customOutputs": [],
               "style": {
@@ -8083,7 +8491,7 @@
               "groupIndex": 0,
               "text": "Step 10",
               "textType": "literal",
-              "longMode": "CLIP",
+              "longMode": "WRAP",
               "recolor": false
             },
             {
@@ -8191,9 +8599,9 @@
               "objID": "SPB-TL11",
               "type": "LVGLLabelWidget",
               "left": 318,
-              "top": 34,
-              "width": 68,
-              "height": 18,
+              "top": 24,
+              "width": 60,
+              "height": 40,
               "customInputs": [],
               "customOutputs": [],
               "style": {
@@ -8236,7 +8644,7 @@
               "groupIndex": 0,
               "text": "Step 11",
               "textType": "literal",
-              "longMode": "CLIP",
+              "longMode": "WRAP",
               "recolor": false
             },
             {
@@ -8344,9 +8752,9 @@
               "objID": "SPB-TL12",
               "type": "LVGLLabelWidget",
               "left": 352,
-              "top": 34,
-              "width": 68,
-              "height": 18,
+              "top": 24,
+              "width": 60,
+              "height": 40,
               "customInputs": [],
               "customOutputs": [],
               "style": {
@@ -8389,7 +8797,7 @@
               "groupIndex": 0,
               "text": "Step 12",
               "textType": "literal",
-              "longMode": "CLIP",
+              "longMode": "WRAP",
               "recolor": false
             }
           ],
@@ -8426,8 +8834,8 @@
       "name": "StepProgressBar",
       "left": 0,
       "top": 0,
-      "width": 700,
-      "height": 56,
+      "width": 800,
+      "height": 90,
       "isUsedAsUserWidget": true,
       "createAtStart": true,
       "deleteOnScreenUnload": false
