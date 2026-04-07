@@ -22,7 +22,9 @@ void UIExtensionsRecipeSteps::createRecipeStepsTask()
                 ESP_LOGI("GetRecipeTask", "=== Recipe: %s ===", recipe.title.c_str());
                 ESP_LOGI("GetRecipeTask", "  Description : %s", recipe.description.c_str());
                 ESP_LOGI("GetRecipeTask", "  Prep: %s  Cook: %s  Servings: %s",
-                         recipe.prepTime.c_str(), recipe.cookTime.c_str(), recipe.servings.c_str());
+                         recipeStepsAggregationService.decodeDuration(recipe.prepTime).c_str(),
+                         recipeStepsAggregationService.decodeDuration(recipe.cookTime).c_str(),
+                         recipe.servings.c_str());
                 ESP_LOGI("GetRecipeTask", "  Ingredients (%d):", (int)recipe.ingredients.size());
                 for (const auto &ing : recipe.ingredients)
                     ESP_LOGI("GetRecipeTask", "    - %s %s %s%s",

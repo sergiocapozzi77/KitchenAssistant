@@ -70,12 +70,32 @@ private:
     const std::string BarcodeCollectionId = "barcodes";
     const std::string functionId = APPWRITE_FUNCTION_ID;
     AppwriteHttpClient _httpClient;
-
+    // Debug helper: log all keys in a cJSON object
+    void logAllKeys(cJSON *obj, const char *label);
     // JSON helpers
     static std::string safeString(cJSON *obj, const char *key);
     static void parseIngredient(cJSON *item, RecipeIngredient &out);
     static void parseIngredients(cJSON *arr, std::vector<RecipeIngredient> &out);
     static void parsePhase(cJSON *item, RecipePhase &out);
+    bool parseRecipeResponse(const std::string &body, Recipe &out);
+    cJSON *pollExecution(const std::string &executionId);
+    std::string executeFunction(
+        const std::string &url,
+        int maxWidth,
+        int maxHeight,
+        bool async,
+        int &statusOut);
+
+public:
+    /**
+     * Decode ISO 8601 duration strings to human-readable format.
+     * Examples:
+     *   "PT5M"       → "5 mins"
+     *   "PT2H"       → "2 hrs"
+     *   "PT2H30M"    → "2 hrs 30 mins"
+     *   "PT1H30M45S" → "1 hr 30 mins"
+     */
+    static std::string decodeDuration(const std::string &isoDuration);
 };
 
 extern RecipeStepsAggregationService recipeStepsAggregationService;
