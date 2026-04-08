@@ -25,6 +25,8 @@ struct ThumbContext
 struct ThumbWorkerCtx
 {
     std::vector<ThumbContext *> items;
+    int maxWidth = 112;
+    int maxHeight = 112;
 };
 
 struct ThumbDataCtx

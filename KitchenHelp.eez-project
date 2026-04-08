@@ -4677,7 +4677,7 @@
                   "left": 8,
                   "top": 25,
                   "width": 100,
-                  "height": 125,
+                  "height": 110,
                   "customInputs": [],
                   "customOutputs": [],
                   "style": {
@@ -4729,7 +4729,7 @@
                   "left": 0,
                   "top": 0,
                   "width": 100,
-                  "height": 80,
+                  "height": 70,
                   "customInputs": [],
                   "customOutputs": [],
                   "style": {
@@ -4750,7 +4750,7 @@
                       "objID": "9b02c0c2-c2a7-4d43-c48e-8dc1db65e64d",
                       "type": "LVGLLabelWidget",
                       "left": 0,
-                      "top": 20,
+                      "top": 13,
                       "width": 100,
                       "height": 44,
                       "customInputs": [],
@@ -4852,6 +4852,7 @@
                   "clickableFlag": true,
                   "clickableFlagType": "literal",
                   "flagScrollbarMode": "",
+                  "flagScrollDirection": "hor",
                   "scrollSnapX": "",
                   "scrollSnapY": "",
                   "checkedStateType": "literal",
@@ -4866,7 +4867,9 @@
                           "flex_flow": "ROW",
                           "grid_cell_row_pos": 3,
                           "border_width": 0,
-                          "bg_opa": 0
+                          "bg_opa": 0,
+                          "pad_top": 0,
+                          "pad_bottom": 0
                         }
                       }
                     }
@@ -4914,11 +4917,12 @@
                         "DEFAULT": {
                           "grid_cell_row_pos": 4,
                           "pad_top": 20,
-                          "pad_bottom": 20,
                           "pad_left": 20,
                           "pad_right": 20,
-                          "margin_bottom": 20,
-                          "grid_cell_y_align": "STRETCH"
+                          "margin_bottom": 10,
+                          "grid_cell_y_align": "STRETCH",
+                          "pad_bottom": 0,
+                          "margin_top": 10
                         }
                       }
                     }
@@ -4954,7 +4958,7 @@
                   "clickableFlag": true,
                   "clickableFlagType": "literal",
                   "flagScrollbarMode": "",
-                  "flagScrollDirection": "hor",
+                  "flagScrollDirection": "ver",
                   "scrollSnapX": "",
                   "scrollSnapY": "",
                   "checkedStateType": "literal",
@@ -5265,7 +5269,7 @@
                         "DEFAULT": {
                           "margin_top": 40,
                           "margin_bottom": 40,
-                          "grid_cell_row_pos": 2,
+                          "grid_cell_row_pos": 4,
                           "grid_cell_x_align": "CENTER",
                           "grid_cell_y_align": "CENTER"
                         }
@@ -7184,8 +7188,8 @@
             {
               "objID": "SPB-TL1",
               "type": "LVGLLabelWidget",
-              "left": -20,
-              "top": 29,
+              "left": -190,
+              "top": 14,
               "width": 120,
               "height": 50,
               "customInputs": [],
@@ -8973,7 +8977,7 @@
       "left": 0,
       "top": 0,
       "width": 800,
-      "height": 125,
+      "height": 100,
       "isUsedAsUserWidget": true,
       "createAtStart": true,
       "deleteOnScreenUnload": false

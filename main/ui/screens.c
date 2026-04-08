@@ -1210,7 +1210,7 @@ void create_screen_recipe_phase() {
                     lv_obj_t *obj = lv_obj_create(parent_obj);
                     objects.step_progress = obj;
                     lv_obj_set_pos(obj, 8, 25);
-                    lv_obj_set_size(obj, LV_PCT(100), 125);
+                    lv_obj_set_size(obj, LV_PCT(100), 110);
                     lv_obj_set_style_pad_left(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_pad_top(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_pad_right(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -1225,7 +1225,7 @@ void create_screen_recipe_phase() {
                     lv_obj_t *obj = lv_obj_create(parent_obj);
                     objects.recipe_phase_title = obj;
                     lv_obj_set_pos(obj, 0, 0);
-                    lv_obj_set_size(obj, LV_PCT(100), 80);
+                    lv_obj_set_size(obj, LV_PCT(100), 70);
                     lv_obj_set_style_pad_top(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_pad_bottom(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -1241,7 +1241,7 @@ void create_screen_recipe_phase() {
                             // recipe_phase_title_txt
                             lv_obj_t *obj = lv_label_create(parent_obj);
                             objects.recipe_phase_title_txt = obj;
-                            lv_obj_set_pos(obj, 0, 20);
+                            lv_obj_set_pos(obj, 0, 13);
                             lv_obj_set_size(obj, LV_PCT(100), LV_SIZE_CONTENT);
                             lv_label_set_long_mode(obj, LV_LABEL_LONG_DOT);
                             lv_obj_set_style_text_font(obj, &ui_font_ext_font_montserrat_36, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -1255,11 +1255,14 @@ void create_screen_recipe_phase() {
                     objects.recipe_phase_imgs = obj;
                     lv_obj_set_pos(obj, 0, 0);
                     lv_obj_set_size(obj, LV_PCT(100), 220);
+                    lv_obj_set_scroll_dir(obj, LV_DIR_HOR);
                     lv_obj_set_style_layout(obj, LV_LAYOUT_FLEX, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_flex_flow(obj, LV_FLEX_FLOW_ROW, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_grid_cell_row_pos(obj, 3, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_obj_set_style_pad_top(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_obj_set_style_pad_bottom(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                 }
                 {
                     // recipe_phase_ingredients
@@ -1272,11 +1275,12 @@ void create_screen_recipe_phase() {
                     lv_obj_set_style_radius(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_grid_cell_row_pos(obj, 4, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_pad_top(obj, 20, LV_PART_MAIN | LV_STATE_DEFAULT);
-                    lv_obj_set_style_pad_bottom(obj, 20, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_pad_left(obj, 20, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_pad_right(obj, 20, LV_PART_MAIN | LV_STATE_DEFAULT);
-                    lv_obj_set_style_margin_bottom(obj, 20, LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_obj_set_style_margin_bottom(obj, 10, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_grid_cell_y_align(obj, LV_GRID_ALIGN_STRETCH, LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_obj_set_style_pad_bottom(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_obj_set_style_margin_top(obj, 10, LV_PART_MAIN | LV_STATE_DEFAULT);
                 }
                 {
                     // recipe_phase_method
@@ -1287,7 +1291,7 @@ void create_screen_recipe_phase() {
                     lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_radius(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-                    lv_obj_set_scroll_dir(obj, LV_DIR_HOR);
+                    lv_obj_set_scroll_dir(obj, LV_DIR_VER);
                     lv_obj_set_style_grid_cell_row_pos(obj, 5, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_pad_top(obj, 20, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_pad_bottom(obj, 20, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -1361,7 +1365,7 @@ void create_screen_recipe_phase() {
                     lv_obj_set_size(obj, 60, 60);
                     lv_obj_set_style_margin_top(obj, 40, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_margin_bottom(obj, 40, LV_PART_MAIN | LV_STATE_DEFAULT);
-                    lv_obj_set_style_grid_cell_row_pos(obj, 2, LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_obj_set_style_grid_cell_row_pos(obj, 4, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_grid_cell_x_align(obj, LV_GRID_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_grid_cell_y_align(obj, LV_GRID_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_arc_color(obj, lv_color_hex(0xff4caf50), LV_PART_INDICATOR | LV_STATE_DEFAULT);
@@ -1833,7 +1837,7 @@ void create_user_widget_step_progress_bar(lv_obj_t *parent_obj, int startWidgetI
                     // spb_label_1
                     lv_obj_t *obj = lv_label_create(parent_obj);
                     ((lv_obj_t **)&objects)[startWidgetIndex + 5] = obj;
-                    lv_obj_set_pos(obj, -20, 29);
+                    lv_obj_set_pos(obj, -190, 14);
                     lv_obj_set_size(obj, 120, 50);
                     lv_label_set_long_mode(obj, LV_LABEL_LONG_DOT);
                     lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);

@@ -445,14 +445,14 @@ void thumb_worker_task(void *arg)
         uint8_t *px = nullptr;
 
         vTaskDelay(1);
-        if (fetch_and_decode_jpeg(ctx->url, 112, 112, &dsc, &px))
+        if (fetch_and_decode_jpeg(ctx->url, wctx->maxWidth, wctx->maxHeight, &dsc, &px))
         {
             lv_lock();
             lv_obj_t *thumb = ctx->thumb;
             if (thumb && lv_obj_is_valid(thumb))
             {
                 lv_image_set_src(thumb, dsc);
-                lv_obj_set_size(thumb, 112, 112);
+                lv_obj_set_size(thumb, wctx->maxWidth, wctx->maxHeight);
                 lv_obj_remove_event_cb_with_user_data(thumb, thumb_obj_deleted_cb, ctx);
                 ThumbDataCtx *data_ctx = new ThumbDataCtx{dsc, px};
                 lv_obj_add_event_cb(thumb, free_thumb_data_cb, LV_EVENT_DELETE, data_ctx);

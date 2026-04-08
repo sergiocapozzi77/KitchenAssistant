@@ -3,7 +3,8 @@
     "selectedUserPageObject": "[KitchenHelp.eez-project]:/userPages/2",
     "selectedUserWidgetObject": "[KitchenHelp.eez-project]:/userWidgets/2",
     "selectedActionObject": "[KitchenHelp.eez-project]:/actions/4",
-    "selectedStyleObject": "[KitchenHelp.eez-project]:/lvglStyles/styles/1",
+    "selectedStyleObject": "[KitchenHelp.eez-project]:/lvglStyles/styles/2",
+    "selectedThemeColorObject": "[KitchenHelp.eez-project]:/colors/1",
     "selectedFontObject": "[KitchenHelp.eez-project]:/fonts/0",
     "selectedBitmapObject": "[KitchenHelp.eez-project]:/bitmaps/6",
     "subnavigationSelectedItems": {}
@@ -26,8 +27,8 @@
           },
           {
             "type": "border",
-            "selected": 1,
-            "size": 240,
+            "selected": 3,
+            "size": 183.609375,
             "location": "right",
             "children": [
               {
@@ -127,7 +128,6 @@
                   "type": "tabset",
                   "id": "#b72c0808-5062-4fa9-921b-7cce841c406f",
                   "weight": 1,
-                  "selected": 1,
                   "enableClose": false,
                   "children": [
                     {
@@ -194,7 +194,6 @@
               "type": "tabset",
               "id": "EDITORS",
               "weight": 48.879102867338894,
-              "selected": 1,
               "enableDeleteWhenEmpty": false,
               "enableClose": false,
               "children": [
@@ -267,7 +266,7 @@
                 {
                   "type": "tabset",
                   "id": "#f81b124d-8763-4322-96e5-fe9daa3ee7af",
-                  "weight": 2.390909090909091,
+                  "weight": 2,
                   "children": [
                     {
                       "type": "tab",
@@ -283,7 +282,7 @@
                 {
                   "type": "tabset",
                   "id": "#0873cf16-ac41-4ac5-8738-f02a4c12fb5a",
-                  "weight": 0.6090909090909091,
+                  "weight": 1,
                   "children": [
                     {
                       "type": "tab",
@@ -975,7 +974,8 @@
                       "component": "colors",
                       "enableClose": false
                     }
-                  ]
+                  ],
+                  "active": true
                 }
               ]
             }
@@ -1157,7 +1157,8 @@
     },
     "[KitchenHelp.eez-project]:/lvglStyles/styles[tree-state]": {
       "0": {},
-      "1": {
+      "1": {},
+      "2": {
         "$selected": true
       }
     },
@@ -1242,21 +1243,20 @@
           "0": {
             "1": {},
             "2": {
+              "0": {}
+            },
+            "3": {
               "$selected": true
             },
-            "3": {},
             "4": {},
-            "5": {
-              "0": {},
-              "1": {}
-            }
+            "6": {}
           }
         }
       },
       "transform": {
         "translate": {
           "x": -291.6666675673589,
-          "y": -381.3889155917698
+          "y": -401.3889562818743
         },
         "scale": 0.75
       },
@@ -1270,46 +1270,12 @@
     "[KitchenHelp.eez-project]:/userWidgets/2[flow-state]": {
       "selectionFront": {},
       "selectionBack": {
-        "0": {
-          "7": {
-            "$selected": true
-          },
-          "10": {
-            "$selected": true
-          },
-          "13": {
-            "$selected": true
-          },
-          "16": {
-            "$selected": true
-          },
-          "19": {
-            "$selected": true
-          },
-          "22": {
-            "$selected": true
-          },
-          "25": {
-            "$selected": true
-          },
-          "28": {
-            "$selected": true
-          },
-          "31": {
-            "$selected": true
-          },
-          "34": {
-            "$selected": true
-          },
-          "37": {
-            "$selected": true
-          }
-        }
+        "0": {}
       },
       "transform": {
         "translate": {
           "x": -200,
-          "y": 74
+          "y": 60.66662597656268
         },
         "scale": 0.75
       },
@@ -1336,11 +1302,9 @@
   "lvglPart": "MAIN",
   "lvglState": "DEFAULT",
   "lvglExpandedPropertiesGroup": [
-    "MISCELLANEOUS",
-    "TEXT",
     "LAYOUT",
-    "PADDING",
-    "MARGIN"
+    "TEXT",
+    "PADDING"
   ],
   "showInactiveFlowsInDebugger": true,
   "globalFlowZoom": true,

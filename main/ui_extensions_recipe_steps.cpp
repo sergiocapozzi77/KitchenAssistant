@@ -189,6 +189,8 @@ void UIExtensionsRecipeSteps::populatePhaseImages(const Recipe &recipe, int phas
     // lv_obj_set_style_pad_row(objects.recipe_phase_imgs, 8, 0);
 
     std::vector<ThumbContext *> pending_thumbs;
+    int thumbWidth = 300;
+    int thumbHeight = 200;
 
     if (!recipe.aggregatedSteps.empty())
     {
@@ -199,7 +201,7 @@ void UIExtensionsRecipeSteps::populatePhaseImages(const Recipe &recipe, int phas
             {
                 // Create placeholder image
                 lv_obj_t *thumb = lv_image_create(objects.recipe_phase_imgs);
-                lv_obj_set_size(thumb, 300, 220);                            // thumbnail size
+                lv_obj_set_size(thumb, thumbWidth, thumbHeight);             // thumbnail size
                 lv_obj_set_style_bg_color(thumb, lv_color_hex(0xDEE2E6), 0); // grey until loaded
                 lv_obj_set_style_bg_opa(thumb, LV_OPA_COVER, 0);
                 lv_obj_set_style_radius(thumb, 8, 0);
@@ -226,6 +228,9 @@ void UIExtensionsRecipeSteps::populatePhaseImages(const Recipe &recipe, int phas
     if (!pending_thumbs.empty())
     {
         ThumbWorkerCtx *wctx = new ThumbWorkerCtx{pending_thumbs};
+        wctx->maxWidth = thumbWidth;
+        wctx->maxHeight = thumbHeight;
+
         BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
             thumb_worker_task, "phase_img_worker", 8192, wctx, 5, NULL, 1,
             MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
