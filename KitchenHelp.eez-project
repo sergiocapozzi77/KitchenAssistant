@@ -4825,16 +4825,16 @@
                   "groupIndex": 0
                 },
                 {
-                  "objID": "302b35a7-b24f-4bec-d172-450e4ede0a62",
-                  "type": "LVGLContainerWidget",
-                  "left": 45,
-                  "top": -138,
+                  "objID": "4c47c656-dce7-46c6-c6a0-e19cd09b78dc",
+                  "type": "LVGLPanelWidget",
+                  "left": 0,
+                  "top": 0,
                   "width": 100,
                   "height": 220,
                   "customInputs": [],
                   "customOutputs": [],
                   "style": {
-                    "objID": "c15d30b1-29d0-4c10-8803-2b16db1f1bdb",
+                    "objID": "5499324f-04e9-449c-a528-e355a51eb777",
                     "useStyle": "default",
                     "conditionalStyles": [],
                     "childStyles": []
@@ -4848,23 +4848,25 @@
                   "heightUnit": "px",
                   "children": [],
                   "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
-                  "hiddenFlag": false,
                   "hiddenFlagType": "literal",
                   "clickableFlag": true,
                   "clickableFlagType": "literal",
                   "flagScrollbarMode": "",
-                  "flagScrollDirection": "hor",
                   "scrollSnapX": "",
                   "scrollSnapY": "",
                   "checkedStateType": "literal",
                   "disabledStateType": "literal",
                   "states": "",
                   "localStyles": {
-                    "objID": "5d5894b2-a84e-46e9-d59f-f69d2c1af39e",
+                    "objID": "adb7fb2a-4073-4e2f-d8cb-40ff68b2913e",
                     "definition": {
                       "MAIN": {
                         "DEFAULT": {
-                          "grid_cell_row_pos": 3
+                          "layout": "FLEX",
+                          "flex_flow": "ROW",
+                          "grid_cell_row_pos": 3,
+                          "border_width": 0,
+                          "bg_opa": 0
                         }
                       }
                     }

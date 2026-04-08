@@ -9,6 +9,17 @@
 #include "StepProgressBar.h"
 #include "ui_extensions_internal.h"
 #include "styles.h"
+#include "secrets.h"
+
+// Appwrite Storage constants for recipe phase images
+static const std::string STORAGE_ENDPOINT = "https://fra.cloud.appwrite.io/v1";
+static const std::string STORAGE_BUCKET_ID = "69cff07c002843354236";
+
+static std::string makeStorageUrl(const std::string &fileId)
+{
+    std::string url = STORAGE_ENDPOINT + "/storage/buckets/" + STORAGE_BUCKET_ID + "/files/" + fileId + "/view";
+    return url;
+}
 
 // Static member definitions
 Recipe UIExtensionsRecipeSteps::s_currentRecipe{};
@@ -132,7 +143,7 @@ void UIExtensionsRecipeSteps::populatePhaseTitle(const Recipe &recipe, int phase
         return;
     }
 
-    ESP_LOGI("UIExtensionsRecipeSteps", "Populating phase images, phases=%d, index=%d", (int)recipe.aggregatedSteps.size(), phaseIndex);
+    ESP_LOGI("UIExtensionsRecipeSteps", "Populating phase title, phases=%d, index=%d", (int)recipe.aggregatedSteps.size(), phaseIndex);
     if (!recipe.aggregatedSteps.empty())
     {
         ESP_LOGI("UIExtensionsRecipeSteps", "Phase %d '%s' has %d images",
@@ -159,6 +170,8 @@ void UIExtensionsRecipeSteps::populatePhaseImages(const Recipe &recipe, int phas
     }
 
     ESP_LOGI("UIExtensionsRecipeSteps", "Populating phase images, phases=%d, index=%d", (int)recipe.aggregatedSteps.size(), phaseIndex);
+    s_thumb_generation++;
+
     if (!recipe.aggregatedSteps.empty())
     {
         ESP_LOGI("UIExtensionsRecipeSteps", "Phase %d '%s' has %d images",
@@ -166,12 +179,38 @@ void UIExtensionsRecipeSteps::populatePhaseImages(const Recipe &recipe, int phas
                  (int)recipe.aggregatedSteps[phaseIndex].imageRefs.size());
     }
 
+    // Clear container and prepare layout
+    lv_obj_clean(objects.recipe_phase_imgs);
+    lv_obj_clear_flag(objects.recipe_phase_imgs, LV_OBJ_FLAG_HIDDEN);
+    // lv_obj_set_flex_flow(objects.recipe_phase_imgs, LV_FLEX_FLOW_ROW_WRAP);
+    // lv_obj_set_flex_align(objects.recipe_phase_imgs, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+    // lv_obj_set_style_pad_all(objects.recipe_phase_imgs, 8, 0);
+    // lv_obj_set_style_pad_column(objects.recipe_phase_imgs, 8, 0);
+    // lv_obj_set_style_pad_row(objects.recipe_phase_imgs, 8, 0);
+
+    std::vector<ThumbContext *> pending_thumbs;
+
     if (!recipe.aggregatedSteps.empty())
     {
         const auto &phase = recipe.aggregatedSteps[phaseIndex];
         if (!phase.imageRefs.empty())
         {
-            // TODO: load images from Appwrite Storage using fileId, create LVGL image objects, and add to objects.recipe_phase_imgs
+            for (const auto &imgRef : phase.imageRefs)
+            {
+                // Create placeholder image
+                lv_obj_t *thumb = lv_image_create(objects.recipe_phase_imgs);
+                lv_obj_set_size(thumb, 300, 220);                            // thumbnail size
+                lv_obj_set_style_bg_color(thumb, lv_color_hex(0xDEE2E6), 0); // grey until loaded
+                lv_obj_set_style_bg_opa(thumb, LV_OPA_COVER, 0);
+                lv_obj_set_style_radius(thumb, 8, 0);
+                lv_obj_set_style_border_width(thumb, 0, 0);
+                //  lv_image_set_inner_align(thumb, LV_IMAGE_ALIGN_COVER);
+
+                std::string url = makeStorageUrl(imgRef.fileId);
+                ESP_LOGI("UIExtensionsRecipeSteps", "Scheduling image fetch: %s", url.c_str());
+                ThumbContext *tctx = new ThumbContext{thumb, url, s_thumb_generation};
+                pending_thumbs.push_back(tctx);
+            }
         }
         else
         {
@@ -181,6 +220,22 @@ void UIExtensionsRecipeSteps::populatePhaseImages(const Recipe &recipe, int phas
     else
     {
         lv_obj_add_flag(objects.recipe_phase_imgs, LV_OBJ_FLAG_HIDDEN);
+    }
+
+    // Spawn thumbnail worker task if there are images to fetch
+    if (!pending_thumbs.empty())
+    {
+        ThumbWorkerCtx *wctx = new ThumbWorkerCtx{pending_thumbs};
+        BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
+            thumb_worker_task, "phase_img_worker", 8192, wctx, 5, NULL, 1,
+            MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        if (ret != pdPASS)
+        {
+            ESP_LOGE("UIExtensionsRecipeSteps", "Failed to create thumb worker task");
+            for (auto *tctx : pending_thumbs)
+                delete tctx;
+            delete wctx;
+        }
     }
 }
 
