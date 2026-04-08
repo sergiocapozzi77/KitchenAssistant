@@ -12,6 +12,8 @@
     "ui.c",
     "ui.h",
     "ui_font_ext_font_montserrat_18.c",
+    "ui_font_ext_font_montserrat_26.c",
+    "ui_font_ext_font_montserrat_36.c",
     "ui_image_chef.c",
     "ui_image_favourite.c",
     "ui_image_favourite_add.c",

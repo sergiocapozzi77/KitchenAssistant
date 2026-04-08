@@ -27,6 +27,11 @@ lv_style_t *get_style_text_area_with_shadow_MAIN_DEFAULT();
 void add_style_text_area_with_shadow(lv_obj_t *obj);
 void remove_style_text_area_with_shadow(lv_obj_t *obj);
 
+// Style: CheckboxDefault
+lv_style_t *get_style_checkbox_default_INDICATOR_DEFAULT();
+void add_style_checkbox_default(lv_obj_t *obj);
+void remove_style_checkbox_default(lv_obj_t *obj);
+
 #ifdef __cplusplus
 }
 #endif

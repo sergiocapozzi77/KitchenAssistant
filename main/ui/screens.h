@@ -202,9 +202,12 @@ enum Colors {
     COLOR_ID_ACCENT_DARK,
     COLOR_ID_BORDER,
     COLOR_ID_LIGHT_ACCENT,
+    COLOR_ID_LIGHT_BORDER,
+    COLOR_ID_TEXT_COLOR,
+    COLOR_ID_CHECKBOX,
 };
 void change_color_theme(uint32_t themeIndex);
-extern uint32_t theme_colors[1][4];
+extern uint32_t theme_colors[1][7];
 extern uint32_t active_theme_index;
 
 #ifdef __cplusplus

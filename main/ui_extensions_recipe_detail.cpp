@@ -10,6 +10,7 @@
 #include "RecipeDetailService.h"
 #include "FavouritesManager.h"
 #include "FavouriteService.h"
+#include "styles.h"
 
 static const char *TAG = "UIEXTENSIONS";
 static uint32_t s_current_generation = 0;
@@ -242,18 +243,20 @@ static void fetch_recipe_detail_task(void *arg)
                 lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
                 lv_obj_set_style_pad_top(row, 8, 0);
                 lv_obj_set_style_pad_bottom(row, 8, 0);
-                lv_obj_set_style_pad_left(row, 0, 0);
-                lv_obj_set_style_pad_right(row, 0, 0);
-                lv_obj_set_style_border_width(row, 0, 0);
-                lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
+                lv_obj_set_style_pad_left(row, 12, 0);
+                lv_obj_set_style_pad_right(row, 12, 0);
+                lv_obj_set_style_border_width(row, 2, 0);
+                lv_obj_set_style_border_color(row, lv_color_hex(theme_colors[active_theme_index][4]), 0);
+                lv_obj_set_style_radius(row, 26, 0);
+                lv_obj_set_style_bg_color(row, lv_color_hex(theme_colors[active_theme_index][3]), 0);
+                lv_obj_set_style_bg_opa(row, LV_OPA_COVER, 0);
                 lv_obj_set_style_pad_column(row, 8, 0);
 
                 // Checkbox for ingredient
                 lv_obj_t *checkbox = lv_checkbox_create(row);
                 lv_checkbox_set_text(checkbox, "");
                 lv_obj_set_style_pad_right(checkbox, 8, 0);
-                lv_obj_add_style(checkbox, &style_checkbox_indicator, LV_PART_INDICATOR);
-                lv_obj_add_style(checkbox, &style_checkbox_indicator, LV_PART_INDICATOR | LV_STATE_CHECKED);
+                add_style_checkbox_default(checkbox);
                 // Set explicit size for checkbox indicator (larger for recipe details)
                 lv_obj_set_style_width(checkbox, 32, LV_PART_INDICATOR);
                 lv_obj_set_style_height(checkbox, 32, LV_PART_INDICATOR);

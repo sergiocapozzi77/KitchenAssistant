@@ -16,6 +16,7 @@
 #include "models.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/timers.h"
+#include "secrets.h"
 
 static const char *TAG = "UIEXTENSIONS";
 
@@ -256,6 +257,14 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
     {
         ESP_LOGE(TAG, "http_client_init failed");
         return false;
+    }
+
+    // Set Appwrite authentication headers if URL is from Appwrite Storage
+    if (url.find("appwrite.io") != std::string::npos)
+    {
+        ESP_LOGI(TAG, "Setting Appwrite auth headers for storage URL");
+        esp_http_client_set_header(client, "X-Appwrite-Project", APPWRITE_PROJECT_ID);
+        esp_http_client_set_header(client, "X-Appwrite-Key", APPWRITE_API_KEY);
     }
 
     if (esp_http_client_open(client, 0) != ESP_OK)

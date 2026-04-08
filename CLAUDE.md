@@ -92,3 +92,4 @@ ESP-IDF HTTP client + cJSON + FreeRTOS
 - **CRITICAL**: Never run `idf.py build` or any ESP-IDF build commands.
 - Do not attempt to compile or build the firmware.
 - Focus only on code modifications; I will handle all builds manually.
+- never change files in the main/ui subfolder, these are managed by eezstudio

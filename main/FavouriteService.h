@@ -19,7 +19,7 @@ public:
     // Configuration (from secrets.h)
     const std::string apiKey = APPWRITE_API_KEY;
     const std::string Endpoint = "https://fra.cloud.appwrite.io/v1";
-    const std::string ProjectId = "6954045e003c75c1c3bf";
+    const std::string ProjectId = APPWRITE_PROJECT_ID;
     const std::string DatabaseId = "695404ac0021bf7d9707";
     const std::string FavouritesCollectionId = FAVOURITES_COLLECTION_ID;
 
