@@ -1164,11 +1164,12 @@ void create_screen_recipe_phase() {
                             lv_obj_t *obj = lv_label_create(parent_obj);
                             objects.phase_recipe_title = obj;
                             lv_obj_set_pos(obj, 60, 14);
-                            lv_obj_set_size(obj, 500, LV_SIZE_CONTENT);
+                            lv_obj_set_size(obj, 550, 33);
                             lv_label_set_long_mode(obj, LV_LABEL_LONG_DOT);
-                            lv_obj_set_style_text_font(obj, &ui_font_ext_font_montserrat_36, LV_PART_MAIN | LV_STATE_DEFAULT);
+                            lv_obj_set_style_text_font(obj, &ui_font_ext_font_montserrat_26, LV_PART_MAIN | LV_STATE_DEFAULT);
                             lv_obj_set_style_text_color(obj, lv_color_hex(0xff212529), LV_PART_MAIN | LV_STATE_DEFAULT);
                             lv_obj_set_style_pad_left(obj, 8, LV_PART_MAIN | LV_STATE_DEFAULT);
+                            lv_obj_set_style_text_align(obj, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN | LV_STATE_DEFAULT);
                             lv_label_set_text(obj, "");
                         }
                         {
@@ -2289,8 +2290,9 @@ void tick_screen_by_id(enum ScreensEnum screenId) {
 //
 
 ext_font_desc_t fonts[] = {
-    { "ext_font_montserrat_18", &ui_font_ext_font_montserrat_18 },
     { "ext_font_montserrat_36", &ui_font_ext_font_montserrat_36 },
+    { "ext_font_montserrat_18", &ui_font_ext_font_montserrat_18 },
+    { "ext_font_montserrat_26", &ui_font_ext_font_montserrat_26 },
 #if LV_FONT_MONTSERRAT_8
     { "MONTSERRAT_8", &lv_font_montserrat_8 },
 #endif
