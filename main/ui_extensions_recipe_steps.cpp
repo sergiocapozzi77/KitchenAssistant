@@ -57,7 +57,7 @@ void UIExtensionsRecipeSteps::createRecipeStepsTask()
             auto recipeSuggestion = recipeDetailService.getSelectedRecipe();
             ESP_LOGI("actions", "Creating recipe steps for URL: %s", recipeSuggestion.url.c_str());
             Recipe recipe;
-            auto success = recipeStepsAggregationService.getRecipe(recipeSuggestion.url, recipe);
+            auto success = recipeStepsAggregationService.getRecipe(recipeSuggestion.url, recipe, 0, 220);
 
             if (success)
             {
