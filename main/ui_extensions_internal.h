@@ -35,6 +35,12 @@ struct ThumbDataCtx
     uint8_t *px;
 };
 
+struct IngredientCheckboxContext
+{
+    lv_obj_t *label;
+    lv_obj_t *line;
+};
+
 struct JpegIo
 {
     const uint8_t *src;
@@ -52,10 +58,17 @@ void thumb_worker_task(void *arg);
 void row_click_cb(lv_event_t *e);
 void free_thumb_data_cb(lv_event_t *e);
 void thumb_obj_deleted_cb(lv_event_t *e);
+void ingredient_checkbox_cb(lv_event_t *e);
+void free_ingredient_checkbox_ctx_cb(lv_event_t *e);
 
 // Helper functions
 int days_until_expiry(const std::string &isoDate, bool frozen);
 lv_color_t get_expiry_color(int days);
+
+// Ingredients UI helpers
+void setupIngredientsContainer(lv_obj_t *container);
+lv_obj_t *createIngredientRow(lv_obj_t *parent, const std::string &displayText);
+void populateIngredientsUI(lv_obj_t *container, const std::vector<std::string> &displayTexts);
 
 // Global variables (declared extern, defined in ui_extensions.cpp)
 extern uint32_t s_thumb_generation;

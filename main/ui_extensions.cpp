@@ -13,6 +13,7 @@
 #include "ui_extensions_internal.h"
 #include "ui.h"
 #include "fonts.h"
+#include "styles.h"
 #include "models.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/timers.h"
@@ -192,6 +193,104 @@ void row_click_cb(lv_event_t *e)
         lv_obj_add_state(checkbox, LV_STATE_CHECKED);
 
     lv_obj_send_event(checkbox, LV_EVENT_VALUE_CHANGED, NULL);
+}
+
+void ingredient_checkbox_cb(lv_event_t *e)
+{
+    lv_obj_t *checkbox = static_cast<lv_obj_t *>(lv_event_get_target(e));
+    if (!checkbox)
+        return;
+
+    IngredientCheckboxContext *ctx = static_cast<IngredientCheckboxContext *>(lv_event_get_user_data(e));
+    if (!ctx || !ctx->label)
+        return;
+
+    if (lv_obj_has_state(checkbox, LV_STATE_CHECKED))
+    {
+        // Apply strikethrough: gray color and text decoration
+        lv_obj_set_style_text_color(ctx->label, lv_color_hex(0x6C757D), 0);
+        lv_obj_set_style_text_decor(ctx->label, LV_TEXT_DECOR_STRIKETHROUGH, 0);
+    }
+    else
+    {
+        // Restore normal
+        lv_obj_set_style_text_color(ctx->label, lv_color_hex(0x212529), 0);
+        lv_obj_set_style_text_decor(ctx->label, LV_TEXT_DECOR_NONE, 0);
+    }
+}
+
+void free_ingredient_checkbox_ctx_cb(lv_event_t *e)
+{
+    delete (IngredientCheckboxContext *)lv_event_get_user_data(e);
+}
+
+// === INGREDIENTS UI HELPERS ===
+
+void setupIngredientsContainer(lv_obj_t* container)
+{
+    // Set up container for two-column layout
+    lv_obj_set_flex_flow(container, LV_FLEX_FLOW_ROW_WRAP);
+    lv_obj_set_flex_align(container, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+    lv_obj_set_style_pad_column(container, 12, 0);
+    lv_obj_set_style_pad_row(container, 12, 0);
+}
+
+lv_obj_t* createIngredientRow(lv_obj_t* parent, const std::string& displayText)
+{
+    lv_obj_t *row = lv_obj_create(parent);
+    lv_obj_set_width(row, lv_pct(48));
+    lv_obj_set_height(row, LV_SIZE_CONTENT);
+    lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+    lv_obj_set_style_pad_top(row, 8, 0);
+    lv_obj_set_style_pad_bottom(row, 8, 0);
+    lv_obj_set_style_pad_left(row, 12, 0);
+    lv_obj_set_style_pad_right(row, 12, 0);
+    lv_obj_set_style_border_width(row, 2, 0);
+    lv_obj_set_style_border_color(row, lv_color_hex(theme_colors[active_theme_index][4]), 0);
+    lv_obj_set_style_radius(row, 26, 0);
+    lv_obj_set_style_bg_color(row, lv_color_hex(theme_colors[active_theme_index][3]), 0);
+    lv_obj_set_style_bg_opa(row, LV_OPA_COVER, 0);
+    lv_obj_set_style_pad_column(row, 8, 0);
+
+    // Checkbox for ingredient
+    lv_obj_t *checkbox = lv_checkbox_create(row);
+    lv_checkbox_set_text(checkbox, "");
+    lv_obj_set_style_pad_right(checkbox, 8, 0);
+    add_style_checkbox_default(checkbox);
+    // Set explicit size for checkbox indicator (larger for recipe details)
+    lv_obj_set_style_width(checkbox, 32, LV_PART_INDICATOR);
+    lv_obj_set_style_height(checkbox, 32, LV_PART_INDICATOR);
+
+    // Ingredient label - bigger font
+    lv_obj_t *lbl = lv_label_create(row);
+    lv_label_set_text(lbl, displayText.c_str());
+    lv_label_set_long_mode(lbl, LV_LABEL_LONG_WRAP);
+    lv_obj_set_flex_grow(lbl, 1);
+    lv_obj_set_style_text_font(lbl, &ui_font_ext_font_montserrat_18, 0);
+    lv_obj_set_style_text_color(lbl, lv_color_hex(0x212529), 0);
+
+    // Make row clickable to toggle checkbox
+    lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(row, row_click_cb, LV_EVENT_CLICKED, checkbox);
+
+    // Context to connect checkbox with label
+    IngredientCheckboxContext *ctx = new IngredientCheckboxContext{lbl, nullptr};
+    lv_obj_add_event_cb(checkbox, ingredient_checkbox_cb, LV_EVENT_VALUE_CHANGED, ctx);
+    lv_obj_add_event_cb(checkbox, free_ingredient_checkbox_ctx_cb, LV_EVENT_DELETE, ctx);
+
+    return row;
+}
+
+void populateIngredientsUI(lv_obj_t* container, const std::vector<std::string>& displayTexts)
+{
+    setupIngredientsContainer(container);
+    for (const auto& text : displayTexts)
+    {
+        createIngredientRow(container, text);
+        vTaskDelay(pdMS_TO_TICKS(10)); // Yield to LVGL to render incrementally
+    }
 }
 
 // === THUMBNAIL FETCH/DECODE ===
