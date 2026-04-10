@@ -21,6 +21,7 @@
 #include "secrets.h"
 #include "AppwriteHttpClient.h"
 #include "cJSON.h"
+#include "thumbnail_cache.h"
 
 static const char *TAG = "UIEXTENSIONS";
 static AppwriteHttpClient s_appwriteClient(APPWRITE_ENDPOINT, APPWRITE_PROJECT_ID, APPWRITE_API_KEY, 30000);
@@ -347,9 +348,107 @@ void free_thumb_data_cb(lv_event_t *e)
     delete d;
 }
 
-bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
-                           lv_image_dsc_t **out_dsc, uint8_t **out_px)
+static bool decode_jpeg_buffer(uint8_t *jpeg_buf, size_t jpeg_len, uint8_t **out_px, uint16_t *out_width, uint16_t *out_height)
 {
+    uint8_t *work = (uint8_t *)heap_caps_malloc(3100, MALLOC_CAP_INTERNAL);
+    if (!work)
+    {
+        ESP_LOGE(TAG, "work malloc failed");
+        return false;
+    }
+
+    JpegIo io = {jpeg_buf, jpeg_len, 0, nullptr, 0};
+    JDEC jd;
+    JRESULT res = jd_prepare(&jd, tjpgd_in_cb, work, 3100, &io);
+    ESP_LOGI(TAG, "jd_prepare: %d  img size: %ux%u", res, jd.width, jd.height);
+
+    uint8_t *px = nullptr;
+    if (res == JDR_OK)
+    {
+        jd.scale = 0;
+        uint16_t decoded_w = jd.width >> jd.scale;
+        uint16_t decoded_h = jd.height >> jd.scale;
+
+        px = (uint8_t *)heap_caps_malloc(decoded_w * decoded_h * 3, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        if (!px)
+        {
+            ESP_LOGE(TAG, "px malloc failed (%ux%u)", decoded_w, decoded_h);
+            heap_caps_free(work);
+            return false;
+        }
+
+        io.dst = px;
+        io.out_w = decoded_w;
+        *out_width = decoded_w;
+        *out_height = decoded_h;
+
+        res = jd_decomp(&jd, tjpgd_out_cb, jd.scale);
+        ESP_LOGI(TAG, "jd_decomp: %d", res);
+    }
+
+    heap_caps_free(work);
+
+    if (res != JDR_OK)
+    {
+        ESP_LOGE(TAG, "JPEG decode failed: %d", res);
+        if (px)
+            heap_caps_free(px);
+        return false;
+    }
+
+    *out_px = px;
+    return true;
+}
+
+bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
+                           lv_image_dsc_t **out_dsc, uint8_t **out_px,
+                           bool useCache)
+{
+    std::vector<uint8_t> cached_jpeg;
+    bool fromCache = false;
+    uint16_t reqW = W;
+    uint16_t reqH = H;
+
+    // Try cache first if enabled
+    if (useCache && thumbnail_cache::get(url, W, H, cached_jpeg))
+    {
+        ESP_LOGI(TAG, "Cache hit for %s %ux%u", url.c_str(), W, H);
+        fromCache = true;
+    }
+
+    if (fromCache)
+    {
+        // Decode cached JPEG
+        uint8_t *jpeg_buf = (uint8_t *)heap_caps_malloc(cached_jpeg.size(), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        if (!jpeg_buf)
+        {
+            ESP_LOGE(TAG, "jpeg_buf malloc failed for cached data, requested: %u", cached_jpeg.size());
+            return false;
+        }
+        memcpy(jpeg_buf, cached_jpeg.data(), cached_jpeg.size());
+
+        uint8_t *px = nullptr;
+        uint16_t decoded_w, decoded_h;
+        if (!decode_jpeg_buffer(jpeg_buf, cached_jpeg.size(), &px, &decoded_w, &decoded_h))
+        {
+            heap_caps_free(jpeg_buf);
+            return false;
+        }
+        heap_caps_free(jpeg_buf);
+
+        lv_image_dsc_t *dsc = new lv_image_dsc_t{};
+        dsc->header.cf = LV_COLOR_FORMAT_RGB888;
+        dsc->header.w = decoded_w;
+        dsc->header.h = decoded_h;
+        dsc->header.stride = decoded_w * 3;
+        dsc->data_size = decoded_w * decoded_h * 3;
+        dsc->data = px;
+
+        *out_dsc = dsc;
+        *out_px = px;
+        return true;
+    }
+
     // -------------------------------------------------------------------------
     // Build Appwrite function URL
     // -------------------------------------------------------------------------
@@ -517,6 +616,15 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
         ESP_LOGI(TAG, "jd_decomp: %d", res);
     }
 
+    // Store in cache if enabled (only if decode succeeded)
+    if (res == JDR_OK && useCache)
+    {
+        if (!thumbnail_cache::put(url, reqW, reqH, jpeg_buf, jpegLen))
+        {
+            ESP_LOGW(TAG, "Failed to store thumbnail in cache");
+        }
+    }
+
     heap_caps_free(jpeg_buf);
     heap_caps_free(work);
 
@@ -615,7 +723,7 @@ void thumb_worker_task(void *arg)
         uint8_t *px = nullptr;
 
         vTaskDelay(1);
-        if (fetch_and_decode_jpeg(ctx->url, wctx->maxWidth, wctx->maxHeight, &dsc, &px))
+        if (fetch_and_decode_jpeg(ctx->url, wctx->maxWidth, wctx->maxHeight, &dsc, &px, wctx->enableCache))
         {
             lv_lock();
             lv_obj_t *thumb = ctx->thumb;

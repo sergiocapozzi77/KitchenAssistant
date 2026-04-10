@@ -10,6 +10,7 @@
 #include "bsp/esp-bsp.h"
 #include "bsp/display.h"
 #include "bsp_board_extra.h"
+#include "bsp/esp32_p4_function_ev_board.h"
 #include "lv_demos.h"
 #include "ui.h"
 #include "WiFiManager.h"
@@ -17,6 +18,7 @@
 #include "ui_extensions.h"
 #include "ProductsManager.h"
 #include "FavouritesManager.h"
+#include "thumbnail_cache.h"
 
 static const char *TAG = "APP";
 
@@ -74,6 +76,18 @@ void Application::initHardware()
 {
     // WiFi
     wifiManager.init(CONFIG_WIFI_SSID, CONFIG_WIFI_PASSWORD);
+
+    // Mount SPIFFS for thumbnail cache
+    esp_err_t spiffs_ret = bsp_spiffs_mount();
+    if (spiffs_ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to mount SPIFFS (ret %d)", spiffs_ret);
+    } else {
+        ESP_LOGI(TAG, "SPIFFS mounted");
+        // Initialize thumbnail cache
+        if (!thumbnail_cache::init()) {
+            ESP_LOGW(TAG, "Thumbnail cache init failed (continuing without cache)");
+        }
+    }
 
     bsp_display_cfg_t cfg = {
         .lvgl_port_cfg = ESP_LVGL_PORT_INIT_CONFIG(),

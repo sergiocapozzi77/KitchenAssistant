@@ -27,6 +27,7 @@ struct ThumbWorkerCtx
     std::vector<ThumbContext *> items;
     int maxWidth = 112;
     int maxHeight = 112;
+    bool enableCache = true;
 };
 
 struct ThumbDataCtx
@@ -51,7 +52,8 @@ struct JpegIo
 };
 
 bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
-                           lv_image_dsc_t **out_dsc, uint8_t **out_px);
+                           lv_image_dsc_t **out_dsc, uint8_t **out_px,
+                           bool useCache = true);
 void thumb_worker_task(void *arg);
 
 // Common event callbacks

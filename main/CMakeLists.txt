@@ -19,6 +19,7 @@ idf_component_register(
         ui_extensions_recipe_detail.cpp
         ui_extensions_favourites.cpp
         ui_extensions_recipe_steps.cpp
+        thumbnail_cache.cpp
         filters_ui.cpp
         ui/screens.c
         ui/styles.c
