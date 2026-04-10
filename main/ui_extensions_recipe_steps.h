@@ -23,6 +23,7 @@ public:
 
     // Phase navigation
     static void setCurrentRecipe(const Recipe &recipe);
+    static void clearCurrentRecipe();
     static bool hasCurrentRecipe() { return s_hasRecipe; }
     static int getCurrentPhaseIndex() { return s_currentPhaseIndex; }
     static int getPhaseCount();

@@ -550,6 +550,8 @@ void action_create_recipe_steps_click(lv_event_t *e)
 {
     lv_scr_load_anim(objects.recipe_phase, LV_SCR_LOAD_ANIM_MOVE_LEFT, 300, 0, false);
 
+    UIExtensionsRecipeSteps::clearCurrentRecipe();
+
     lv_obj_clear_flag(objects.phase_detail_spinner, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(objects.step_progress, LV_OBJ_FLAG_HIDDEN);
 

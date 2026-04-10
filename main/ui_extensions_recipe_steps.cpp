@@ -392,6 +392,37 @@ void UIExtensionsRecipeSteps::setCurrentRecipe(const Recipe &recipe)
     lv_unlock();
 }
 
+void UIExtensionsRecipeSteps::clearCurrentRecipe()
+{
+    lv_lock();
+    // Invalidate any pending thumbnail fetches for previous recipe
+    s_thumb_generation++;
+    s_currentRecipe = Recipe();
+    s_currentPhaseIndex = 0;
+    s_hasRecipe = false;
+
+    // Clear UI containers
+    if (objects.recipe_phase_title_txt && lv_obj_is_valid(objects.recipe_phase_title_txt))
+        lv_label_set_text(objects.recipe_phase_title_txt, "");
+    if (objects.recipe_phase_ingredients && lv_obj_is_valid(objects.recipe_phase_ingredients))
+        lv_obj_clean(objects.recipe_phase_ingredients);
+    if (objects.recipe_phase_method && lv_obj_is_valid(objects.recipe_phase_method))
+        lv_obj_clean(objects.recipe_phase_method);
+    if (objects.recipe_phase_imgs && lv_obj_is_valid(objects.recipe_phase_imgs))
+        lv_obj_clean(objects.recipe_phase_imgs);
+    if (objects.phase_recipe_title && lv_obj_is_valid(objects.phase_recipe_title))
+        lv_label_set_text(objects.phase_recipe_title, "");
+    // Hide step progress bar
+    if (objects.step_progress && lv_obj_is_valid(objects.step_progress))
+        lv_obj_add_flag(objects.step_progress, LV_OBJ_FLAG_HIDDEN);
+    // Reset step progress bar state
+    if (objects.step_progress__spb_root && lv_obj_is_valid(objects.step_progress__spb_root))
+        spb_set_step(objects.step_progress__spb_root, 0, 0);
+
+    updatePhaseNavigationButtons();
+    lv_unlock();
+}
+
 int UIExtensionsRecipeSteps::getPhaseCount()
 {
     if (!s_hasRecipe)
