@@ -40,8 +40,11 @@ struct Product
 
 struct Favorite
 {
-    std::string id;       // Appwrite document ID ($id)
-    std::string url;      // Recipe URL (unique identifier)
-    std::string name;     // Recipe name
-    std::string imageUrl; // Recipe image URL
+    std::string id;   // Appwrite document ID ($id)
+    std::string url;  // Recipe URL (unique identifier)
+    std::string name; // Recipe name
+    std::string description;
+    std::string imageUrl;   // Recipe image URL
+    std::string difficulty; // From "skillLevel"
+    std::string totalTime;  // From "time"
 };

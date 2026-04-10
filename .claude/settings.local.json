@@ -18,7 +18,8 @@
       "Bash(python -c \":*)",
       "Bash(cd:*)",
       "Bash(python modify_eez.py)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(grep -n \"ThumbDataCtx\" *.cpp)"
     ],
     "deny": [
       "Bash(idf.py build *)",

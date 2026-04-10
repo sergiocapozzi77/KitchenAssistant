@@ -307,6 +307,24 @@ Favorite FavouriteService::parseFavouriteFromJson(cJSON *item)
         {
             fav.imageUrl = imageUrl->valuestring;
         }
+
+        cJSON *description = cJSON_GetObjectItem(data, "description");
+        if (description && cJSON_IsString(description))
+        {
+            fav.description = description->valuestring;
+        }
+
+        cJSON *difficulty = cJSON_GetObjectItem(data, "difficulty");
+        if (difficulty && cJSON_IsString(difficulty))
+        {
+            fav.difficulty = difficulty->valuestring;
+        }
+
+        cJSON *totalTime = cJSON_GetObjectItem(data, "totalTime");
+        if (totalTime && cJSON_IsString(totalTime))
+        {
+            fav.totalTime = totalTime->valuestring;
+        }
     }
     else
     {
@@ -327,6 +345,24 @@ Favorite FavouriteService::parseFavouriteFromJson(cJSON *item)
         if (imageUrl && cJSON_IsString(imageUrl))
         {
             fav.imageUrl = imageUrl->valuestring;
+        }
+
+                cJSON *description = cJSON_GetObjectItem(item, "description");
+        if (description && cJSON_IsString(description))
+        {
+            fav.description = description->valuestring;
+        }
+
+        cJSON *difficulty = cJSON_GetObjectItem(item, "difficulty");
+        if (difficulty && cJSON_IsString(difficulty))
+        {
+            fav.difficulty = difficulty->valuestring;
+        }
+
+        cJSON *totalTime = cJSON_GetObjectItem(item, "totalTime");
+        if (totalTime && cJSON_IsString(totalTime))
+        {
+            fav.totalTime = totalTime->valuestring;
         }
     }
 
@@ -362,6 +398,9 @@ std::string FavouriteService::buildFavouriteJson(const RecipeSuggestion &recipe)
     cJSON_AddStringToObject(data, "url", recipe.url.c_str());
     cJSON_AddStringToObject(data, "name", recipe.name.c_str());
     cJSON_AddStringToObject(data, "imageUrl", recipe.imageUrl.c_str());
+    cJSON_AddStringToObject(data, "description", recipe.description.c_str());
+    cJSON_AddStringToObject(data, "difficulty", recipe.difficulty.c_str());
+    cJSON_AddStringToObject(data, "totalTime", recipe.totalTime.c_str());
 
     char *json = cJSON_PrintUnformatted(root);
     if (!json)

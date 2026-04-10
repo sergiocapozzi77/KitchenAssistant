@@ -183,15 +183,15 @@ static void tabview_tab_changed_cb(lv_event_t *e)
         }
         // Hide keyboard when switching away from products tab
         lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
-        // Cancel any in-flight thumbnail fetches for favourites
-        s_thumb_generation++;
+        // Cancel any in-flight thumbnail fetches for favourites (disabled to allow background downloads)
+        // s_thumb_generation++;
         lv_obj_clean(objects.favourites_list);
     }
     else if (tab == 2)
     {
         // Switching TO Favourites tab — rebuild from cached favourites
-        // Cancel any in-flight thumbnail fetches for recipes
-        s_thumb_generation++;
+        // Cancel any in-flight thumbnail fetches for recipes (disabled to allow background downloads)
+        // s_thumb_generation++;
         lv_obj_clean(objects.recipes_list);
         // Hide keyboard when switching away from products tab
         lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
