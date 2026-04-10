@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <ctime>
 #include <cmath>
+#include "mbedtls/base64.h"
 #include "lvgl.h"
 #include "esp_log.h"
 #include "esp_heap_caps.h"
@@ -18,8 +19,11 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/timers.h"
 #include "secrets.h"
+#include "AppwriteHttpClient.h"
+#include "cJSON.h"
 
 static const char *TAG = "UIEXTENSIONS";
+static AppwriteHttpClient s_appwriteClient(APPWRITE_ENDPOINT, APPWRITE_PROJECT_ID, APPWRITE_API_KEY, 30000);
 
 // Global variables defined here
 uint32_t s_thumb_generation = 0;
@@ -226,7 +230,7 @@ void free_ingredient_checkbox_ctx_cb(lv_event_t *e)
 
 // === INGREDIENTS UI HELPERS ===
 
-void setupIngredientsContainer(lv_obj_t* container)
+void setupIngredientsContainer(lv_obj_t *container)
 {
     // Set up container for two-column layout
     lv_obj_set_flex_flow(container, LV_FLEX_FLOW_ROW_WRAP);
@@ -235,7 +239,7 @@ void setupIngredientsContainer(lv_obj_t* container)
     lv_obj_set_style_pad_row(container, 12, 0);
 }
 
-lv_obj_t* createIngredientRow(lv_obj_t* parent, const std::string& displayText)
+lv_obj_t *createIngredientRow(lv_obj_t *parent, const std::string &displayText)
 {
     lv_obj_t *row = lv_obj_create(parent);
     lv_obj_set_width(row, lv_pct(48));
@@ -283,10 +287,10 @@ lv_obj_t* createIngredientRow(lv_obj_t* parent, const std::string& displayText)
     return row;
 }
 
-void populateIngredientsUI(lv_obj_t* container, const std::vector<std::string>& displayTexts)
+void populateIngredientsUI(lv_obj_t *container, const std::vector<std::string> &displayTexts)
 {
     setupIngredientsContainer(container);
-    for (const auto& text : displayTexts)
+    for (const auto &text : displayTexts)
     {
         createIngredientRow(container, text);
         vTaskDelay(pdMS_TO_TICKS(10)); // Yield to LVGL to render incrementally
@@ -346,101 +350,164 @@ void free_thumb_data_cb(lv_event_t *e)
 bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
                            lv_image_dsc_t **out_dsc, uint8_t **out_px)
 {
-    esp_http_client_config_t cfg = {};
-    cfg.url = url.c_str();
-    cfg.crt_bundle_attach = esp_crt_bundle_attach;
-    cfg.buffer_size = 4096;
+    // -------------------------------------------------------------------------
+    // Build Appwrite function URL
+    // -------------------------------------------------------------------------
+    std::string function_url = std::string(APPWRITE_ENDPOINT) + "/functions/" +
+                               APPWRITE_IMAGE_RESIZE_FUNCTION_ID + "/executions";
 
-    esp_http_client_handle_t client = esp_http_client_init(&cfg);
-    if (!client)
+    // -------------------------------------------------------------------------
+    // Build request payload
+    // -------------------------------------------------------------------------
+    cJSON *bodyJson = cJSON_CreateObject();
+    if (!bodyJson)
     {
-        ESP_LOGE(TAG, "http_client_init failed");
+        ESP_LOGE(TAG, "Failed to create body JSON object");
+        return false;
+    }
+    cJSON_AddStringToObject(bodyJson, "url", url.c_str());
+    cJSON_AddNumberToObject(bodyJson, "maxWidth", W);
+    cJSON_AddNumberToObject(bodyJson, "maxHeight", H);
+    char *bodyJsonStr = cJSON_PrintUnformatted(bodyJson);
+    cJSON_Delete(bodyJson);
+    if (!bodyJsonStr)
+    {
+        ESP_LOGE(TAG, "Failed to stringify body JSON");
         return false;
     }
 
-    // Set Appwrite authentication headers if URL is from Appwrite Storage
-    if (url.find("appwrite.io") != std::string::npos)
+    cJSON *envelope = cJSON_CreateObject();
+    cJSON_AddStringToObject(envelope, "body", bodyJsonStr);
+    cJSON_AddBoolToObject(envelope, "async", false);
+    char *payloadRaw = cJSON_PrintUnformatted(envelope);
+    cJSON_Delete(envelope);
+    free(bodyJsonStr);
+    if (!payloadRaw)
     {
-        ESP_LOGI(TAG, "Setting Appwrite auth headers for storage URL");
-        esp_http_client_set_header(client, "X-Appwrite-Project", APPWRITE_PROJECT_ID);
-        esp_http_client_set_header(client, "X-Appwrite-Key", APPWRITE_API_KEY);
+        ESP_LOGE(TAG, "Failed to stringify envelope JSON");
+        return false;
     }
+    std::string payloadStr(payloadRaw);
+    free(payloadRaw);
 
-    if (esp_http_client_open(client, 0) != ESP_OK)
+    // -------------------------------------------------------------------------
+    // HTTP POST
+    // -------------------------------------------------------------------------
+    int status = 0;
+    std::string response = s_appwriteClient.httpPost(function_url, payloadStr, status);
+    ESP_LOGI(TAG, "HTTP status: %d, response size: %d", status, response.size());
+
+    if ((status != 200 && status != 201 && status != 202) || response.empty())
     {
-        ESP_LOGE(TAG, "http_client_open failed");
-        esp_http_client_cleanup(client);
+        ESP_LOGE(TAG, "HTTP request failed or empty response");
+        if (!response.empty())
+            ESP_LOGE(TAG, "Error response: %.*s", response.size(), response.c_str());
         return false;
     }
 
-    int content_len = esp_http_client_fetch_headers(client);
-    int status = esp_http_client_get_status_code(client);
-    ESP_LOGI(TAG, "HTTP status: %d, content-length: %d", status, content_len);
+    // -------------------------------------------------------------------------
+    // Parse Appwrite envelope → responseBody → image (base64)
+    // -------------------------------------------------------------------------
+    std::string b64Str;
+    {
+        cJSON *root = cJSON_Parse(response.c_str());
+        if (!root)
+        {
+            ESP_LOGE(TAG, "Failed to parse Appwrite envelope JSON");
+            return false;
+        }
 
-    size_t buf_sz = (content_len > 0) ? (size_t)content_len : 64 * 1024;
-    uint8_t *jpeg_buf = (uint8_t *)heap_caps_malloc(buf_sz, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        cJSON *responseBodyField = cJSON_GetObjectItem(root, "responseBody");
+        if (!responseBodyField || !cJSON_IsString(responseBodyField))
+        {
+            ESP_LOGE(TAG, "Missing or invalid 'responseBody' field");
+            cJSON_Delete(root);
+            return false;
+        }
+
+        cJSON *innerJson = cJSON_Parse(responseBodyField->valuestring);
+        cJSON_Delete(root); // done with outer — responseBodyField is now invalid
+        if (!innerJson)
+        {
+            ESP_LOGE(TAG, "Failed to parse inner responseBody JSON");
+            return false;
+        }
+
+        cJSON *imageField = cJSON_GetObjectItem(innerJson, "image");
+        if (!imageField || !cJSON_IsString(imageField))
+        {
+            ESP_LOGE(TAG, "Missing or invalid 'image' field in response");
+            cJSON_Delete(innerJson);
+            return false;
+        }
+
+        // Copy out before freeing innerJson — pointer would dangle otherwise
+        b64Str = imageField->valuestring;
+        cJSON_Delete(innerJson);
+    }
+
+    // -------------------------------------------------------------------------
+    // Base64 decode → JPEG buffer
+    // -------------------------------------------------------------------------
+    const uint8_t *b64 = reinterpret_cast<const uint8_t *>(b64Str.c_str());
+    size_t b64Len = b64Str.size();
+
+    size_t jpegLen = 0;
+    int ret = mbedtls_base64_decode(nullptr, 0, &jpegLen, b64, b64Len);
+    if (ret != 0 && ret != MBEDTLS_ERR_BASE64_BUFFER_TOO_SMALL)
+    {
+        ESP_LOGE(TAG, "mbedtls_base64_decode size check failed: -0x%04X", -ret);
+        return false;
+    }
+
+    uint8_t *jpeg_buf = (uint8_t *)heap_caps_malloc(jpegLen, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (!jpeg_buf)
     {
-        ESP_LOGE(TAG, "jpeg_buf malloc failed, requested: %u", buf_sz);
-        esp_http_client_close(client);
-        esp_http_client_cleanup(client);
+        ESP_LOGE(TAG, "jpeg_buf malloc failed, requested: %u", jpegLen);
         return false;
     }
 
-    size_t total = 0;
-    int n;
-    while ((n = esp_http_client_read(client, (char *)jpeg_buf + total, buf_sz - total)) > 0)
-        total += (size_t)n;
-    ESP_LOGI(TAG, "Downloaded %u bytes", total);
-
-    esp_http_client_close(client);
-    esp_http_client_cleanup(client);
-
-    if (total == 0)
+    ret = mbedtls_base64_decode(jpeg_buf, jpegLen, &jpegLen, b64, b64Len);
+    if (ret != 0)
     {
-        ESP_LOGE(TAG, "No data received");
-        free(jpeg_buf);
+        ESP_LOGE(TAG, "mbedtls_base64_decode failed: -0x%04X", -ret);
+        heap_caps_free(jpeg_buf);
         return false;
     }
+    ESP_LOGI(TAG, "Decoded JPEG: %u bytes", jpegLen);
 
+    // -------------------------------------------------------------------------
+    // tjpgd decode
+    // -------------------------------------------------------------------------
     uint8_t *work = (uint8_t *)heap_caps_malloc(3100, MALLOC_CAP_INTERNAL);
     if (!work)
     {
         ESP_LOGE(TAG, "work malloc failed");
-        free(jpeg_buf);
+        heap_caps_free(jpeg_buf);
         return false;
     }
 
-    JpegIo io = {jpeg_buf, total, 0, nullptr, 0};
+    JpegIo io = {jpeg_buf, jpegLen, 0, nullptr, 0};
     JDEC jd;
-
     JRESULT res = jd_prepare(&jd, tjpgd_in_cb, work, 3100, &io);
     ESP_LOGI(TAG, "jd_prepare: %d  img size: %ux%u", res, jd.width, jd.height);
 
     uint8_t *px = nullptr;
     if (res == JDR_OK)
     {
-        if (jd.width >= W * 8)
-            jd.scale = 3; // 1/8
-        else if (jd.width >= W * 4)
-            jd.scale = 2; // 1/4
-        else if (jd.width >= W * 2)
-            jd.scale = 1; // 1/2
-        else
-            jd.scale = 0; // full
-
-        ESP_LOGI(TAG, "Decoding with scale: 1/%d", 1 << jd.scale);
-
+        jd.scale = 0;
         uint16_t decoded_w = jd.width >> jd.scale;
         uint16_t decoded_h = jd.height >> jd.scale;
+
         px = (uint8_t *)heap_caps_malloc(decoded_w * decoded_h * 3, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
         if (!px)
         {
             ESP_LOGE(TAG, "px malloc failed (%ux%u)", decoded_w, decoded_h);
-            free(jpeg_buf);
-            free(work);
+            heap_caps_free(jpeg_buf);
+            heap_caps_free(work);
             return false;
         }
+
         io.dst = px;
         io.out_w = decoded_w;
         W = decoded_w;
@@ -450,16 +517,20 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
         ESP_LOGI(TAG, "jd_decomp: %d", res);
     }
 
-    free(jpeg_buf);
-    free(work);
+    heap_caps_free(jpeg_buf);
+    heap_caps_free(work);
 
     if (res != JDR_OK)
     {
         ESP_LOGE(TAG, "JPEG decode failed: %d", res);
-        free(px);
+        if (px)
+            heap_caps_free(px);
         return false;
     }
 
+    // -------------------------------------------------------------------------
+    // Build LVGL image descriptor
+    // -------------------------------------------------------------------------
     lv_image_dsc_t *dsc = new lv_image_dsc_t{};
     dsc->header.cf = LV_COLOR_FORMAT_RGB888;
     dsc->header.w = W;
