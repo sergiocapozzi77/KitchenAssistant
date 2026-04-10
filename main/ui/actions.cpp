@@ -30,9 +30,9 @@ filter_panel_t recipes_panel;
 static int favouritesCurrentPage = 1;
 const int favouritesPageSize = 6;
 
-static void showCurrentPageFavourites()
+static void showCurrentPageFavourites(bool force = false)
 {
-    if (lv_obj_get_child_count(objects.favourites_list) > 0)
+    if (lv_obj_get_child_count(objects.favourites_list) > 0 && !force)
     {
         return; // Don't repopulate if already populated (e.g. when switching tabs)
     }
@@ -308,7 +308,7 @@ void action_favourites_next(lv_event_t *e)
     if (favouritesCurrentPage < totalPages)
     {
         favouritesCurrentPage++;
-        showCurrentPageFavourites();
+        showCurrentPageFavourites(true);
     }
 }
 
@@ -317,7 +317,7 @@ void action_favourites_prev(lv_event_t *e)
     if (favouritesCurrentPage > 1)
     {
         favouritesCurrentPage--;
-        showCurrentPageFavourites();
+        showCurrentPageFavourites(true);
     }
 }
 
@@ -328,6 +328,9 @@ void action_products_reload_click(lv_event_t *e)
 
 void action_favourites_reload_click(lv_event_t *e)
 {
+    lv_lock();
+    lv_obj_clean(objects.favourites_list);
+    lv_unlock();
     favouritesManager.startBackgroundFetch();
 }
 

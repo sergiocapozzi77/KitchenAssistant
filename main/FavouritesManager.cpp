@@ -4,6 +4,9 @@
 #include "esp_log.h"
 #include "WiFiManager.h"
 #include <algorithm>
+#include "lvgl.h"
+#include "ui.h"
+#include "ui_extensions.h"
 
 static const char *TAG = "FavouritesManager";
 
@@ -37,7 +40,8 @@ bool FavouritesManager::isFavouriteUrl(const std::string &url) const
     std::lock_guard<std::mutex> lock(_favouritesMutex);
 
     auto it = std::find_if(_favourites.begin(), _favourites.end(),
-        [&url](const Favorite &fav) { return fav.url == url; });
+                           [&url](const Favorite &fav)
+                           { return fav.url == url; });
 
     return it != _favourites.end();
 }
@@ -49,7 +53,8 @@ void FavouritesManager::addFavourite(const Favorite &favourite)
 
     // Check if already exists
     auto it = std::find_if(_favourites.begin(), _favourites.end(),
-        [&favourite](const Favorite &fav) { return fav.url == favourite.url; });
+                           [&favourite](const Favorite &fav)
+                           { return fav.url == favourite.url; });
 
     if (it == _favourites.end())
     {
@@ -68,7 +73,8 @@ void FavouritesManager::removeFavourite(const std::string &url)
     std::lock_guard<std::mutex> lock(_favouritesMutex);
 
     auto it = std::remove_if(_favourites.begin(), _favourites.end(),
-        [&url](const Favorite &fav) { return fav.url == url; });
+                             [&url](const Favorite &fav)
+                             { return fav.url == url; });
 
     if (it != _favourites.end())
     {
@@ -91,14 +97,13 @@ void FavouritesManager::startBackgroundFetch()
         8192,
         this,
         1,
-        nullptr
-    );
+        nullptr);
 }
 
 // Background task implementation
 void FavouritesManager::fetchFavouritesTask(void *param)
 {
-    FavouritesManager *manager = static_cast<FavouritesManager*>(param);
+    FavouritesManager *manager = static_cast<FavouritesManager *>(param);
     if (!manager)
     {
         ESP_LOGE(TAG, "Invalid manager pointer in fetch task");
@@ -124,5 +129,11 @@ void FavouritesManager::fetchFavouritesTask(void *param)
     manager->fetchFavourites();
 
     ESP_LOGI(TAG, "Background favourites fetch task completed");
+
+    if (lv_tabview_get_tab_act(objects.tabview) == 2)
+    {
+        populateFavouritesList(objects.favourites_list, manager->getFavourites());
+    }
+
     vTaskDelete(nullptr);
 }
