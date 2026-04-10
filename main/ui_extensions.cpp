@@ -622,7 +622,6 @@ void thumb_worker_task(void *arg)
             if (thumb && lv_obj_is_valid(thumb))
             {
                 lv_image_set_src(thumb, dsc);
-                lv_obj_set_size(thumb, wctx->maxWidth, wctx->maxHeight);
                 lv_obj_remove_event_cb_with_user_data(thumb, thumb_obj_deleted_cb, ctx);
                 ThumbDataCtx *data_ctx = new ThumbDataCtx{dsc, px};
                 lv_obj_add_event_cb(thumb, free_thumb_data_cb, LV_EVENT_DELETE, data_ctx);

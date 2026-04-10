@@ -12,9 +12,11 @@
 #include "secrets.h"
 
 // Helper to convert RecipeIngredient to display string
-static std::string ingredientToDisplayText(const RecipeIngredient& ing) {
+static std::string ingredientToDisplayText(const RecipeIngredient &ing)
+{
     std::string display;
-    if (!ing.quantity.empty()) {
+    if (!ing.quantity.empty())
+    {
         display += ing.quantity;
         if (!ing.unit.empty())
             display += " " + ing.unit;
@@ -41,7 +43,6 @@ Recipe UIExtensionsRecipeSteps::s_currentRecipe{};
 int UIExtensionsRecipeSteps::s_currentPhaseIndex = 0;
 bool UIExtensionsRecipeSteps::s_hasRecipe = false;
 
-
 void UIExtensionsRecipeSteps::createRecipeStepsTask()
 {
     xTaskCreatePinnedToCoreWithCaps(
@@ -50,7 +51,7 @@ void UIExtensionsRecipeSteps::createRecipeStepsTask()
             auto recipeSuggestion = recipeDetailService.getSelectedRecipe();
             ESP_LOGI("actions", "Creating recipe steps for URL: %s", recipeSuggestion.url.c_str());
             Recipe recipe;
-            auto success = recipeStepsAggregationService.getRecipe(recipeSuggestion.url, recipe, 0, 220);
+            auto success = recipeStepsAggregationService.getRecipe(recipeSuggestion.url, recipe);
 
             if (success)
             {
@@ -189,9 +190,8 @@ void UIExtensionsRecipeSteps::populatePhaseImages(const Recipe &recipe, int phas
                 lv_obj_set_style_border_width(thumb, 0, 0);
                 //  lv_image_set_inner_align(thumb, LV_IMAGE_ALIGN_COVER);
 
-                std::string url = makeStorageUrl(imgRef.fileId);
-                ESP_LOGI("UIExtensionsRecipeSteps", "Scheduling image fetch: %s", url.c_str());
-                ThumbContext *tctx = new ThumbContext{thumb, url, s_thumb_generation};
+                ESP_LOGI("UIExtensionsRecipeSteps", "Scheduling image fetch: %s", imgRef.url.c_str());
+                ThumbContext *tctx = new ThumbContext{thumb, imgRef.url, s_thumb_generation};
                 pending_thumbs.push_back(tctx);
             }
         }
@@ -209,7 +209,7 @@ void UIExtensionsRecipeSteps::populatePhaseImages(const Recipe &recipe, int phas
     if (!pending_thumbs.empty())
     {
         ThumbWorkerCtx *wctx = new ThumbWorkerCtx{pending_thumbs};
-        wctx->maxWidth = thumbWidth;
+        wctx->maxWidth = 0;
         wctx->maxHeight = thumbHeight;
 
         BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(

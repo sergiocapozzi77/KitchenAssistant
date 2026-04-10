@@ -20,8 +20,8 @@ struct RecipeIngredient
 
 struct RecipeImageRef
 {
-    std::string fileId;   // Appwrite Storage file ID
-    std::string fileName; // e.g. "recipe_1234_img_1.jpg"
+    std::string ref; // Appwrite Storage file ID
+    std::string url; // e.g. "recipe_1234_img_1.jpg"
 };
 
 struct RecipePhase
@@ -61,8 +61,7 @@ public:
      * On success, populates outRecipe and returns true.
      * On failure, logs the error and returns false.
      */
-    bool getRecipe(const std::string &url, Recipe &outRecipe,
-                   int maxWidth = 320, int maxHeight = 240);
+    bool getRecipe(const std::string &url, Recipe &outRecipe);
 
     /**
      * Fetch a recipe from the Appwrite database by searching for the sourceUrl column.
@@ -94,8 +93,6 @@ private:
     cJSON *pollExecution(const std::string &executionId);
     std::string executeFunction(
         const std::string &url,
-        int maxWidth,
-        int maxHeight,
         bool async,
         int &statusOut);
 

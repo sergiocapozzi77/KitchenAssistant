@@ -100,8 +100,6 @@ std::string RecipeStepsAggregationService::decodeDuration(const std::string &iso
 
 std::string RecipeStepsAggregationService::executeFunction(
     const std::string &url,
-    int maxWidth,
-    int maxHeight,
     bool async,
     int &statusOut)
 {
@@ -109,8 +107,6 @@ std::string RecipeStepsAggregationService::executeFunction(
 
     cJSON *inner = cJSON_CreateObject();
     cJSON_AddStringToObject(inner, "url", url.c_str());
-    cJSON_AddNumberToObject(inner, "maxWidth", maxWidth);
-    cJSON_AddNumberToObject(inner, "maxHeight", maxHeight);
 
     char *innerStr = cJSON_PrintUnformatted(inner);
     cJSON_Delete(inner);
@@ -241,9 +237,9 @@ void RecipeStepsAggregationService::parsePhase(cJSON *item, RecipePhase &out)
         cJSON_ArrayForEach(imgItem, imageRefsArr)
         {
             RecipeImageRef ref;
-            ref.fileId = safeString(imgItem, "fileId");
-            ref.fileName = safeString(imgItem, "fileName");
-            if (!ref.fileId.empty())
+            ref.ref = safeString(imgItem, "ref");
+            ref.url = safeString(imgItem, "url");
+            if (!ref.ref.empty())
                 out.imageRefs.push_back(ref);
         }
     }
@@ -309,9 +305,7 @@ bool RecipeStepsAggregationService::parseRecipeResponse(
 
 bool RecipeStepsAggregationService::getRecipe(
     const std::string &url,
-    Recipe &outRecipe,
-    int maxWidth,
-    int maxHeight)
+    Recipe &outRecipe)
 {
     if (functionId.empty() || url.empty())
     {
@@ -322,7 +316,8 @@ bool RecipeStepsAggregationService::getRecipe(
     ESP_LOGI(TAG, "getRecipe: %s", url.c_str());
 
     // First, try to fetch from database
-    if (getRecipeFromDatabase(url, outRecipe)) {
+    if (getRecipeFromDatabase(url, outRecipe))
+    {
         ESP_LOGI(TAG, "Recipe found in database, skipping function execution");
         return true;
     }
@@ -334,7 +329,7 @@ bool RecipeStepsAggregationService::getRecipe(
     // ─────────────────────────────────────────
 
     int status = -1;
-    std::string resp = executeFunction(url, maxWidth, maxHeight, true, status);
+    std::string resp = executeFunction(url, true, status);
 
     if (status != 201 && status != 202 && status != 200)
     {
@@ -386,7 +381,7 @@ bool RecipeStepsAggregationService::getRecipe(
     ESP_LOGW(TAG, "Retrying synchronously...");
 
     int syncStatus = -1;
-    std::string syncResp = executeFunction(url, maxWidth, maxHeight, false, syncStatus);
+    std::string syncResp = executeFunction(url, false, syncStatus);
 
     if (syncStatus != 200 && syncStatus != 201)
     {
