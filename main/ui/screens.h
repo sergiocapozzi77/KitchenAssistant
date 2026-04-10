@@ -80,6 +80,7 @@ typedef struct _objects_t {
     lv_obj_t *favourites_header_pnl;
     lv_obj_t *favourites_prev_btn;
     lv_obj_t *favourites_next_btn;
+    lv_obj_t *favourites_reload_btn;
     lv_obj_t *favourites_list;
     lv_obj_t *keywords_keyboard;
     lv_obj_t *spinner;

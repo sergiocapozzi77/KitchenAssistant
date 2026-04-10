@@ -108,6 +108,11 @@ int RecipeSuggestionsManager::getSuggestionSize()
 
 void RecipeSuggestionsManager::showCurrentPageRecipes()
 {
+    if (lv_obj_get_child_count(objects.recipes_list) > 0)
+    {
+        return; // Don't repopulate if already populated (e.g. when switching tabs)
+    }
+
     std::vector<RecipeSuggestion> suggestions = getSuggestions();
 
     int start = (currentPage - 1) * pageSize;

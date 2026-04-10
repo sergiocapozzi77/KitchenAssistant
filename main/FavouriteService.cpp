@@ -347,7 +347,7 @@ Favorite FavouriteService::parseFavouriteFromJson(cJSON *item)
             fav.imageUrl = imageUrl->valuestring;
         }
 
-                cJSON *description = cJSON_GetObjectItem(item, "description");
+        cJSON *description = cJSON_GetObjectItem(item, "description");
         if (description && cJSON_IsString(description))
         {
             fav.description = description->valuestring;
@@ -551,8 +551,8 @@ bool FavouriteService::addFavourite(const RecipeSuggestion &recipe)
         return false;
     }
 
-    ESP_LOGI(TAG, "Adding favourite: url='%s', name='%s', imageUrl='%s'",
-             recipe.url.c_str(), recipe.name.c_str(), recipe.imageUrl.c_str());
+    ESP_LOGI(TAG, "Adding favourite: url='%s', name='%s', imageUrl='%s', description='%s', difficulty='%s', totalTime='%s'",
+             recipe.url.c_str(), recipe.name.c_str(), recipe.imageUrl.c_str(), recipe.description.c_str(), recipe.difficulty.c_str(), recipe.totalTime.c_str());
 
     // Check if already favourited
     if (isFavourite(recipe.url))

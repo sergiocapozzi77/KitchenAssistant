@@ -317,6 +317,15 @@
       "componentGroups": [],
       "userProperties": [],
       "name": "RecipePhasePrev"
+    },
+    {
+      "objID": "7b668d83-4e7e-497f-de0d-7ed8ab85f086",
+      "components": [],
+      "connectionLines": [],
+      "localVariables": [],
+      "componentGroups": [],
+      "userProperties": [],
+      "name": "FavouritesReloadClick"
     }
   ],
   "userPages": [
@@ -2032,7 +2041,7 @@
                                 {
                                   "objID": "92dfa243-727a-4b73-e228-17a0b90bfa35",
                                   "type": "LVGLButtonWidget",
-                                  "left": 9,
+                                  "left": 197,
                                   "top": -7,
                                   "width": 70,
                                   "height": 50,
@@ -2131,7 +2140,7 @@
                                 {
                                   "objID": "0e98e59e-f981-4a56-9b93-de1fe8f0cb2a",
                                   "type": "LVGLButtonWidget",
-                                  "left": 91,
+                                  "left": 279,
                                   "top": -7,
                                   "width": 70,
                                   "height": 50,
@@ -2223,6 +2232,105 @@
                                   "useStyle": "MainButton",
                                   "localStyles": {
                                     "objID": "a4fad90e-0064-41cd-c1d6-8ad895f69e17"
+                                  },
+                                  "group": "",
+                                  "groupIndex": 0
+                                },
+                                {
+                                  "objID": "c7340f91-2dc5-425a-9104-d9e93ab76b78",
+                                  "type": "LVGLButtonWidget",
+                                  "left": -6,
+                                  "top": -7,
+                                  "width": 50,
+                                  "height": 50,
+                                  "customInputs": [],
+                                  "customOutputs": [],
+                                  "style": {
+                                    "objID": "82c470fd-35e0-412b-8d13-1420159425c5",
+                                    "useStyle": "default",
+                                    "conditionalStyles": [],
+                                    "childStyles": []
+                                  },
+                                  "timeline": [],
+                                  "eventHandlers": [
+                                    {
+                                      "objID": "d3386c46-4a97-47e8-9dcf-4bd973251036",
+                                      "eventName": "CLICKED",
+                                      "handlerType": "action",
+                                      "action": "FavouritesReloadClick",
+                                      "userData": 0
+                                    }
+                                  ],
+                                  "identifier": "favourites_reload_btn",
+                                  "leftUnit": "px",
+                                  "topUnit": "px",
+                                  "widthUnit": "px",
+                                  "heightUnit": "px",
+                                  "children": [
+                                    {
+                                      "objID": "7ad02b9e-e2f1-4676-e47b-2f65046ea853",
+                                      "type": "LVGLLabelWidget",
+                                      "left": 0,
+                                      "top": 0,
+                                      "width": 26,
+                                      "height": 29,
+                                      "customInputs": [],
+                                      "customOutputs": [],
+                                      "style": {
+                                        "objID": "5b1871b1-1d39-4e2c-efa3-257c7bd15528",
+                                        "useStyle": "default",
+                                        "conditionalStyles": [],
+                                        "childStyles": []
+                                      },
+                                      "timeline": [],
+                                      "eventHandlers": [],
+                                      "leftUnit": "px",
+                                      "topUnit": "px",
+                                      "widthUnit": "content",
+                                      "heightUnit": "content",
+                                      "children": [],
+                                      "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+                                      "hiddenFlagType": "literal",
+                                      "clickableFlagType": "literal",
+                                      "flagScrollbarMode": "",
+                                      "flagScrollDirection": "",
+                                      "scrollSnapX": "",
+                                      "scrollSnapY": "",
+                                      "checkedStateType": "literal",
+                                      "disabledStateType": "literal",
+                                      "states": "",
+                                      "localStyles": {
+                                        "objID": "32aca765-7b25-402f-ab2e-6e2e1c6e3318",
+                                        "definition": {
+                                          "MAIN": {
+                                            "DEFAULT": {
+                                              "align": "CENTER"
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "group": "",
+                                      "groupIndex": 0,
+                                      "text": "\\uF021",
+                                      "textType": "literal",
+                                      "longMode": "CLIP",
+                                      "recolor": false
+                                    }
+                                  ],
+                                  "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_ON_FOCUS|SCROLL_WITH_ARROW|SNAPPABLE",
+                                  "hiddenFlagType": "literal",
+                                  "clickableFlag": true,
+                                  "clickableFlagType": "literal",
+                                  "flagScrollbarMode": "",
+                                  "flagScrollDirection": "",
+                                  "scrollSnapX": "",
+                                  "scrollSnapY": "",
+                                  "checkedStateType": "literal",
+                                  "disabledStateType": "literal",
+                                  "states": "",
+                                  "useStyle": "MainButton",
+                                  "localStyles": {
+                                    "objID": "f14496d5-897d-4f9c-d2e5-cab7f4e0ab17"
                                   },
                                   "group": "",
                                   "groupIndex": 0
@@ -2349,7 +2457,17 @@
                       "disabledStateType": "literal",
                       "states": "",
                       "localStyles": {
-                        "objID": "a076be13-dd95-4cb7-fdcc-b1044ab065f2"
+                        "objID": "a076be13-dd95-4cb7-fdcc-b1044ab065f2",
+                        "definition": {
+                          "MAIN": {
+                            "DEFAULT": {
+                              "pad_top": 0,
+                              "pad_bottom": 0,
+                              "pad_left": 0,
+                              "pad_right": 0
+                            }
+                          }
+                        }
                       },
                       "group": "",
                       "groupIndex": 0,

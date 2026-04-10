@@ -28,18 +28,20 @@ struct DetailFetchCtx
     uint32_t generation; // to detect stale tasks
 };
 
-
 struct HeartButtonContext
 {
     std::string url;
     std::string name;
     std::string imageUrl;
+    std::string description;
+    std::string difficulty;
+    std::string totalTime;
+
     lv_obj_t *add;
     lv_obj_t *remove;
 };
 
 // === CLEANUP CALLBACKS ===
-
 
 static void free_heart_button_ctx_cb(lv_event_t *e)
 {
@@ -69,7 +71,6 @@ static void detail_widget_deleted_cb(lv_event_t *e)
     if (obj == ctx->header_img)
         ctx->header_img = nullptr;
 }
-
 
 static void heart_button_cb(lv_event_t *e)
 {
@@ -104,6 +105,10 @@ static void heart_button_cb(lv_event_t *e)
         recipe.url = ctx->url;
         recipe.name = ctx->name;
         recipe.imageUrl = ctx->imageUrl;
+        recipe.description = ctx->description;
+        recipe.difficulty = ctx->difficulty;
+        recipe.totalTime = ctx->totalTime;
+
         // Other fields remain empty
 
         // Create Favorite for local cache
@@ -111,6 +116,9 @@ static void heart_button_cb(lv_event_t *e)
         fav.url = ctx->url;
         fav.name = ctx->name;
         fav.imageUrl = ctx->imageUrl;
+        fav.description = ctx->description;
+        fav.difficulty = ctx->difficulty;
+        fav.totalTime = ctx->totalTime;
         favouritesManager.addFavourite(fav);
 
         lv_lock();
@@ -390,6 +398,9 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
         recipe.url,
         recipe.name,
         recipe.imageUrl,
+        recipe.description,
+        recipe.difficulty,
+        recipe.totalTime,
         objects.recipe_favourite_add,
         objects.recipe_favourite_remove};
 

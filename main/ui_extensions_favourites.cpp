@@ -135,6 +135,66 @@ void populateFavouritesList(lv_obj_t *root, const std::vector<Favorite> &favouri
         lv_obj_set_style_text_color(title, lv_color_hex(0x212529), 0);
         lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
 
+        // Description
+        if (!fav.description.empty())
+        {
+            std::string cleaned = fav.description;
+            // Remove <p> and </p> tags
+            size_t pos = 0;
+            while ((pos = cleaned.find("<p>", pos)) != std::string::npos)
+                cleaned.erase(pos, 3);
+            pos = 0;
+            while ((pos = cleaned.find("</p>", pos)) != std::string::npos)
+                cleaned.erase(pos, 4);
+            lv_obj_t *desc = lv_label_create(info);
+            lv_label_set_text(desc, cleaned.c_str());
+            lv_label_set_long_mode(desc, LV_LABEL_LONG_WRAP);
+            lv_obj_set_width(desc, lv_pct(100));
+            lv_obj_set_style_text_color(desc, lv_color_hex(0x6C757D), 0);
+            lv_obj_set_style_text_font(desc, &ui_font_ext_font_montserrat_18, 0);
+        }
+
+        // === BADGES ROW (time + difficulty) ===
+        lv_obj_t *badges = lv_obj_create(info);
+        lv_obj_set_width(badges, lv_pct(100));
+        lv_obj_set_height(badges, LV_SIZE_CONTENT);
+        lv_obj_clear_flag(badges, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_flex_flow(badges, LV_FLEX_FLOW_ROW);
+        lv_obj_set_flex_align(badges, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        lv_obj_set_style_pad_all(badges, 0, 0);
+        lv_obj_set_style_border_width(badges, 0, 0);
+        lv_obj_set_style_bg_opa(badges, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_pad_column(badges, 10, 0);
+
+        auto make_badge = [&](lv_obj_t *parent, const char *symbol, const std::string &text)
+        {
+            if (text.empty())
+                return;
+            lv_obj_t *wrap = lv_obj_create(parent);
+            lv_obj_set_height(wrap, LV_SIZE_CONTENT);
+            lv_obj_set_width(wrap, LV_SIZE_CONTENT);
+            lv_obj_clear_flag(wrap, LV_OBJ_FLAG_SCROLLABLE);
+            lv_obj_set_flex_flow(wrap, LV_FLEX_FLOW_ROW);
+            lv_obj_set_flex_align(wrap, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+            lv_obj_set_style_pad_all(wrap, 0, 0);
+            lv_obj_set_style_border_width(wrap, 0, 0);
+            lv_obj_set_style_bg_opa(wrap, LV_OPA_TRANSP, 0);
+            lv_obj_set_style_pad_column(wrap, 4, 0);
+
+            lv_obj_t *ico = lv_label_create(wrap);
+            lv_label_set_text(ico, symbol);
+            lv_obj_set_style_text_color(ico, lv_color_hex(0x212529), 0);
+            lv_obj_set_style_text_font(ico, &lv_font_montserrat_14, 0);
+
+            lv_obj_t *lbl = lv_label_create(wrap);
+            lv_label_set_text(lbl, text.c_str());
+            lv_obj_set_style_text_color(lbl, lv_color_hex(0x495057), 0);
+            lv_obj_set_style_text_font(lbl, &lv_font_montserrat_14, 0);
+        };
+
+        make_badge(badges, LV_SYMBOL_LOOP, fav.totalTime); // clock-like symbol
+        make_badge(badges, LV_SYMBOL_EDIT, fav.difficulty);
+
         // Click handler — open detail screen
         FavouriteClickCtx *fctx = new FavouriteClickCtx{fav};
         lv_obj_add_flag(card, LV_OBJ_FLAG_CLICKABLE);
@@ -144,6 +204,7 @@ void populateFavouritesList(lv_obj_t *root, const std::vector<Favorite> &favouri
 
         // Visual press feedback
         lv_obj_set_style_bg_color(card, lv_color_hex(0xF1F3F5), LV_STATE_PRESSED);
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
     // Restore scroll position
     lv_obj_scroll_to_y(root, scroll_y, LV_ANIM_OFF);

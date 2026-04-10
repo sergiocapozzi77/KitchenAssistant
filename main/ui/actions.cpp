@@ -32,6 +32,11 @@ const int favouritesPageSize = 6;
 
 static void showCurrentPageFavourites()
 {
+    if (lv_obj_get_child_count(objects.favourites_list) > 0)
+    {
+        return; // Don't repopulate if already populated (e.g. when switching tabs)
+    }
+
     std::vector<Favorite> favourites = favouritesManager.getFavourites();
 
     int start = (favouritesCurrentPage - 1) * favouritesPageSize;
@@ -185,14 +190,14 @@ static void tabview_tab_changed_cb(lv_event_t *e)
         lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
         // Cancel any in-flight thumbnail fetches for favourites (disabled to allow background downloads)
         // s_thumb_generation++;
-        lv_obj_clean(objects.favourites_list);
+        // lv_obj_clean(objects.favourites_list);
     }
     else if (tab == 2)
     {
         // Switching TO Favourites tab — rebuild from cached favourites
         // Cancel any in-flight thumbnail fetches for recipes (disabled to allow background downloads)
         // s_thumb_generation++;
-        lv_obj_clean(objects.recipes_list);
+        // lv_obj_clean(objects.recipes_list);
         // Hide keyboard when switching away from products tab
         lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
         showCurrentPageFavourites();
@@ -319,6 +324,11 @@ void action_favourites_prev(lv_event_t *e)
 void action_products_reload_click(lv_event_t *e)
 {
     productsManager.fetchProducts();
+}
+
+void action_favourites_reload_click(lv_event_t *e)
+{
+    favouritesManager.startBackgroundFetch();
 }
 
 void action_product_edit_close(lv_event_t *e)
