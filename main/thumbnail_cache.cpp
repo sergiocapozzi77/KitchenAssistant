@@ -22,7 +22,7 @@ static const char *TAG = "THUMBCACHE";
 
 #define CACHE_BASE_DIR CONFIG_BSP_SPIFFS_MOUNT_POINT
 #define INDEX_FILE CONFIG_BSP_SPIFFS_MOUNT_POINT "/thumb_index.json"
-#define MAX_CACHE_ITEMS 30
+#define MAX_CACHE_ITEMS 100
 
 namespace thumbnail_cache
 {

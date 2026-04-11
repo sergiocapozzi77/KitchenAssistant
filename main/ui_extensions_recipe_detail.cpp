@@ -285,24 +285,38 @@ static void fetch_recipe_detail_task(void *arg)
     // Kick off header image fetch at larger size if we have a URL
     if (!ctx->recipe.imageUrl.empty() && ctx->header_img)
     {
-        lv_image_dsc_t *dsc = nullptr;
-        uint8_t *px = nullptr;
-        if (fetch_and_decode_jpeg(ctx->recipe.imageUrl, 800, 280, &dsc, &px))
+        lv_lock();
+        // Create shimmer overlay for loading indicator
+        lv_obj_t *shimmer = create_shimmer_overlay(ctx->header_img);
+        start_shimmer_animation(shimmer, ctx->header_img);
+        // Create thumb context for header image
+        ThumbContext *tctx = new ThumbContext{ctx->header_img, shimmer, ctx->recipe.imageUrl, ctx->generation};
+        // Add delete callback to nullify thumb pointer if header_img is deleted before fetch completes
+        lv_obj_add_event_cb(ctx->header_img, thumb_obj_deleted_cb, LV_EVENT_DELETE, tctx);
+        lv_unlock();
+
+        std::vector<ThumbContext*> pending_thumbs;
+        pending_thumbs.push_back(tctx);
+
+        // Create worker context with larger dimensions for header image
+        ThumbWorkerCtx *wctx = new ThumbWorkerCtx{pending_thumbs, 800, 280, true, ctx->generation};
+
+        BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
+            thumb_worker_task, "header_img_worker", 8192, wctx, 5, NULL, 1,
+            MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+        if (ret != pdPASS)
         {
+            ESP_LOGE(TAG, "Failed to create header image worker task");
             lv_lock();
-            if (ctx->header_img && lv_obj_is_valid(ctx->header_img))
+            if (shimmer && lv_obj_is_valid(shimmer))
             {
-                lv_image_set_src(ctx->header_img, dsc);
-                lv_obj_set_size(ctx->header_img, lv_pct(100), 280);
-                ThumbDataCtx *data_ctx = new ThumbDataCtx{dsc, px};
-                lv_obj_add_event_cb(ctx->header_img, free_thumb_data_cb, LV_EVENT_DELETE, data_ctx);
+                stop_shimmer_animation(shimmer);
+                lv_obj_del(shimmer);
             }
-            else
-            {
-                free(px);
-                delete dsc;
-            }
+            lv_obj_remove_event_cb_with_user_data(ctx->header_img, thumb_obj_deleted_cb, tctx);
             lv_unlock();
+            delete tctx;
+            delete wctx;
         }
     }
 

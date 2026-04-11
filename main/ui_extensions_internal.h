@@ -14,10 +14,16 @@
 // Forward declarations of internal functions
 void init_styles();
 
+// Shimmer animation functions
+void stop_shimmer_animation(lv_obj_t *shimmer_bar);
+void start_shimmer_animation(lv_obj_t *shimmer_bar, lv_obj_t *parent);
+lv_obj_t *create_shimmer_overlay(lv_obj_t *parent);
+
 // Thumbnail fetch/decode
 struct ThumbContext
 {
     lv_obj_t *thumb; // nulled under lv_lock if object deleted before task finishes
+    lv_obj_t *shimmer; // shimmer overlay object, null if not present
     std::string url;
     uint32_t generation;
 };
@@ -28,6 +34,7 @@ struct ThumbWorkerCtx
     int maxWidth = 112;
     int maxHeight = 112;
     bool enableCache = true;
+    uint32_t generation = 0;
 };
 
 struct ThumbDataCtx

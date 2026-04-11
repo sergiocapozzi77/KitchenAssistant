@@ -11,6 +11,22 @@
 #include "styles.h"
 #include "secrets.h"
 
+// === SHIMMER EFFECT FOR LOADING THUMBNAILS ===
+
+struct ShimmerAnimCtx
+{
+    lv_obj_t *shimmer_bar;
+    lv_obj_t *parent;
+};
+
+static void shimmer_anim_cb(void *var, int32_t v)
+{
+    lv_obj_t *shimmer_bar = (lv_obj_t *)var;
+    if (!shimmer_bar || !lv_obj_is_valid(shimmer_bar))
+        return;
+    lv_obj_set_x(shimmer_bar, v);
+}
+
 // Helper to convert RecipeIngredient to display string
 static std::string ingredientToDisplayText(const RecipeIngredient &ing)
 {
@@ -191,7 +207,9 @@ void UIExtensionsRecipeSteps::populatePhaseImages(const Recipe &recipe, int phas
                 //  lv_image_set_inner_align(thumb, LV_IMAGE_ALIGN_COVER);
 
                 ESP_LOGI("UIExtensionsRecipeSteps", "Scheduling image fetch: %s", imgRef.url.c_str());
-                ThumbContext *tctx = new ThumbContext{thumb, imgRef.url, s_thumb_generation};
+                lv_obj_t *shimmer = create_shimmer_overlay(thumb);
+                start_shimmer_animation(shimmer, thumb);
+                ThumbContext *tctx = new ThumbContext{thumb, shimmer, imgRef.url, s_thumb_generation};
                 pending_thumbs.push_back(tctx);
             }
         }
@@ -208,7 +226,7 @@ void UIExtensionsRecipeSteps::populatePhaseImages(const Recipe &recipe, int phas
     // Spawn thumbnail worker task if there are images to fetch
     if (!pending_thumbs.empty())
     {
-        ThumbWorkerCtx *wctx = new ThumbWorkerCtx{pending_thumbs};
+        ThumbWorkerCtx *wctx = new ThumbWorkerCtx{pending_thumbs, 112, 112, true, s_thumb_generation};
         wctx->maxWidth = 0;
         wctx->maxHeight = thumbHeight;
 

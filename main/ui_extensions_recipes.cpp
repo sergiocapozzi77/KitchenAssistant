@@ -11,6 +11,22 @@
 
 static const char *TAG = "UIEXTENSIONS";
 
+// === SHIMMER EFFECT FOR LOADING THUMBNAILS ===
+
+struct ShimmerAnimCtx
+{
+    lv_obj_t *shimmer_bar;
+    lv_obj_t *parent;
+};
+
+void shimmer_anim_cb(void *var, int32_t v)
+{
+    lv_obj_t *shimmer_bar = (lv_obj_t *)var;
+    if (!shimmer_bar || !lv_obj_is_valid(shimmer_bar))
+        return;
+    lv_obj_set_x(shimmer_bar, v);
+}
+
 // === RECIPE LIST SPECIFIC STRUCTS ===
 
 struct RecipeClickCtx
@@ -97,7 +113,9 @@ void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &rec
         if (!r.imageUrl.empty())
         {
             ESP_LOGI(TAG, "Scheduling thumb fetch for recipe: %s", r.name.c_str());
-            ThumbContext *tctx = new ThumbContext{thumb, r.imageUrl, s_thumb_generation};
+            lv_obj_t *shimmer = create_shimmer_overlay(thumb);
+            start_shimmer_animation(shimmer, thumb);
+            ThumbContext *tctx = new ThumbContext{thumb, shimmer, r.imageUrl, s_thumb_generation};
 
             ESP_LOGI(TAG, ">>> about to create task, internal heap: %" PRIu32,
                      heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
@@ -206,7 +224,7 @@ void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &rec
 
     if (!pending_thumbs.empty())
     {
-        ThumbWorkerCtx *wctx = new ThumbWorkerCtx{pending_thumbs};
+        ThumbWorkerCtx *wctx = new ThumbWorkerCtx{pending_thumbs, 112, 112, true, s_thumb_generation};
         BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
             thumb_worker_task, "thumb_worker", 8192, wctx, 5, NULL, 1,
             MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);

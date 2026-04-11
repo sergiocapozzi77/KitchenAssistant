@@ -38,6 +38,57 @@ lv_style_t style_del_btn;
 lv_style_t style_expiry_badge;
 lv_style_t style_checkbox_indicator;
 bool styles_initialized = false;
+
+// Shimmer animation functions (declared in ui_extensions_internal.h)
+static void shimmer_anim_cb(void *var, int32_t v)
+{
+    lv_obj_t *shimmer_bar = (lv_obj_t *)var;
+    if (!shimmer_bar || !lv_obj_is_valid(shimmer_bar))
+        return;
+    lv_obj_set_x(shimmer_bar, v);
+}
+
+lv_obj_t *create_shimmer_overlay(lv_obj_t *parent)
+{
+    lv_obj_t *shimmer = lv_obj_create(parent);
+    lv_obj_set_size(shimmer, 50, lv_obj_get_height(parent));
+    lv_obj_set_style_bg_color(shimmer, lv_color_white(), 0);
+    lv_obj_set_style_bg_opa(shimmer, LV_OPA_30, 0);
+    lv_obj_set_style_radius(shimmer, 0, 0);
+    lv_obj_set_style_border_width(shimmer, 0, 0);
+    lv_obj_set_style_shadow_width(shimmer, 0, 0);
+    // Gradient from transparent white to white to transparent white
+    lv_obj_set_style_bg_grad_color(shimmer, lv_color_white(), 0);
+    lv_obj_set_style_bg_grad_dir(shimmer, LV_GRAD_DIR_HOR, 0);
+    lv_obj_set_style_bg_grad_stop(shimmer, 255, 0);
+    lv_obj_set_style_bg_main_stop(shimmer, 0, 0);
+    // Initially positioned left outside parent
+    lv_obj_set_x(shimmer, -lv_obj_get_width(shimmer));
+    lv_obj_set_y(shimmer, 0);
+    return shimmer;
+}
+
+void start_shimmer_animation(lv_obj_t *shimmer_bar, lv_obj_t *parent)
+{
+    int32_t start_x = -lv_obj_get_width(shimmer_bar);
+    int32_t end_x = lv_obj_get_width(parent);
+    lv_anim_t a;
+    lv_anim_init(&a);
+    lv_anim_set_var(&a, shimmer_bar);
+    lv_anim_set_exec_cb(&a, shimmer_anim_cb);
+    lv_anim_set_values(&a, start_x, end_x);
+    lv_anim_set_time(&a, 1500);
+    lv_anim_set_playback_time(&a, 1500);
+    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
+    lv_anim_start(&a);
+}
+
+void stop_shimmer_animation(lv_obj_t *shimmer_bar)
+{
+    lv_anim_delete(shimmer_bar, shimmer_anim_cb);
+    // Delete the shimmer bar object (caller should do this)
+}
+
 static TimerHandle_t snackbar_timer = nullptr;
 
 // === REUSABLE STYLES (created once, applied many times) ===
@@ -334,7 +385,17 @@ void thumb_obj_deleted_cb(lv_event_t *e)
 {
     ThumbContext *ctx = (ThumbContext *)lv_event_get_user_data(e);
     if (ctx)
+    {
         ctx->thumb = nullptr;
+        // If shimmer exists (child of thumb), it will be automatically deleted when thumb is deleted
+        // but we should stop its animation and null the pointer
+        if (ctx->shimmer && lv_obj_is_valid(ctx->shimmer))
+        {
+            stop_shimmer_animation(ctx->shimmer);
+            // shimmer object will be deleted by LVGL when parent (thumb) is deleted
+            ctx->shimmer = nullptr;
+        }
+    }
 }
 
 // Fired under lv_lock when thumb is deleted after image data was set
@@ -707,12 +768,19 @@ void thumb_worker_task(void *arg)
     for (ThumbContext *ctx : wctx->items)
     {
         esp_task_wdt_reset();
-        if (ctx->generation != s_thumb_generation)
+        if (ctx->generation != wctx->generation)
         {
             lv_lock();
             lv_obj_t *thumb = ctx->thumb;
             if (thumb && lv_obj_is_valid(thumb))
                 lv_obj_remove_event_cb_with_user_data(thumb, thumb_obj_deleted_cb, ctx);
+            // Clean up shimmer if it exists
+            if (ctx->shimmer && lv_obj_is_valid(ctx->shimmer))
+            {
+                stop_shimmer_animation(ctx->shimmer);
+                lv_obj_del(ctx->shimmer);
+                ctx->shimmer = nullptr;
+            }
             lv_unlock();
             delete ctx;
             continue;
@@ -729,6 +797,13 @@ void thumb_worker_task(void *arg)
             lv_obj_t *thumb = ctx->thumb;
             if (thumb && lv_obj_is_valid(thumb))
             {
+                // Clean up shimmer overlay before setting image
+                if (ctx->shimmer && lv_obj_is_valid(ctx->shimmer))
+                {
+                    stop_shimmer_animation(ctx->shimmer);
+                    lv_obj_del(ctx->shimmer);
+                    ctx->shimmer = nullptr;
+                }
                 lv_image_set_src(thumb, dsc);
                 lv_obj_remove_event_cb_with_user_data(thumb, thumb_obj_deleted_cb, ctx);
                 ThumbDataCtx *data_ctx = new ThumbDataCtx{dsc, px};
@@ -747,6 +822,13 @@ void thumb_worker_task(void *arg)
             lv_obj_t *thumb = ctx->thumb;
             if (thumb && lv_obj_is_valid(thumb))
                 lv_obj_remove_event_cb_with_user_data(thumb, thumb_obj_deleted_cb, ctx);
+            // Clean up shimmer if it exists
+            if (ctx->shimmer && lv_obj_is_valid(ctx->shimmer))
+            {
+                stop_shimmer_animation(ctx->shimmer);
+                lv_obj_del(ctx->shimmer);
+                ctx->shimmer = nullptr;
+            }
             lv_unlock();
             ESP_LOGW(TAG, "Thumb fetch failed: %s", ctx->url.c_str());
         }

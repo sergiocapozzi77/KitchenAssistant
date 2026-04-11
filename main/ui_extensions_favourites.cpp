@@ -40,7 +40,9 @@ static void favourite_card_click_cb(lv_event_t *e)
     recipe.name = ctx->favourite.name;
     recipe.url = ctx->favourite.url;
     recipe.imageUrl = ctx->favourite.imageUrl;
-    // Other fields left empty - will be fetched by detail screen if needed
+    recipe.description = ctx->favourite.description;
+    recipe.difficulty = ctx->favourite.difficulty;
+    recipe.totalTime = ctx->favourite.totalTime;
     showRecipeDetailScreen(recipe);
 }
 
@@ -104,7 +106,9 @@ void populateFavouritesList(lv_obj_t *root, const std::vector<Favorite> &favouri
         if (!fav.imageUrl.empty())
         {
             ESP_LOGI(TAG, "Scheduling thumb fetch for favourite: %s", fav.name.c_str());
-            ThumbContext *tctx = new ThumbContext{thumb, fav.imageUrl, s_thumb_generation};
+            lv_obj_t *shimmer = create_shimmer_overlay(thumb);
+            start_shimmer_animation(shimmer, thumb);
+            ThumbContext *tctx = new ThumbContext{thumb, shimmer, fav.imageUrl, s_thumb_generation};
 
             ESP_LOGI(TAG, ">>> about to create task, internal heap: %" PRIu32,
                      heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
@@ -213,7 +217,7 @@ void populateFavouritesList(lv_obj_t *root, const std::vector<Favorite> &favouri
 
     if (!pending_thumbs.empty())
     {
-        ThumbWorkerCtx *wctx = new ThumbWorkerCtx{pending_thumbs};
+        ThumbWorkerCtx *wctx = new ThumbWorkerCtx{pending_thumbs, 112, 112, true, s_thumb_generation};
         BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
             thumb_worker_task, "thumb_worker", 8192, wctx, 5, NULL, 1,
             MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
