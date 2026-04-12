@@ -232,7 +232,7 @@ void UIExtensionsRecipeSteps::populatePhaseImages(const Recipe &recipe, int phas
 
         BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
             thumb_worker_task, "phase_img_worker", 8192, wctx, 5, NULL, 1,
-            MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+            MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
         if (ret != pdPASS)
         {
             ESP_LOGE("UIExtensionsRecipeSteps", "Failed to create thumb worker task");

@@ -295,7 +295,7 @@ static void fetch_recipe_detail_task(void *arg)
         lv_obj_add_event_cb(ctx->header_img, thumb_obj_deleted_cb, LV_EVENT_DELETE, tctx);
         lv_unlock();
 
-        std::vector<ThumbContext*> pending_thumbs;
+        std::vector<ThumbContext *> pending_thumbs;
         pending_thumbs.push_back(tctx);
 
         // Create worker context with larger dimensions for header image
@@ -303,7 +303,7 @@ static void fetch_recipe_detail_task(void *arg)
 
         BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
             thumb_worker_task, "header_img_worker", 8192, wctx, 5, NULL, 1,
-            MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+            MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
         if (ret != pdPASS)
         {
             ESP_LOGE(TAG, "Failed to create header image worker task");

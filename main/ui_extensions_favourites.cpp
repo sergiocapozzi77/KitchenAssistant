@@ -220,7 +220,7 @@ void populateFavouritesList(lv_obj_t *root, const std::vector<Favorite> &favouri
         ThumbWorkerCtx *wctx = new ThumbWorkerCtx{pending_thumbs, 112, 112, true, s_thumb_generation};
         BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
             thumb_worker_task, "thumb_worker", 8192, wctx, 5, NULL, 1,
-            MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+            MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
         if (ret != pdPASS)
         {
             ESP_LOGE(TAG, "Failed to create thumb worker task");
