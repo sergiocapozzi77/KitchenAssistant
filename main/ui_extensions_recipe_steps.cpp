@@ -10,6 +10,9 @@
 #include "ui_extensions_internal.h"
 #include "styles.h"
 #include "secrets.h"
+#include <cmath>
+#include <cstdlib>
+#include <string>
 
 // === SHIMMER EFFECT FOR LOADING THUMBNAILS ===
 
@@ -27,13 +30,89 @@ static void shimmer_anim_cb(void *var, int32_t v)
     lv_obj_set_x(shimmer_bar, v);
 }
 
-// Helper to convert RecipeIngredient to display string
-static std::string ingredientToDisplayText(const RecipeIngredient &ing)
+// Helper to parse quantity string to float, supports integers, decimals, simple fractions
+static bool parseQuantity(const std::string &str, float &out)
+{
+    if (str.empty())
+        return false;
+    std::string s = str;
+    // Trim leading/trailing spaces
+    s.erase(0, s.find_first_not_of(' '));
+    s.erase(s.find_last_not_of(' ') + 1);
+    if (s.empty())
+        return false;
+
+    // Try direct float conversion
+    char *endptr = nullptr;
+    float val = strtof(s.c_str(), &endptr);
+    // Check if conversion succeeded (endptr moved) and entire string consumed
+    if (endptr != s.c_str() && *endptr == '\0')
+    {
+        out = val;
+        return true;
+    }
+    // Look for slash
+    size_t slash = s.find('/');
+    if (slash != std::string::npos)
+    {
+        std::string left = s.substr(0, slash);
+        std::string right = s.substr(slash + 1);
+        // trim spaces
+        left.erase(0, left.find_first_not_of(' '));
+        left.erase(left.find_last_not_of(' ') + 1);
+        right.erase(0, right.find_first_not_of(' '));
+        right.erase(right.find_last_not_of(' ') + 1);
+        float num, den;
+        if (parseQuantity(left, num) && parseQuantity(right, den) && den != 0)
+        {
+            out = num / den;
+            return true;
+        }
+    }
+    // Maybe mixed number "1 1/2"
+    size_t space = s.find(' ');
+    if (space != std::string::npos)
+    {
+        std::string part1 = s.substr(0, space);
+        std::string part2 = s.substr(space + 1);
+        float whole, frac;
+        if (parseQuantity(part1, whole) && parseQuantity(part2, frac))
+        {
+            out = whole + frac;
+            return true;
+        }
+    }
+    return false;
+}
+
+// Helper to convert RecipeIngredient to display string with scaling factor
+static std::string ingredientToDisplayTextScaled(const RecipeIngredient &ing, float factor)
 {
     std::string display;
     if (!ing.quantity.empty())
     {
-        display += ing.quantity;
+        float qty = 0.0f;
+        if (parseQuantity(ing.quantity, qty))
+        {
+            // Successfully parsed as number
+            float scaled = qty * factor;
+            // Format scaled quantity: if integer, show without decimal, else with one decimal
+            char buf[32];
+            if (fabsf(scaled - roundf(scaled)) < 0.001f)
+            {
+                snprintf(buf, sizeof(buf), "%.0f", scaled);
+            }
+            else
+            {
+                snprintf(buf, sizeof(buf), "%.1f", scaled);
+            }
+            display += buf;
+        }
+        else
+        {
+            // Could not parse, keep original quantity (e.g., "q.b.", "½")
+            display += ing.quantity;
+        }
         if (!ing.unit.empty())
             display += " " + ing.unit;
         display += " ";
@@ -42,6 +121,12 @@ static std::string ingredientToDisplayText(const RecipeIngredient &ing)
     if (!ing.notes.empty())
         display += " (" + ing.notes + ")";
     return display;
+}
+
+// Helper to convert RecipeIngredient to display string (no scaling)
+static std::string ingredientToDisplayText(const RecipeIngredient &ing)
+{
+    return ingredientToDisplayTextScaled(ing, 1.0f);
 }
 
 // Appwrite Storage constants for recipe phase images
@@ -58,6 +143,7 @@ static std::string makeStorageUrl(const std::string &fileId)
 Recipe UIExtensionsRecipeSteps::s_currentRecipe{};
 int UIExtensionsRecipeSteps::s_currentPhaseIndex = 0;
 bool UIExtensionsRecipeSteps::s_hasRecipe = false;
+float UIExtensionsRecipeSteps::s_scalingFactor = 1.0f;
 
 void UIExtensionsRecipeSteps::createRecipeStepsTask()
 {
@@ -274,7 +360,7 @@ void UIExtensionsRecipeSteps::populatePhaseIngredients(const Recipe &recipe, int
             std::vector<std::string> displayTexts;
             for (const auto &ing : phase.ingredients)
             {
-                displayTexts.push_back(ingredientToDisplayText(ing));
+                displayTexts.push_back(ingredientToDisplayTextScaled(ing, s_scalingFactor));
             }
             // Use shared function to populate UI
             populateIngredientsUI(objects.recipe_phase_ingredients, displayTexts);
@@ -406,6 +492,7 @@ void UIExtensionsRecipeSteps::setCurrentRecipe(const Recipe &recipe)
     s_currentRecipe = recipe;
     s_currentPhaseIndex = 0;
     s_hasRecipe = true;
+    s_scalingFactor = 1.0f;
     updatePhaseNavigationButtons();
     lv_unlock();
 }
@@ -418,6 +505,7 @@ void UIExtensionsRecipeSteps::clearCurrentRecipe()
     s_currentRecipe = Recipe();
     s_currentPhaseIndex = 0;
     s_hasRecipe = false;
+    s_scalingFactor = 1.0f;
 
     // Clear UI containers
     if (objects.recipe_phase_title_txt && lv_obj_is_valid(objects.recipe_phase_title_txt))
@@ -524,4 +612,24 @@ void UIExtensionsRecipeSteps::updatePhaseNavigationButtons()
         else
             lv_obj_clear_state(objects.recipe_phase_prev, LV_STATE_DISABLED);
     }
+}
+
+void UIExtensionsRecipeSteps::setScalingFactor(float factor)
+{
+    s_scalingFactor = factor;
+}
+
+void UIExtensionsRecipeSteps::applyScalingFactor(float factor)
+{
+    s_scalingFactor = factor;
+    updateIngredientsWithScaling();
+}
+
+void UIExtensionsRecipeSteps::updateIngredientsWithScaling()
+{
+    if (!s_hasRecipe)
+        return;
+    lv_lock();
+    populatePhaseIngredients(s_currentRecipe, s_currentPhaseIndex);
+    lv_unlock();
 }

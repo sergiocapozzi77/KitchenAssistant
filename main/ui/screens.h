@@ -115,8 +115,6 @@ typedef struct _objects_t {
     lv_obj_t *phase_back_btn;
     lv_obj_t *obj7;
     lv_obj_t *phase_recipe_title;
-    lv_obj_t *phase_favourite_add;
-    lv_obj_t *phase_favourite_remove;
     lv_obj_t *step_progress;
     lv_obj_t *step_progress__spb_root;
     lv_obj_t *step_progress__spb_track_bg;
@@ -165,6 +163,9 @@ typedef struct _objects_t {
     lv_obj_t *recipe_phase_footer;
     lv_obj_t *recipe_phase_next;
     lv_obj_t *recipe_phase_prev;
+    lv_obj_t *phase_ingredients_factor_1;
+    lv_obj_t *phase_ingredients_factor_minus;
+    lv_obj_t *phase_ingredients_factor_plus;
     lv_obj_t *phase_detail_spinner;
 } objects_t;
 
@@ -206,9 +207,10 @@ enum Colors {
     COLOR_ID_LIGHT_BORDER,
     COLOR_ID_TEXT_COLOR,
     COLOR_ID_CHECKBOX,
+    COLOR_ID_BACKGROUND,
 };
 void change_color_theme(uint32_t themeIndex);
-extern uint32_t theme_colors[1][7];
+extern uint32_t theme_colors[1][8];
 extern uint32_t active_theme_index;
 
 #ifdef __cplusplus

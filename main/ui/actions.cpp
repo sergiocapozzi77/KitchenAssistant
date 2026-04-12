@@ -586,3 +586,36 @@ void action_recipe_phase_prev(lv_event_t *e)
 {
     UIExtensionsRecipeSteps::navigatePrev();
 }
+
+void action_ingredients_factor(lv_event_t *e)
+{
+    lv_obj_t *target = (lv_obj_t *)lv_event_get_target(e);
+    float factor = UIExtensionsRecipeSteps::getScalingFactor(); // default to current factor if not determined below
+    if (target == objects.phase_ingredients_factor_1)
+    {
+        factor = 1.0f;
+    }
+    else if (target == objects.phase_ingredients_factor_minus)
+    {
+        if (factor < 0.2f) // prevent scaling to zero or negative
+        {
+            return;
+        }
+
+        factor = factor - 0.05f;
+    }
+    else if (target == objects.phase_ingredients_factor_plus)
+    {
+        factor = factor + 0.05f;
+    }
+    else
+    {
+        // fallback: try to interpret user data as float pointer (for backward compatibility)
+        float *ptr = (float *)lv_event_get_user_data(e);
+        if (ptr)
+        {
+            factor = *ptr;
+        }
+    }
+    UIExtensionsRecipeSteps::applyScalingFactor(factor);
+}

@@ -754,12 +754,7 @@ void create_screen_recipe_detail() {
                             objects.recipe_back_btn = obj;
                             lv_obj_set_pos(obj, 1082, 16);
                             lv_obj_set_size(obj, 44, 44);
-                            add_style_flat_button(obj);
-                            lv_obj_set_style_bg_color(obj, lv_color_hex(0xfff0f0f0), LV_PART_MAIN | LV_STATE_DEFAULT);
-                            lv_obj_set_style_bg_opa(obj, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-                            lv_obj_set_style_border_width(obj, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-                            lv_obj_set_style_border_color(obj, lv_color_hex(0xffe0e0e0), LV_PART_MAIN | LV_STATE_DEFAULT);
-                            lv_obj_set_style_radius(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+                            add_style_main_button(obj);
                             {
                                 lv_obj_t *parent_obj = obj;
                                 {
@@ -1162,12 +1157,7 @@ void create_screen_recipe_phase() {
                             objects.phase_back_btn = obj;
                             lv_obj_set_pos(obj, 1082, 16);
                             lv_obj_set_size(obj, 44, 44);
-                            add_style_flat_button(obj);
-                            lv_obj_set_style_bg_color(obj, lv_color_hex(0xfff0f0f0), LV_PART_MAIN | LV_STATE_DEFAULT);
-                            lv_obj_set_style_bg_opa(obj, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-                            lv_obj_set_style_border_width(obj, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-                            lv_obj_set_style_border_color(obj, lv_color_hex(0xffe0e0e0), LV_PART_MAIN | LV_STATE_DEFAULT);
-                            lv_obj_set_style_radius(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+                            add_style_main_button(obj);
                             {
                                 lv_obj_t *parent_obj = obj;
                                 {
@@ -1209,24 +1199,6 @@ void create_screen_recipe_phase() {
                             lv_obj_set_style_radius(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                             lv_obj_set_style_flex_grow(obj, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
                         }
-                        {
-                            // phase_favourite_add
-                            lv_obj_t *obj = lv_image_create(parent_obj);
-                            objects.phase_favourite_add = obj;
-                            lv_obj_set_pos(obj, 780, 5);
-                            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-                            lv_image_set_src(obj, &img_favourite_add);
-                            lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICKABLE);
-                        }
-                        {
-                            // phase_favourite_remove
-                            lv_obj_t *obj = lv_image_create(parent_obj);
-                            objects.phase_favourite_remove = obj;
-                            lv_obj_set_pos(obj, 780, 5);
-                            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-                            lv_image_set_src(obj, &img_favourite_remove);
-                            lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICKABLE);
-                        }
                     }
                 }
                 {
@@ -1241,7 +1213,7 @@ void create_screen_recipe_phase() {
                     lv_obj_set_style_pad_bottom(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-                    create_user_widget_step_progress_bar(obj, 100);
+                    create_user_widget_step_progress_bar(obj, 98);
                     lv_obj_set_style_grid_cell_row_pos(obj, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
                 }
                 {
@@ -1333,19 +1305,21 @@ void create_screen_recipe_phase() {
                     lv_obj_set_style_pad_top(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_pad_right(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_pad_bottom(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-                    lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_radius(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_scroll_dir(obj, LV_DIR_HOR);
                     lv_obj_set_style_grid_cell_row_pos(obj, 6, LV_PART_MAIN | LV_STATE_DEFAULT);
-                    lv_obj_set_style_shadow_opa(obj, 100, LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_obj_set_style_bg_color(obj, lv_color_hex(theme_colors[active_theme_index][7]), LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_obj_set_style_bg_opa(obj, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_obj_set_style_border_color(obj, lv_color_hex(0xff363636), LV_PART_MAIN | LV_STATE_DEFAULT);
+                    lv_obj_set_style_border_side(obj, LV_BORDER_SIDE_TOP, LV_PART_MAIN | LV_STATE_DEFAULT);
                     {
                         lv_obj_t *parent_obj = obj;
                         {
                             // recipe_phase_next
                             lv_obj_t *obj = lv_button_create(parent_obj);
                             objects.recipe_phase_next = obj;
-                            lv_obj_set_pos(obj, 461, 17);
+                            lv_obj_set_pos(obj, 684, 17);
                             lv_obj_set_size(obj, 100, 50);
                             lv_obj_add_event_cb(obj, action_recipe_phase_next, LV_EVENT_CLICKED, (void *)0);
                             add_style_main_button(obj);
@@ -1364,7 +1338,7 @@ void create_screen_recipe_phase() {
                             // recipe_phase_prev
                             lv_obj_t *obj = lv_button_create(parent_obj);
                             objects.recipe_phase_prev = obj;
-                            lv_obj_set_pos(obj, 247, 17);
+                            lv_obj_set_pos(obj, 566, 17);
                             lv_obj_set_size(obj, 100, 50);
                             lv_obj_add_event_cb(obj, action_recipe_phase_prev, LV_EVENT_CLICKED, (void *)0);
                             add_style_main_button(obj);
@@ -1376,6 +1350,66 @@ void create_screen_recipe_phase() {
                                     lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
                                     lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
                                     lv_label_set_text(obj, "PREV");
+                                }
+                            }
+                        }
+                        {
+                            // phase_ingredients_factor_1
+                            lv_obj_t *obj = lv_button_create(parent_obj);
+                            objects.phase_ingredients_factor_1 = obj;
+                            lv_obj_set_pos(obj, 177, 17);
+                            lv_obj_set_size(obj, 60, 50);
+                            lv_obj_add_event_cb(obj, action_ingredients_factor, LV_EVENT_CLICKED, (void *)0);
+                            add_style_main_button(obj);
+                            {
+                                lv_obj_t *parent_obj = obj;
+                                {
+                                    lv_obj_t *obj = lv_label_create(parent_obj);
+                                    lv_obj_set_pos(obj, 0, 0);
+                                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                                    lv_label_set_long_mode(obj, LV_LABEL_LONG_CLIP);
+                                    lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+                                    lv_label_set_text(obj, "1");
+                                }
+                            }
+                        }
+                        {
+                            // phase_ingredients_factor_minus
+                            lv_obj_t *obj = lv_button_create(parent_obj);
+                            objects.phase_ingredients_factor_minus = obj;
+                            lv_obj_set_pos(obj, 249, 17);
+                            lv_obj_set_size(obj, 60, 50);
+                            lv_obj_add_event_cb(obj, action_ingredients_factor, LV_EVENT_CLICKED, (void *)0);
+                            add_style_main_button(obj);
+                            {
+                                lv_obj_t *parent_obj = obj;
+                                {
+                                    lv_obj_t *obj = lv_label_create(parent_obj);
+                                    lv_obj_set_pos(obj, 0, 0);
+                                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                                    lv_label_set_long_mode(obj, LV_LABEL_LONG_CLIP);
+                                    lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+                                    lv_label_set_text(obj, "\uF068");
+                                }
+                            }
+                        }
+                        {
+                            // phase_ingredients_factor_plus
+                            lv_obj_t *obj = lv_button_create(parent_obj);
+                            objects.phase_ingredients_factor_plus = obj;
+                            lv_obj_set_pos(obj, 320, 17);
+                            lv_obj_set_size(obj, 60, 50);
+                            lv_obj_add_event_cb(obj, action_ingredients_factor, LV_EVENT_CLICKED, (void *)0);
+                            add_style_main_button(obj);
+                            {
+                                lv_obj_t *parent_obj = obj;
+                                {
+                                    lv_obj_t *obj = lv_label_create(parent_obj);
+                                    lv_obj_set_pos(obj, 0, 0);
+                                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                                    lv_label_set_long_mode(obj, LV_LABEL_LONG_CLIP);
+                                    lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+                                    lv_label_set_text(obj, "\uF067");
                                 }
                             }
                         }
@@ -1402,7 +1436,7 @@ void create_screen_recipe_phase() {
 }
 
 void tick_screen_recipe_phase() {
-    tick_user_widget_step_progress_bar(100);
+    tick_user_widget_step_progress_bar(98);
 }
 
 void create_user_widget_product_edit(lv_obj_t *parent_obj, int startWidgetIndex) {
@@ -2393,6 +2427,9 @@ void change_color_theme(uint32_t theme_index) {
     {
         lv_obj_set_style_border_color(objects.create_recipe_pnl, lv_color_hex(theme_colors[theme_index][2]), LV_PART_MAIN | LV_STATE_DEFAULT);
     }
+    {
+        lv_obj_set_style_bg_color(objects.recipe_phase_footer, lv_color_hex(theme_colors[theme_index][7]), LV_PART_MAIN | LV_STATE_DEFAULT);
+    }
     lv_style_set_border_color(get_style_drop_down_with_shadow_MAIN_DEFAULT(), lv_color_hex(theme_colors[theme_index][2]));
     lv_style_set_text_color(get_style_main_button_MAIN_DEFAULT(), lv_color_hex(theme_colors[theme_index][5]));
     lv_style_set_border_color(get_style_text_area_with_shadow_MAIN_DEFAULT(), lv_color_hex(theme_colors[theme_index][2]));
@@ -2401,8 +2438,8 @@ void change_color_theme(uint32_t theme_index) {
     lv_obj_invalidate(objects.recipe_detail);
     lv_obj_invalidate(objects.recipe_phase);
 }
-uint32_t theme_colors[1][7] = {
-    { 0xff007aff, 0xff0159b7, 0xffb5b5b5, 0xffd3e3f2, 0xffc1cfdc, 0xff010508, 0xff4c5d6d },
+uint32_t theme_colors[1][8] = {
+    { 0xff007aff, 0xff0159b7, 0xffb5b5b5, 0xffd3e3f2, 0xffc1cfdc, 0xff010508, 0xff4c5d6d, 0xffffffff },
 };
 
 //

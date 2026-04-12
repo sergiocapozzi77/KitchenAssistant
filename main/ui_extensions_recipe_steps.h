@@ -13,6 +13,7 @@ private:
     static Recipe s_currentRecipe;
     static int s_currentPhaseIndex;
     static bool s_hasRecipe;
+    static float s_scalingFactor;
 
 public:
     static void createRecipeStepsTask();
@@ -32,6 +33,11 @@ public:
     static void navigatePrev();
     static void updateUIForCurrentPhase();
     static void updatePhaseNavigationButtons();
+    // Scaling
+    static void setScalingFactor(float factor);
+    static float getScalingFactor() { return s_scalingFactor; }
+    static void applyScalingFactor(float factor);
+    static void updateIngredientsWithScaling();
 };
 
 #endif // UI_EXTENSIONS_RECIPE_STEPS_H
