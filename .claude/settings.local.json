@@ -19,7 +19,8 @@
       "Bash(cd:*)",
       "Bash(python modify_eez.py)",
       "Bash(python3:*)",
-      "Bash(grep -n \"ThumbDataCtx\" *.cpp)"
+      "Bash(grep -n \"ThumbDataCtx\" *.cpp)",
+      "Bash(find . -maxdepth 2 -type d -name *function*)"
     ],
     "deny": [
       "Bash(idf.py build *)",

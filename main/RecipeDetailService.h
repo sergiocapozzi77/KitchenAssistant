@@ -1,34 +1,33 @@
 #pragma once
 
-#include <string>
+#include "AppwriteHttpClient.h"
 #include "models.h"
-#include "cJSON.h"
+#include <string>
 
 class RecipeDetailService
 {
 public:
-    // Fetches and parses full recipe details (ingredients + method) into recipe.
-    // Returns true on success. Must be called from a FreeRTOS task (not LVGL thread).
+    explicit RecipeDetailService(const AppwriteHttpClient &client,
+                                 const std::string &functionId)
+        : _client(client), _functionId(functionId) {}
+
+    // Calls the Appwrite function and populates recipe.ingredients,
+    // recipe.methodSteps, recipe.prepTime, recipe.cookTime, recipe.servings,
+    // recipe.difficulty, and recipe.name (if empty).
+    // Returns true on success.
     bool fetchDetails(RecipeSuggestion &recipe);
+
     RecipeSuggestion getSelectedRecipe() const { return selectedRecipe; }
 
 private:
     RecipeSuggestion selectedRecipe;
-    // Stream HTML and extract __NEXT_DATA__, JSON-LD, and __POST_CONTENT__ blocks.
-    bool fetchHtmlAndExtract(const std::string &url,
-                             std::string &nextData,
-                             std::string &jsonLd,
-                             std::string &postContent);
+    AppwriteHttpClient _client;
+    std::string _functionId;
 
-    bool parseNextData(const std::string &json, RecipeSuggestion &recipe);
-    bool parseJsonLd(const std::string &json, RecipeSuggestion &recipe);
-    bool parsePostContent(const std::string &json, RecipeSuggestion &recipe);
-
-    // Shared helper: parse {ingredients:[sections], method:[sections]} node
-    void cIngredientsMethod(cJSON *node, RecipeSuggestion &recipe);
-
-    std::string parseIso8601Duration(const std::string &iso);
-    std::string sanitizeText(const std::string &text);
+    // Parses the two-layer Appwrite response:
+    //   outer: { responseBody: "<json>", responseStatusCode: 200, ... }
+    //   inner: { ok: true, recipe: { ... } }
+    bool parseResponse(const std::string &raw, RecipeSuggestion &recipe);
 };
 
 extern RecipeDetailService recipeDetailService;

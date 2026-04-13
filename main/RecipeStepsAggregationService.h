@@ -72,7 +72,7 @@ public:
 
 private:
     const std::string apiKey = APPWRITE_API_KEY;
-    const std::string endpoint = "https://fra.cloud.appwrite.io/v1";
+    const std::string endpoint = APPWRITE_ENDPOINT;
     const std::string projectId = APPWRITE_PROJECT_ID;
     const std::string DatabaseId = "695404ac0021bf7d9707";
     const std::string CollectionId = "products";
