@@ -5,6 +5,7 @@
 #include <sstream>
 #include <iomanip>
 #include <cctype>
+#include "cJSON.h"
 
 static const char *TAG = "AppwriteHttpClient";
 
@@ -209,6 +210,39 @@ int AppwriteHttpClient::httpDelete(const std::string &url) const
     ESP_LOGI(TAG, "DELETE Status: %d", status);
     esp_http_client_cleanup(client);
     return status;
+}
+
+std::string AppwriteHttpClient::executeFunction(const std::string &functionId, const std::string &payload, bool async, int &status) const
+{
+    std::string url = _endpoint + "/functions/" + functionId + "/executions";
+    ESP_LOGI(TAG, "Executing function %s (async: %s)", functionId.c_str(), async ? "true" : "false");
+
+    // Create envelope JSON
+    cJSON *envelope = cJSON_CreateObject();
+    if (!envelope)
+    {
+        ESP_LOGE(TAG, "Failed to create envelope JSON");
+        status = -1;
+        return {};
+    }
+
+    cJSON_AddStringToObject(envelope, "body", payload.c_str());
+    cJSON_AddBoolToObject(envelope, "async", async);
+
+    char *envelopeStr = cJSON_PrintUnformatted(envelope);
+    cJSON_Delete(envelope);
+
+    if (!envelopeStr)
+    {
+        ESP_LOGE(TAG, "Failed to stringify envelope JSON");
+        status = -1;
+        return {};
+    }
+
+    std::string response = httpPost(url, envelopeStr, status);
+    free(envelopeStr);
+
+    return response;
 }
 
 std::string AppwriteHttpClient::urlEncode(const std::string &s)

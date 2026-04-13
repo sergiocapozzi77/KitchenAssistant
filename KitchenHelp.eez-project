@@ -2975,7 +2975,7 @@
                   "left": 0,
                   "top": 0,
                   "width": 100,
-                  "height": 56,
+                  "height": 84,
                   "customInputs": [],
                   "customOutputs": [],
                   "style": {
@@ -3562,7 +3562,7 @@
                             "definition": {
                               "MAIN": {
                                 "DEFAULT": {
-                                  "text_color": "#4CAF50",
+                                  "text_color": "AccentDark",
                                   "text_font": "MONTSERRAT_20"
                                 }
                               }
@@ -3775,7 +3775,7 @@
                             "definition": {
                               "MAIN": {
                                 "DEFAULT": {
-                                  "text_color": "#4CAF50",
+                                  "text_color": "AccentDark",
                                   "text_font": "MONTSERRAT_20"
                                 }
                               }
@@ -4307,7 +4307,7 @@
                       },
                       "INDICATOR": {
                         "DEFAULT": {
-                          "arc_color": "#4CAF50"
+                          "arc_color": "Accent"
                         }
                       }
                     }
@@ -4427,7 +4427,7 @@
                   "left": 0,
                   "top": 0,
                   "width": 100,
-                  "height": 56,
+                  "height": 84,
                   "customInputs": [],
                   "customOutputs": [],
                   "style": {
@@ -4448,7 +4448,7 @@
                       "objID": "recipe-phase-obj-0004",
                       "type": "LVGLButtonWidget",
                       "left": 1082,
-                      "top": 16,
+                      "top": 17,
                       "width": 44,
                       "height": 44,
                       "customInputs": [],
@@ -4541,9 +4541,9 @@
                       "objID": "recipe-phase-obj-0006",
                       "type": "LVGLLabelWidget",
                       "left": 60,
-                      "top": 14,
+                      "top": 17,
                       "width": 550,
-                      "height": 33,
+                      "height": 32,
                       "customInputs": [],
                       "customOutputs": [],
                       "style": {
@@ -4558,7 +4558,7 @@
                       "leftUnit": "px",
                       "topUnit": "px",
                       "widthUnit": "px",
-                      "heightUnit": "px",
+                      "heightUnit": "content",
                       "children": [],
                       "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
                       "hiddenFlagType": "literal",
@@ -5209,7 +5209,7 @@
                     {
                       "objID": "5ea6760d-ea5d-48a1-8422-188bfb4d9fcc",
                       "type": "LVGLButtonWidget",
-                      "left": 177,
+                      "left": 20,
                       "top": 17,
                       "width": 60,
                       "height": 50,
@@ -5308,7 +5308,7 @@
                     {
                       "objID": "fae22dd8-32ba-44bf-8e56-970af59cacfc",
                       "type": "LVGLButtonWidget",
-                      "left": 249,
+                      "left": 92,
                       "top": 17,
                       "width": 60,
                       "height": 50,
@@ -5407,7 +5407,7 @@
                     {
                       "objID": "f0f4e984-0be3-45e6-fb25-fd265e1ebae3",
                       "type": "LVGLButtonWidget",
-                      "left": 320,
+                      "left": 163,
                       "top": 17,
                       "width": 60,
                       "height": 50,

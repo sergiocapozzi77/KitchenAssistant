@@ -103,24 +103,22 @@ std::string RecipeStepsAggregationService::executeFunction(
     bool async,
     int &statusOut)
 {
-    const std::string functionUrl = endpoint + "/functions/" + functionId + "/executions";
-
+    // Build inner payload JSON
     cJSON *inner = cJSON_CreateObject();
     cJSON_AddStringToObject(inner, "url", url.c_str());
 
     char *innerStr = cJSON_PrintUnformatted(inner);
     cJSON_Delete(inner);
 
-    cJSON *env = cJSON_CreateObject();
-    cJSON_AddStringToObject(env, "body", innerStr);
-    cJSON_AddBoolToObject(env, "async", async);
+    if (!innerStr)
+    {
+        ESP_LOGE(TAG, "Failed to stringify inner JSON");
+        statusOut = -1;
+        return {};
+    }
 
-    char *bodyStr = cJSON_PrintUnformatted(env);
-    cJSON_Delete(env);
+    std::string response = _httpClient.executeFunction(functionId, innerStr, async, statusOut);
     free(innerStr);
-
-    std::string response = _httpClient.httpPost(functionUrl, bodyStr, statusOut);
-    free(bodyStr);
 
     return response;
 }

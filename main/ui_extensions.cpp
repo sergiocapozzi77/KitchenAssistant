@@ -511,12 +511,6 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
     }
 
     // -------------------------------------------------------------------------
-    // Build Appwrite function URL
-    // -------------------------------------------------------------------------
-    std::string function_url = std::string(APPWRITE_ENDPOINT) + "/functions/" +
-                               APPWRITE_IMAGE_RESIZE_FUNCTION_ID + "/executions";
-
-    // -------------------------------------------------------------------------
     // Build request payload
     // -------------------------------------------------------------------------
     cJSON *bodyJson = cJSON_CreateObject();
@@ -536,25 +530,12 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
         return false;
     }
 
-    cJSON *envelope = cJSON_CreateObject();
-    cJSON_AddStringToObject(envelope, "body", bodyJsonStr);
-    cJSON_AddBoolToObject(envelope, "async", false);
-    char *payloadRaw = cJSON_PrintUnformatted(envelope);
-    cJSON_Delete(envelope);
-    free(bodyJsonStr);
-    if (!payloadRaw)
-    {
-        ESP_LOGE(TAG, "Failed to stringify envelope JSON");
-        return false;
-    }
-    std::string payloadStr(payloadRaw);
-    free(payloadRaw);
-
     // -------------------------------------------------------------------------
-    // HTTP POST
+    // Execute Appwrite function
     // -------------------------------------------------------------------------
     int status = 0;
-    std::string response = s_appwriteClient.httpPost(function_url, payloadStr, status);
+    std::string response = s_appwriteClient.executeFunction(APPWRITE_IMAGE_RESIZE_FUNCTION_ID, bodyJsonStr, false, status);
+    free(bodyJsonStr);
     ESP_LOGI(TAG, "HTTP status: %d, response size: %d", status, response.size());
 
     if ((status != 200 && status != 201 && status != 202) || response.empty())

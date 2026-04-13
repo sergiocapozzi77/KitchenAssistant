@@ -68,6 +68,17 @@ public:
     int httpDelete(const std::string &url) const;
 
     /**
+     * @brief Execute an Appwrite function
+     *
+     * @param functionId The Appwrite function ID
+     * @param payload JSON string to pass as the function body
+     * @param async Whether to execute asynchronously
+     * @param status Output parameter for HTTP status code
+     * @return std::string Response body, empty on error
+     */
+    std::string executeFunction(const std::string &functionId, const std::string &payload, bool async, int &status) const;
+
+    /**
      * @brief URL-encode a string (RFC 3986)
      *
      * @param s Input string

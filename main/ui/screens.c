@@ -732,7 +732,7 @@ void create_screen_recipe_detail() {
                     lv_obj_t *obj = lv_obj_create(parent_obj);
                     objects.top_bar = obj;
                     lv_obj_set_pos(obj, 0, 0);
-                    lv_obj_set_size(obj, LV_PCT(100), 56);
+                    lv_obj_set_size(obj, LV_PCT(100), 84);
                     lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
                     lv_obj_set_style_bg_color(obj, lv_color_hex(0xffffffff), LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_bg_opa(obj, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -912,7 +912,7 @@ void create_screen_recipe_detail() {
                                     objects.obj3 = obj;
                                     lv_obj_set_pos(obj, 0, 0);
                                     lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-                                    lv_obj_set_style_text_color(obj, lv_color_hex(0xff4caf50), LV_PART_MAIN | LV_STATE_DEFAULT);
+                                    lv_obj_set_style_text_color(obj, lv_color_hex(theme_colors[active_theme_index][1]), LV_PART_MAIN | LV_STATE_DEFAULT);
                                     lv_obj_set_style_text_font(obj, &lv_font_montserrat_20, LV_PART_MAIN | LV_STATE_DEFAULT);
                                     lv_label_set_text(obj, "\uF021");
                                 }
@@ -969,7 +969,7 @@ void create_screen_recipe_detail() {
                                     objects.obj5 = obj;
                                     lv_obj_set_pos(obj, 0, 0);
                                     lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-                                    lv_obj_set_style_text_color(obj, lv_color_hex(0xff4caf50), LV_PART_MAIN | LV_STATE_DEFAULT);
+                                    lv_obj_set_style_text_color(obj, lv_color_hex(theme_colors[active_theme_index][1]), LV_PART_MAIN | LV_STATE_DEFAULT);
                                     lv_obj_set_style_text_font(obj, &lv_font_montserrat_20, LV_PART_MAIN | LV_STATE_DEFAULT);
                                     lv_label_set_text(obj, "\uF304");
                                 }
@@ -1083,7 +1083,7 @@ void create_screen_recipe_detail() {
                     lv_obj_set_style_grid_cell_row_pos(obj, 3, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_grid_cell_x_align(obj, LV_GRID_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_grid_cell_y_align(obj, LV_GRID_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
-                    lv_obj_set_style_arc_color(obj, lv_color_hex(0xff4caf50), LV_PART_INDICATOR | LV_STATE_DEFAULT);
+                    lv_obj_set_style_arc_color(obj, lv_color_hex(theme_colors[active_theme_index][0]), LV_PART_INDICATOR | LV_STATE_DEFAULT);
                 }
             }
         }
@@ -1135,7 +1135,7 @@ void create_screen_recipe_phase() {
                     lv_obj_t *obj = lv_obj_create(parent_obj);
                     objects.top_phase_bar = obj;
                     lv_obj_set_pos(obj, 0, 0);
-                    lv_obj_set_size(obj, LV_PCT(100), 56);
+                    lv_obj_set_size(obj, LV_PCT(100), 84);
                     lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
                     lv_obj_set_style_bg_color(obj, lv_color_hex(0xffffffff), LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_bg_opa(obj, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -1155,7 +1155,7 @@ void create_screen_recipe_phase() {
                             // phase_back_btn
                             lv_obj_t *obj = lv_button_create(parent_obj);
                             objects.phase_back_btn = obj;
-                            lv_obj_set_pos(obj, 1082, 16);
+                            lv_obj_set_pos(obj, 1082, 17);
                             lv_obj_set_size(obj, 44, 44);
                             add_style_main_button(obj);
                             {
@@ -1177,8 +1177,8 @@ void create_screen_recipe_phase() {
                             // phase_recipe_title
                             lv_obj_t *obj = lv_label_create(parent_obj);
                             objects.phase_recipe_title = obj;
-                            lv_obj_set_pos(obj, 60, 14);
-                            lv_obj_set_size(obj, 550, 33);
+                            lv_obj_set_pos(obj, 60, 17);
+                            lv_obj_set_size(obj, 550, LV_SIZE_CONTENT);
                             lv_label_set_long_mode(obj, LV_LABEL_LONG_DOT);
                             lv_obj_set_style_text_font(obj, &ui_font_ext_font_montserrat_26, LV_PART_MAIN | LV_STATE_DEFAULT);
                             lv_obj_set_style_text_color(obj, lv_color_hex(0xff212529), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -1357,7 +1357,7 @@ void create_screen_recipe_phase() {
                             // phase_ingredients_factor_1
                             lv_obj_t *obj = lv_button_create(parent_obj);
                             objects.phase_ingredients_factor_1 = obj;
-                            lv_obj_set_pos(obj, 177, 17);
+                            lv_obj_set_pos(obj, 20, 17);
                             lv_obj_set_size(obj, 60, 50);
                             lv_obj_add_event_cb(obj, action_ingredients_factor, LV_EVENT_CLICKED, (void *)0);
                             add_style_main_button(obj);
@@ -1377,7 +1377,7 @@ void create_screen_recipe_phase() {
                             // phase_ingredients_factor_minus
                             lv_obj_t *obj = lv_button_create(parent_obj);
                             objects.phase_ingredients_factor_minus = obj;
-                            lv_obj_set_pos(obj, 249, 17);
+                            lv_obj_set_pos(obj, 92, 17);
                             lv_obj_set_size(obj, 60, 50);
                             lv_obj_add_event_cb(obj, action_ingredients_factor, LV_EVENT_CLICKED, (void *)0);
                             add_style_main_button(obj);
@@ -1397,7 +1397,7 @@ void create_screen_recipe_phase() {
                             // phase_ingredients_factor_plus
                             lv_obj_t *obj = lv_button_create(parent_obj);
                             objects.phase_ingredients_factor_plus = obj;
-                            lv_obj_set_pos(obj, 320, 17);
+                            lv_obj_set_pos(obj, 163, 17);
                             lv_obj_set_size(obj, 60, 50);
                             lv_obj_add_event_cb(obj, action_ingredients_factor, LV_EVENT_CLICKED, (void *)0);
                             add_style_main_button(obj);
@@ -2426,6 +2426,11 @@ void change_color_theme(uint32_t theme_index) {
     
     {
         lv_obj_set_style_border_color(objects.create_recipe_pnl, lv_color_hex(theme_colors[theme_index][2]), LV_PART_MAIN | LV_STATE_DEFAULT);
+    }
+    {
+        lv_obj_set_style_text_color(objects.obj3, lv_color_hex(theme_colors[theme_index][1]), LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_text_color(objects.obj5, lv_color_hex(theme_colors[theme_index][1]), LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_arc_color(objects.recipe_detail_spinner, lv_color_hex(theme_colors[theme_index][0]), LV_PART_INDICATOR | LV_STATE_DEFAULT);
     }
     {
         lv_obj_set_style_bg_color(objects.recipe_phase_footer, lv_color_hex(theme_colors[theme_index][7]), LV_PART_MAIN | LV_STATE_DEFAULT);
