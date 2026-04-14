@@ -79,6 +79,11 @@ void setupIngredientsContainer(lv_obj_t *container);
 lv_obj_t *createIngredientRow(lv_obj_t *parent, const std::string &displayText);
 void populateIngredientsUI(lv_obj_t *container, const std::vector<std::string> &displayTexts);
 
+// Recipe card helpers
+void make_children_bubble(lv_obj_t *obj);
+lv_obj_t *createRecipeCard(lv_obj_t *parent, const RecipeSuggestion &recipe, std::vector<ThumbContext*> &pending_thumbs);
+lv_obj_t *createRecipeCard(lv_obj_t *parent, const Favorite &fav, std::vector<ThumbContext*> &pending_thumbs);
+
 // Global variables (declared extern, defined in ui_extensions.cpp)
 extern uint32_t s_thumb_generation;
 extern lv_style_t style_card;

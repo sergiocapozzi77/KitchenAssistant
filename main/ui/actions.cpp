@@ -179,7 +179,7 @@ static void tabview_tab_changed_cb(lv_event_t *e)
         // Switching TO Recipes tab — rebuild from cached data (no network call)
         if (recipeSuggestionsManager.getSuggestionSize() > 0)
         {
-            lv_obj_clear_flag(objects.recipe_list_filter_container, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(objects.recipe_list_filter_container, LV_OBJ_FLAG_HIDDEN);
             recipeSuggestionsManager.showCurrentPageRecipes();
         }
         else
