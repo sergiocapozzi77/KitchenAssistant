@@ -144,7 +144,7 @@ void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &rec
         lv_label_set_long_mode(title, LV_LABEL_LONG_WRAP);
         lv_obj_set_width(title, lv_pct(100));
         lv_obj_set_style_text_color(title, lv_color_hex(0x212529), 0);
-        lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
+        lv_obj_set_style_text_font(title, &ui_font_ext_font_montserrat_26, 0);
 
         // Description
         if (!r.description.empty())

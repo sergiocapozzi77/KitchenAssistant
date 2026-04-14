@@ -1735,8 +1735,8 @@
                               "type": "LVGLPanelWidget",
                               "left": 18,
                               "top": 0,
-                              "width": 789,
-                              "height": 308,
+                              "width": 780,
+                              "height": 320,
                               "customInputs": [],
                               "customOutputs": [],
                               "style": {
@@ -1873,7 +1873,7 @@
                                       },
                                       "group": "",
                                       "groupIndex": 0,
-                                      "text": "UPDATE",
+                                      "text": "SEARCH",
                                       "textType": "literal",
                                       "longMode": "CLIP",
                                       "recolor": false

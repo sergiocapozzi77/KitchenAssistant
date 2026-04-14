@@ -263,6 +263,7 @@ void action_update_recipes_from_filter_panel(lv_event_t *e)
 
     lv_lock();
     lv_tabview_set_active(objects.tabview, 1, LV_ANIM_OFF);
+    lv_obj_add_flag(objects.recipe_list_filter_container, LV_OBJ_FLAG_HIDDEN);
     lv_unlock();
 
     // Somewhere in initTasks() or after WiFi connects:
