@@ -132,7 +132,7 @@ void FavouritesManager::fetchFavouritesTask(void *param)
 
     if (lv_tabview_get_tab_act(objects.tabview) == 2)
     {
-        populateFavouritesList(objects.favourites_list, manager->getFavourites());
+        showCurrentPageFavourites(true);
     }
 
     vTaskDelete(nullptr);

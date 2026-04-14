@@ -20,10 +20,12 @@ public:
     int currentPage = 1;
     const int pageSize = 6;
     void showCurrentPageRecipes(bool force = false);
+    void updatePaginationButtons();
 
 private:
     std::vector<RecipeSuggestion> allSuggestions;
     mutable std::mutex _suggestionMutex;
+    int getTotalPages() const;
 };
 
 extern RecipeSuggestionsManager recipeSuggestionsManager;

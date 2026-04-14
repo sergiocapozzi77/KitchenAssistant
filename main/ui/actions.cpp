@@ -30,10 +30,45 @@ filter_panel_t recipes_panel;
 static int favouritesCurrentPage = 1;
 const int favouritesPageSize = 6;
 
-static void showCurrentPageFavourites(bool force = false)
+static void updateFavouritesPaginationButtons()
+{
+    lv_lock();
+    if (!objects.favourites_prev_btn || !lv_obj_is_valid(objects.favourites_prev_btn) ||
+        !objects.favourites_next_btn || !lv_obj_is_valid(objects.favourites_next_btn))
+    {
+        lv_unlock();
+        return;
+    }
+
+    // Update previous button
+    if (favouritesCurrentPage > 1)
+    {
+        lv_obj_clear_state(objects.favourites_prev_btn, LV_STATE_DISABLED);
+    }
+    else
+    {
+        lv_obj_add_state(objects.favourites_prev_btn, LV_STATE_DISABLED);
+    }
+
+    // Update next button
+    std::vector<Favorite> favourites = favouritesManager.getFavourites();
+    int totalPages = favourites.empty() ? 0 : ((favourites.size() + favouritesPageSize - 1) / favouritesPageSize);
+    if (totalPages == 0 || favouritesCurrentPage < totalPages)
+    {
+        lv_obj_clear_state(objects.favourites_next_btn, LV_STATE_DISABLED);
+    }
+    else
+    {
+        lv_obj_add_state(objects.favourites_next_btn, LV_STATE_DISABLED);
+    }
+    lv_unlock();
+}
+
+void showCurrentPageFavourites(bool force)
 {
     if (lv_obj_get_child_count(objects.favourites_list) > 0 && !force)
     {
+        updateFavouritesPaginationButtons();
         return; // Don't repopulate if already populated (e.g. when switching tabs)
     }
 
@@ -59,6 +94,7 @@ static void showCurrentPageFavourites(bool force = false)
         {
             // Empty list
             populateFavouritesList(objects.favourites_list, {});
+            updateFavouritesPaginationButtons();
             return;
         }
     }
@@ -70,6 +106,7 @@ static void showCurrentPageFavourites(bool force = false)
     ESP_LOGI("favourites", "Showing favourites page %d, items %d-%d of %d",
              favouritesCurrentPage, start, end, (int)favourites.size());
     populateFavouritesList(objects.favourites_list, pageItems);
+    updateFavouritesPaginationButtons();
 }
 
 // Structure for barcode upsert task
@@ -311,6 +348,7 @@ void action_favourites_next(lv_event_t *e)
         favouritesCurrentPage++;
         showCurrentPageFavourites(true);
     }
+    updateFavouritesPaginationButtons();
 }
 
 void action_favourites_prev(lv_event_t *e)
@@ -320,6 +358,7 @@ void action_favourites_prev(lv_event_t *e)
         favouritesCurrentPage--;
         showCurrentPageFavourites(true);
     }
+    updateFavouritesPaginationButtons();
 }
 
 void action_products_reload_click(lv_event_t *e)
@@ -332,7 +371,9 @@ void action_favourites_reload_click(lv_event_t *e)
     lv_lock();
     lv_obj_clean(objects.favourites_list);
     lv_unlock();
+    favouritesCurrentPage = 1;
     favouritesManager.startBackgroundFetch();
+    updateFavouritesPaginationButtons();
 }
 
 void action_product_edit_close(lv_event_t *e)

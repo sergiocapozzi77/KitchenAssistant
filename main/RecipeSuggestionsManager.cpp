@@ -24,16 +24,19 @@ RecipeSuggestionsManager::RecipeSuggestionsManager()
 
 void RecipeSuggestionsManager::reset()
 {
-    std::lock_guard<std::mutex> lock(_suggestionMutex);
-    allSuggestions.clear();
-
-    currentPage = 1;
+    {
+        std::lock_guard<std::mutex> lock(_suggestionMutex);
+        allSuggestions.clear();
+        currentPage = 1;
+    }
+    updatePaginationButtons();
 }
 
 void RecipeSuggestionsManager::loadNextPage()
 {
     currentPage++;
     loadCurrentPage();
+    updatePaginationButtons();
 }
 
 void RecipeSuggestionsManager::loadPrevPage()
@@ -48,6 +51,7 @@ void RecipeSuggestionsManager::loadPrevPage()
     }
 
     loadCurrentPage();
+    updatePaginationButtons();
 }
 
 void RecipeSuggestionsManager::loadCurrentPage()
@@ -85,14 +89,20 @@ void RecipeSuggestionsManager::loadCurrentPage()
 
 void RecipeSuggestionsManager::assignSuggestions(const std::vector<RecipeSuggestion> &suggestions)
 {
-    std::lock_guard<std::mutex> lock(_suggestionMutex);
-    allSuggestions = suggestions;
+    {
+        std::lock_guard<std::mutex> lock(_suggestionMutex);
+        allSuggestions = suggestions;
+    }
+    updatePaginationButtons();
 }
 
 void RecipeSuggestionsManager::appendSuggestions(const std::vector<RecipeSuggestion> &suggestions)
 {
-    std::lock_guard<std::mutex> lock(_suggestionMutex);
-    allSuggestions.insert(allSuggestions.end(), suggestions.begin(), suggestions.end());
+    {
+        std::lock_guard<std::mutex> lock(_suggestionMutex);
+        allSuggestions.insert(allSuggestions.end(), suggestions.begin(), suggestions.end());
+    }
+    updatePaginationButtons();
 }
 
 std::vector<RecipeSuggestion> RecipeSuggestionsManager::getSuggestions()
@@ -111,6 +121,7 @@ void RecipeSuggestionsManager::showCurrentPageRecipes(bool force)
 {
     if (lv_obj_get_child_count(objects.recipes_list) > 0 && !force)
     {
+        updatePaginationButtons();
         return; // Don't repopulate if already populated (e.g. when switching tabs)
     }
 
@@ -129,6 +140,7 @@ void RecipeSuggestionsManager::showCurrentPageRecipes(bool force)
     if (!hasRange)
     {
         ESP_LOGI("ShowRecipesTask", "Unable to show recipes");
+        updatePaginationButtons();
         return;
     }
 
@@ -138,6 +150,47 @@ void RecipeSuggestionsManager::showCurrentPageRecipes(bool force)
 
     ESP_LOGI("ShowRecipesTask", "Passing %d recipes to UI", pageItems.size());
     populateRecipeList(objects.recipes_list, pageItems);
+    updatePaginationButtons();
+}
+
+int RecipeSuggestionsManager::getTotalPages() const
+{
+    std::lock_guard<std::mutex> lock(_suggestionMutex);
+    if (allSuggestions.empty()) return 0;
+    return (allSuggestions.size() + pageSize - 1) / pageSize;
+}
+
+void RecipeSuggestionsManager::updatePaginationButtons()
+{
+    lv_lock();
+    if (!objects.recipe_suggestion_prev_btn || !lv_obj_is_valid(objects.recipe_suggestion_prev_btn) ||
+        !objects.recipe_suggestion_next_btn || !lv_obj_is_valid(objects.recipe_suggestion_next_btn))
+    {
+        lv_unlock();
+        return;
+    }
+
+    // Update previous button
+    if (currentPage > 1)
+    {
+        lv_obj_clear_state(objects.recipe_suggestion_prev_btn, LV_STATE_DISABLED);
+    }
+    else
+    {
+        lv_obj_add_state(objects.recipe_suggestion_prev_btn, LV_STATE_DISABLED);
+    }
+
+    // Update next button
+    int totalPages = getTotalPages();
+    if (totalPages == 0 || currentPage < totalPages)
+    {
+        lv_obj_clear_state(objects.recipe_suggestion_next_btn, LV_STATE_DISABLED);
+    }
+    else
+    {
+        lv_obj_add_state(objects.recipe_suggestion_next_btn, LV_STATE_DISABLED);
+    }
+    lv_unlock();
 }
 
 void fetchRecipesTask(void *param)
