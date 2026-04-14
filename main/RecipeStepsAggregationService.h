@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include "AppwriteHttpClient.h" // your existing HTTP client
+#include "AppwriteClientInstance.h"
 #include "secrets.h"            // endpoint, projectId, apiKey, functionId
 #include "cJSON.h"
 
@@ -81,7 +82,7 @@ private:
     const std::string RecipeDataColumn = "data"; // column in Recipes collection that holds the recipe JSON
     const std::string SourceUrlColumn = "sourceUrl";
     const std::string functionId = APPWRITE_FUNCTION_ID;
-    AppwriteHttpClient _httpClient;
+    AppwriteHttpClient& _httpClient;
     // Debug helper: log all keys in a cJSON object
     void logAllKeys(cJSON *obj, const char *label);
     // JSON helpers

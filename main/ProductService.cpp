@@ -1,4 +1,5 @@
 #include "ProductService.h"
+#include "AppwriteClientInstance.h"
 #include "esp_log.h"
 #include "esp_http_client.h"
 #include "esp_crt_bundle.h"
@@ -34,7 +35,7 @@ static const char *TAG = "ProductService";
 #endif
 
 ProductService::ProductService()
-    : _httpClient(Endpoint, ProjectId, apiKey)
+    : _httpClient(getAppwriteClient())
 {
 }
 

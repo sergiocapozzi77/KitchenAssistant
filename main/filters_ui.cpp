@@ -138,7 +138,8 @@ static const int calories_count = sizeof(calories_options) / sizeof(calories_opt
 // Source options
 static filter_option_t source_options[] = {
     {"GoodFood", "goodfood"},
-    {"GialloZafferano.it", "giallozafferanoit"}};
+    {"GialloZafferano.it", "giallozafferanoit"},
+    {"AniaGotuje.pl", "aniagotuje"}};
 static const int source_count = sizeof(source_options) / sizeof(source_options[0]);
 
 // LVGL dropdown objects

@@ -1,4 +1,5 @@
 #include "RecipeStepsAggregationService.h"
+#include "AppwriteClientInstance.h"
 #include "esp_log.h"
 #include "cJSON.h"
 #include "freertos/task.h"
@@ -8,7 +9,7 @@ static const char *TAG = "RecipeStepsAggregationService";
 RecipeStepsAggregationService recipeStepsAggregationService;
 
 RecipeStepsAggregationService::RecipeStepsAggregationService()
-    : _httpClient(endpoint, projectId, apiKey, 90000)
+    : _httpClient(getAppwriteClient())
 {
 }
 

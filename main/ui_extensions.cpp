@@ -20,11 +20,11 @@
 #include "freertos/timers.h"
 #include "secrets.h"
 #include "AppwriteHttpClient.h"
+#include "AppwriteClientInstance.h"
 #include "cJSON.h"
 #include "thumbnail_cache.h"
 
 static const char *TAG = "UIEXTENSIONS";
-static AppwriteHttpClient s_appwriteClient(APPWRITE_ENDPOINT, APPWRITE_PROJECT_ID, APPWRITE_API_KEY, 30000);
 
 // Global variables defined here
 uint32_t s_thumb_generation = 0;
@@ -534,7 +534,7 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
     // Execute Appwrite function
     // -------------------------------------------------------------------------
     int status = 0;
-    std::string response = s_appwriteClient.executeFunction(APPWRITE_IMAGE_RESIZE_FUNCTION_ID, bodyJsonStr, false, status);
+    std::string response = getAppwriteClient().executeFunction(APPWRITE_IMAGE_RESIZE_FUNCTION_ID, bodyJsonStr, false, status);
     free(bodyJsonStr);
     ESP_LOGI(TAG, "HTTP status: %d, response size: %d", status, response.size());
 

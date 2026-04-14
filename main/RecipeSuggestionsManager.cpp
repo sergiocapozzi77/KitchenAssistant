@@ -3,6 +3,7 @@
 #include "esp_heap_caps.h"
 #include "RecipeGoodFoodService.h"
 #include "RecipeGialloZafferanoService.h"
+#include "RecipeAniaGotujeService.h"
 #include "esp_log.h"
 #include "lvgl.h"
 #include "ui_extensions.h"
@@ -207,6 +208,20 @@ void fetchRecipesTask(void *param)
     else if (strcmp(filterState->source, "giallozafferanoit") == 0)
     {
         suggestions = recipeGialloZafferanoService.getRecipeSuggestions(
+            ingredients,
+            mealType,
+            keywords,
+            difficulty,
+            totalTime,
+            diet,
+            cuisine,
+            "", // ratings
+            "", // calories
+            1);
+    }
+    else if (strcmp(filterState->source, "aniagotuje") == 0)
+    {
+        suggestions = recipeAniaGotujeService.getRecipeSuggestions(
             ingredients,
             mealType,
             keywords,

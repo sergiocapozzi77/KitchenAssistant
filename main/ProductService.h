@@ -7,6 +7,7 @@
 #include "secrets.h"
 #include "models.h"
 #include "AppwriteHttpClient.h"
+#include "AppwriteClientInstance.h"
 
 class ProductService
 {
@@ -29,14 +30,14 @@ private:
     void saveProductTask(void *arg);
     // Configuration (from secrets.h)
     const std::string apiKey = APPWRITE_API_KEY;
-    const std::string Endpoint = "https://fra.cloud.appwrite.io/v1";
+    const std::string Endpoint = APPWRITE_ENDPOINT;
     const std::string ProjectId = APPWRITE_PROJECT_ID;
     const std::string DatabaseId = "695404ac0021bf7d9707";
     const std::string CollectionId = "products";
     const std::string BarcodeCollectionId = "barcodes";
 
     // HTTP client
-    AppwriteHttpClient _httpClient;
+    AppwriteHttpClient& _httpClient;
 };
 
 extern ProductService productService;

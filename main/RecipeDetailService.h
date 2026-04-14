@@ -26,7 +26,7 @@ private:
 
     // Parses the two-layer Appwrite response:
     //   outer: { responseBody: "<json>", responseStatusCode: 200, ... }
-    //   inner: { ok: true, recipe: { ... } }
+    //   inner: { success: true, recipe: { ... } }
     bool parseResponse(const std::string &raw, RecipeSuggestion &recipe);
 };
 

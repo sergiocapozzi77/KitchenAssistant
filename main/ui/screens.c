@@ -1791,7 +1791,7 @@ void create_user_widget_filters_panel(lv_obj_t *parent_obj, int startWidgetIndex
                     ((lv_obj_t **)&objects)[startWidgetIndex + 8] = obj;
                     lv_obj_set_pos(obj, 483, 49);
                     lv_obj_set_size(obj, 220, 40);
-                    lv_dropdown_set_options(obj, "Source\nGoodFood\nGialloZafferano.it");
+                    lv_dropdown_set_options(obj, "Source\nGoodFood\nGialloZafferano.it\nAniaGotuje.pl");
                     lv_dropdown_set_dir(obj, LV_DIR_TOP);
                     lv_dropdown_set_symbol(obj, LV_SYMBOL_UP);
                     lv_dropdown_set_selected(obj, 0);

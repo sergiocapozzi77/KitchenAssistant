@@ -1,4 +1,5 @@
 #include "RecipeDetailService.h"
+#include "AppwriteClientInstance.h"
 #include "esp_log.h"
 #include "cJSON.h"
 #include "secrets.h"
@@ -7,7 +8,7 @@ static const char *TAG = "RecipeDetail";
 
 // Initialised in main / app startup with the shared AppwriteHttpClient and
 // the function ID from AppwriteConfig (e.g. "recipe-scraper").
-RecipeDetailService recipeDetailService(AppwriteHttpClient(APPWRITE_ENDPOINT, APPWRITE_PROJECT_ID, APPWRITE_API_KEY, 90000),
+RecipeDetailService recipeDetailService(getAppwriteClient(),
                                         APPWRITE_FUNCTION_ID);
 
 // ── public API ────────────────────────────────────────────────────────────────
@@ -94,11 +95,11 @@ bool RecipeDetailService::parseResponse(const std::string &raw, RecipeSuggestion
         return false;
     }
 
-    cJSON *okItem = cJSON_GetObjectItem(inner, "ok");
+    cJSON *okItem = cJSON_GetObjectItem(inner, "success");
     if (!okItem || !cJSON_IsTrue(okItem))
     {
         cJSON *errItem = cJSON_GetObjectItem(inner, "error");
-        ESP_LOGW(TAG, "Function returned ok=false: %s",
+        ESP_LOGW(TAG, "Function returned success=false: %s",
                  (errItem && cJSON_IsString(errItem)) ? errItem->valuestring : "(no error field)");
         cJSON_Delete(inner);
         return false;
