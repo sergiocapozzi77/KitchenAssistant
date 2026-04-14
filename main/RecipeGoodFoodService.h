@@ -3,65 +3,15 @@
 #include <string>
 #include <vector>
 #include <random>
-#include "esp_http_client.h"
 #include "cJSON.h"
 #include "models.h"
+#include "AppwriteHttpClient.h"
 
 class RecipeGoodFoodService
 {
 public:
+    // Uses global Appwrite client (from AppwriteClientInstance)
     RecipeGoodFoodService();
-    /*
-#include "RecipeGoodFoodService.h"
-
-void fetchRecipesTask(void *param)
-{
-    std::vector<std::string> ingredients = {
-        "chicken",
-        "lemon",
-        "garlic"
-    };
-
-    std::vector<std::string> keywords = {
-        "healthy",
-        "quick"
-    };
-
-    auto suggestions = recipeGoodFoodService.getRecipeSuggestions(
-        ingredients,
-        "main-course",   // dishType
-        keywords,
-        "easy",          // difficulty (pass "" to skip the filter)
-        "30-minutes",    // totalTime  (pass "" to skip the filter)
-        "",              // diet
-        "",              // cuisine
-        "",              // ratings
-        "",              // calories
-        1,               // page
-        );
-
-    ESP_LOGI("App", "Got %d recipe suggestions", suggestions.size());
-
-    for (const auto &r : suggestions)
-    {
-        ESP_LOGI("App",
-                 "  [%s] %s (%d min) -> %s",
-                 r.difficulty.c_str(),
-                 r.name.c_str(),
-                 r.prepTime,
-                 r.url.c_str());
-    }
-
-    // TODO: pass results to UI, e.g.:
-    // populateRecipeList(objects.recipe_list, suggestions);
-
-    vTaskDelete(nullptr);
-}
-
-// Somewhere in initTasks() or after WiFi connects:
-xTaskCreate(fetchRecipesTask, "FetchRecipes", 16384, nullptr, 5, nullptr);                                                                                                                                                                                    }
-                                                                                                                                                                                                               // Somewhere in initTasks() or after WiFi connects:                                                                                                                                                          xTaskCreate(fetchRecipesTask, "FetchRecipes", 16384, nullptr, 5, nullptr);
-    */
 
     std::vector<RecipeSuggestion> getRecipeSuggestions(
         const std::vector<std::string> &ingredients,
@@ -76,23 +26,11 @@ xTaskCreate(fetchRecipesTask, "FetchRecipes", 16384, nullptr, 5, nullptr);      
         int page = 1);
 
 private:
-    std::vector<RecipeSuggestion> fetchPage(
-        const std::string &query,
-        const std::string &mealType,
-        const std::string &difficulty,
-        const std::string &totalTime,
-        const std::string &diet,
-        const std::string &cuisine,
-        const std::string &ratings,
-        const std::string &calories,
-        int page);
-
-    std::string httpGet(const std::string &url, int &status);
-    std::string urlEncode(const std::string &s);
-    std::string extractNextData(const std::string &html);
-    int parseMinutes(const std::string &timeInput);
-
+    AppwriteHttpClient _httpClient;
     std::mt19937 _rng;
+
+    std::vector<RecipeSuggestion> parseSuggestionsResponse(const std::string &envelope);
 };
 
+// Global instance
 extern RecipeGoodFoodService recipeGoodFoodService;

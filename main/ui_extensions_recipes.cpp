@@ -99,14 +99,15 @@ void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &rec
         lv_obj_set_flex_flow(card, LV_FLEX_FLOW_ROW);
         lv_obj_set_flex_align(card, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
         lv_obj_set_style_pad_all(card, 16, 0);
-        lv_obj_set_style_pad_column(card, 12, 0);
+        lv_obj_set_style_pad_column(card, 17, 0); // increased from 12 for better spacing
 
         // === THUMBNAIL PLACEHOLDER ===
         lv_obj_t *thumb = lv_image_create(card);
         lv_obj_set_size(thumb, 112, 112);
         lv_obj_set_style_bg_color(thumb, lv_color_hex(0xDEE2E6), 0); // grey until loaded
         lv_obj_set_style_bg_opa(thumb, LV_OPA_COVER, 0);
-        lv_obj_set_style_radius(thumb, 8, 0);
+        lv_obj_set_style_radius(thumb, 12, 0); // increased from 8 for more rounded corners
+        lv_obj_set_style_clip_corner(thumb, true, 0); // clip image to rounded corners
         lv_obj_set_style_border_width(thumb, 0, 0);
         lv_image_set_inner_align(thumb, LV_IMAGE_ALIGN_COVER);
 
@@ -136,7 +137,7 @@ void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &rec
         lv_obj_set_style_pad_all(info, 0, 0);
         lv_obj_set_style_border_width(info, 0, 0);
         lv_obj_set_style_bg_opa(info, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_pad_row(info, 8, 0);
+        lv_obj_set_style_pad_row(info, 13, 0); // increased from 8 for better spacing
 
         // Title
         lv_obj_t *title = lv_label_create(info);

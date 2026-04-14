@@ -99,7 +99,8 @@ void populateFavouritesList(lv_obj_t *root, const std::vector<Favorite> &favouri
         lv_obj_set_size(thumb, 112, 112);
         lv_obj_set_style_bg_color(thumb, lv_color_hex(0xDEE2E6), 0); // grey until loaded
         lv_obj_set_style_bg_opa(thumb, LV_OPA_COVER, 0);
-        lv_obj_set_style_radius(thumb, 8, 0);
+        lv_obj_set_style_radius(thumb, 12, 0); // increased from 8 for consistency with recipes
+        lv_obj_set_style_clip_corner(thumb, true, 0); // clip image to rounded corners
         lv_obj_set_style_border_width(thumb, 0, 0);
         lv_image_set_inner_align(thumb, LV_IMAGE_ALIGN_COVER);
 

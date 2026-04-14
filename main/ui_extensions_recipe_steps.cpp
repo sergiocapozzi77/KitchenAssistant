@@ -289,8 +289,9 @@ void UIExtensionsRecipeSteps::populatePhaseImages(const Recipe &recipe, int phas
                 lv_obj_set_style_bg_color(thumb, lv_color_hex(0xDEE2E6), 0); // grey until loaded
                 lv_obj_set_style_bg_opa(thumb, LV_OPA_COVER, 0);
                 lv_obj_set_style_radius(thumb, 8, 0);
+                lv_obj_set_style_clip_corner(thumb, true, 0); // clip image to rounded corners
                 lv_obj_set_style_border_width(thumb, 0, 0);
-                //  lv_image_set_inner_align(thumb, LV_IMAGE_ALIGN_COVER);
+                // lv_image_set_inner_align(thumb, LV_IMAGE_ALIGN_COVER);
 
                 ESP_LOGI("UIExtensionsRecipeSteps", "Scheduling image fetch: %s", imgRef.url.c_str());
                 lv_obj_t *shimmer = create_shimmer_overlay(thumb);

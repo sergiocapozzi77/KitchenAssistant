@@ -19,7 +19,7 @@ public:
     std::vector<RecipeSuggestion> getSuggestions();
     int currentPage = 1;
     const int pageSize = 6;
-    void showCurrentPageRecipes();
+    void showCurrentPageRecipes(bool force = false);
 
 private:
     std::vector<RecipeSuggestion> allSuggestions;

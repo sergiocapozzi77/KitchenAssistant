@@ -786,6 +786,8 @@ void thumb_worker_task(void *arg)
                     ctx->shimmer = nullptr;
                 }
                 lv_image_set_src(thumb, dsc);
+                lv_obj_set_style_clip_corner(thumb, true, 0);     // ensure rounded corners clip
+                lv_obj_set_style_bg_opa(thumb, LV_OPA_TRANSP, 0); // remove grey background
                 lv_obj_remove_event_cb_with_user_data(thumb, thumb_obj_deleted_cb, ctx);
                 ThumbDataCtx *data_ctx = new ThumbDataCtx{dsc, px};
                 lv_obj_add_event_cb(thumb, free_thumb_data_cb, LV_EVENT_DELETE, data_ctx);

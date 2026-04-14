@@ -356,6 +356,9 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
     {
         lv_image_set_src(header_img, NULL);
         lv_obj_set_size(header_img, lv_pct(100), 280);
+        lv_obj_set_style_radius(header_img, 12, 0);        // rounded corners
+        lv_obj_set_style_clip_corner(header_img, true, 0); // clip image to rounded corners
+                                                           //  lv_image_set_inner_align(header_img, LV_IMAGE_ALIGN_COVER); // cover align
     }
     // Clear meta fields
     if (total_time_val && lv_obj_is_valid(total_time_val))

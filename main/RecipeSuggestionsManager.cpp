@@ -107,9 +107,9 @@ int RecipeSuggestionsManager::getSuggestionSize()
     return allSuggestions.size();
 }
 
-void RecipeSuggestionsManager::showCurrentPageRecipes()
+void RecipeSuggestionsManager::showCurrentPageRecipes(bool force)
 {
-    if (lv_obj_get_child_count(objects.recipes_list) > 0)
+    if (lv_obj_get_child_count(objects.recipes_list) > 0 && !force)
     {
         return; // Don't repopulate if already populated (e.g. when switching tabs)
     }
@@ -252,7 +252,7 @@ void fetchRecipesTask(void *param)
                  r.url.c_str());
     }
 
-    manager->showCurrentPageRecipes();
+    manager->showCurrentPageRecipes(true);
 
     vTaskDelete(nullptr);
 }
@@ -261,7 +261,7 @@ void showRecipesTask(void *param)
 {
     RecipeSuggestionsManager *manager = (RecipeSuggestionsManager *)param;
     ESP_LOGI("ShowRecipesTask", "Updating UI with fetched recipes...");
-    manager->showCurrentPageRecipes();
+    manager->showCurrentPageRecipes(true);
 
     vTaskDelete(nullptr);
 }

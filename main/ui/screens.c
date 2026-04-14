@@ -424,7 +424,7 @@ void create_screen_main() {
                                             lv_obj_t *obj = lv_obj_create(parent_obj);
                                             objects.recipe_list_filter_container = obj;
                                             lv_obj_set_pos(obj, 18, 0);
-                                            lv_obj_set_size(obj, 789, 308);
+                                            lv_obj_set_size(obj, 780, 320);
                                             lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
                                             lv_obj_set_style_grid_cell_row_pos(obj, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
                                             lv_obj_set_style_grid_cell_x_align(obj, LV_GRID_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -461,7 +461,7 @@ void create_screen_main() {
                                                             lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
                                                             lv_label_set_long_mode(obj, LV_LABEL_LONG_CLIP);
                                                             lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
-                                                            lv_label_set_text(obj, "UPDATE");
+                                                            lv_label_set_text(obj, "SEARCH");
                                                         }
                                                     }
                                                 }
