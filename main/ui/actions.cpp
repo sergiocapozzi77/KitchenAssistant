@@ -314,7 +314,7 @@ void action_generate_recipe_click(lv_event_t *e)
     log_filter_state();
 
     lv_lock();
-     lv_obj_add_flag(objects.recipe_list_filter_container, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(objects.recipe_list_filter_container, LV_OBJ_FLAG_HIDDEN);
     lv_tabview_set_active(objects.tabview, 1, LV_ANIM_OFF);
     lv_unlock();
 

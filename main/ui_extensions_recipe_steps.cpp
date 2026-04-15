@@ -494,6 +494,7 @@ void UIExtensionsRecipeSteps::setCurrentRecipe(const Recipe &recipe)
     s_currentPhaseIndex = 0;
     s_hasRecipe = true;
     s_scalingFactor = 1.0f;
+    ESP_LOGI("UIExtensionsRecipeSteps", "Set current recipe: %s with %d phases", recipe.title.c_str(), (int)recipe.aggregatedSteps.size());
     updatePhaseNavigationButtons();
     lv_unlock();
 }
