@@ -1,8 +1,11 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <map>
+#include <set>
 #include <ctime>
 #include <cctype>
+#include <cstring>
 #include "lvgl.h"
 #include "esp_log.h"
 #include "ProductService.h"
@@ -18,8 +21,11 @@
 static const char *TAG = "UIEXTENSIONS";
 static bool s_populating = false;
 static std::string s_productSearchFilter;
+static std::string s_selectedCategory;
+static std::map<std::string, int> s_categoryExpiringCount;
 
 static void update_selection_ui();
+static void category_button_cb(lv_event_t *e);
 
 // // Calendar picker helpers
 // static void add_calendar_button_to_expiry(lv_obj_t *expiry_ta);
@@ -353,6 +359,15 @@ static void edit_btn_cb(lv_event_t *e)
     }
 }
 
+static void category_button_cb(lv_event_t *e)
+{
+    const char *category = static_cast<const char *>(lv_event_get_user_data(e));
+    if (!category)
+        return;
+    s_selectedCategory = category;
+    productsManager.populateProductList();
+}
+
 // === MAIN POPULATE FUNCTION ===
 
 void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
@@ -388,12 +403,14 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
     // Capture scroll position before cleaning
     lv_coord_t scroll_y = lv_obj_get_scroll_y(root);
     lv_obj_clean(root);
+    // Reset scroll position because layout changed to horizontal
+    scroll_y = 0;
 
-    // Root setup: Light gray background
+    // Root setup: Light gray background, horizontal layout
     lv_obj_set_style_bg_color(root, lv_color_hex(0xF8F9FA), 0);
     lv_obj_set_style_pad_all(root, 15, 0);
-    lv_obj_set_flex_flow(root, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_row(root, 15, 0);
+    lv_obj_set_flex_flow(root, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_pad_column(root, 15, 0);
 
     uint32_t filter_idx = 0;
     if (objects.product_filter_dropdown && lv_obj_is_valid(objects.product_filter_dropdown))
@@ -411,44 +428,183 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
     // sort_idx = 0: sort alphabetically (by category, then name)
     // sort_idx = 1: sort by expiry (by category, then expiry date)
 
-    std::vector<const Product *> sorted;
+    // Step 1: Filter products (dropdown + search)
+    std::vector<const Product *> filtered;
     for (const auto &p : products)
-        sorted.push_back(&p);
+        filtered.push_back(&p);
 
-    // Filter first (fewer elements to sort)
     if (filter_idx == 1)
     {
-        sorted.erase(std::remove_if(sorted.begin(), sorted.end(), [](const Product *p)
-                                    {
+        filtered.erase(std::remove_if(filtered.begin(), filtered.end(), [](const Product *p)
+                                      {
         int days = days_until_expiry(p->expiry, p->frozen);
         return days == 9999 || days >= 7; }),
-                     sorted.end());
+                       filtered.end());
     }
 
-    // Search filter
     if (s_productSearchFilter.length() >= 3)
     {
-        sorted.erase(std::remove_if(sorted.begin(), sorted.end(),
-                                    [](const Product *p)
-                                    {
-                                        // case-insensitive substring search
-                                        std::string nameLower = p->name;
-                                        std::transform(nameLower.begin(), nameLower.end(), nameLower.begin(), ::tolower);
-                                        std::string filterLower = s_productSearchFilter;
-                                        std::transform(filterLower.begin(), filterLower.end(), filterLower.begin(), ::tolower);
-                                        return nameLower.find(filterLower) == std::string::npos;
-                                    }),
-                     sorted.end());
+        filtered.erase(std::remove_if(filtered.begin(), filtered.end(),
+                                      [](const Product *p)
+                                      {
+                                          std::string nameLower = p->name;
+                                          std::transform(nameLower.begin(), nameLower.end(), nameLower.begin(), ::tolower);
+                                          std::string filterLower = s_productSearchFilter;
+                                          std::transform(filterLower.begin(), filterLower.end(), filterLower.begin(), ::tolower);
+                                          return nameLower.find(filterLower) == std::string::npos;
+                                      }),
+                       filtered.end());
     }
 
-    std::sort(sorted.begin(), sorted.end(), [sort_idx](const Product *a, const Product *b)
+    // Step 2: Compute categories and expiring counts from filtered list
+    s_categoryExpiringCount.clear();
+    std::set<std::string> uniqueCategories;
+    for (const Product *p : filtered)
+    {
+        uniqueCategories.insert(p->category);
+        int days = days_until_expiry(p->expiry, p->frozen);
+        if (days < 7 && days != 9999) // expiring soon
+        {
+            s_categoryExpiringCount[p->category]++;
+        }
+    }
+
+    ESP_LOGI(TAG, "Filtered products: %d, Categories: %d", (int)filtered.size(), (int)uniqueCategories.size());
+    ESP_LOGI(TAG, "Expiring counts by category:");
+    for (const auto &entry : s_categoryExpiringCount)
+    {
+        ESP_LOGI(TAG, "  %s: %d", entry.first.c_str(), entry.second);
+    }
+
+    // Ensure selected category exists in filtered list
+    if (!uniqueCategories.empty())
+    {
+        if (s_selectedCategory.empty() || uniqueCategories.find(s_selectedCategory) == uniqueCategories.end())
+        {
+            s_selectedCategory = *uniqueCategories.begin();
+        }
+    }
+    else
+    {
+        s_selectedCategory.clear();
+    }
+
+    // Step 3: Create left sidebar container
+    lv_obj_t *sidebar = lv_obj_create(root);
+    lv_obj_set_width(sidebar, lv_pct(30)); // 30% width
+    lv_obj_set_height(sidebar, lv_pct(100));
+    lv_obj_set_flex_flow(sidebar, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_row(sidebar, 10, 0);
+    lv_obj_set_style_pad_all(sidebar, 10, 0);
+    lv_obj_set_style_border_width(sidebar, 0, 0);
+    lv_obj_set_style_bg_color(sidebar, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_radius(sidebar, 8, 0);
+    lv_obj_set_style_shadow_width(sidebar, 10, 0);
+    lv_obj_set_style_shadow_color(sidebar, lv_color_hex(0x888888), 0);
+    // Make sidebar scrollable vertically if many categories
+    lv_obj_add_flag(sidebar, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollbar_mode(sidebar, LV_SCROLLBAR_MODE_AUTO);
+
+    // Step 4: Create right content container
+    lv_obj_t *content_container = lv_obj_create(root);
+    lv_obj_set_width(content_container, lv_pct(70));
+    lv_obj_set_height(content_container, lv_pct(100));
+    lv_obj_set_flex_flow(content_container, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_all(content_container, 10, 0);
+    lv_obj_set_style_border_width(content_container, 0, 0);
+    lv_obj_set_style_bg_color(content_container, lv_color_hex(0xF8F9FA), 0);
+    lv_obj_add_flag(content_container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollbar_mode(content_container, LV_SCROLLBAR_MODE_AUTO);
+
+    // Step 5: Create category buttons in sidebar
+    for (const std::string &category : uniqueCategories)
+    {
+        lv_obj_t *btn = lv_btn_create(sidebar);
+        lv_obj_set_width(btn, lv_pct(100));
+        lv_obj_set_height(btn, 120); // Higher button
+        lv_obj_set_style_bg_color(btn, lv_color_hex(0xFFFFFF), 0);
+        lv_obj_set_style_bg_color(btn, lv_color_hex(0xE9ECEF), LV_STATE_PRESSED);
+        lv_obj_set_style_border_width(btn, 1, 0);
+        lv_obj_set_style_border_color(btn, lv_color_hex(0xDEE2E6), 0);
+        lv_obj_set_style_radius(btn, 6, 0);
+        lv_obj_set_style_pad_top(btn, 12, 0);
+        lv_obj_set_style_pad_bottom(btn, 8, 0);
+        lv_obj_set_style_pad_left(btn, 8, 0);
+        lv_obj_set_style_pad_right(btn, 12, 0);
+        lv_obj_set_flex_flow(btn, LV_FLEX_FLOW_COLUMN);
+        lv_obj_set_flex_align(btn, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+
+        // Highlight selected category
+        if (category == s_selectedCategory)
+        {
+            lv_obj_set_style_bg_color(btn, lv_color_hex(0xE3F2FD), 0);
+            lv_obj_set_style_border_color(btn, lv_color_hex(0x007AFF), 0);
+            lv_obj_set_style_border_width(btn, 2, 0);
+        }
+
+        // Image in center
+        lv_obj_t *img = lv_image_create(btn);
+        lv_image_set_src(img, &img_restaurant);
+        lv_obj_set_size(img, 40, 40);
+
+        // Category label (multiline wrap under image)
+        lv_obj_t *label = lv_label_create(btn);
+        lv_label_set_text(label, category.c_str());
+        lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
+        lv_obj_set_width(label, lv_pct(100));
+        lv_obj_set_style_text_color(label, lv_color_hex(0x495057), 0);
+        lv_obj_set_style_text_font(label, &lv_font_montserrat_16, 0);
+        lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
+
+        // Expiring count badge (red) in top right corner
+        int expiringCount = s_categoryExpiringCount[category];
+        if (expiringCount > 0)
+        {
+            lv_obj_t *badge = lv_label_create(btn);
+            char buf[16];
+            snprintf(buf, sizeof(buf), "%d", expiringCount);
+            lv_label_set_text(badge, buf);
+            lv_obj_set_style_bg_color(badge, lv_color_hex(0xE74C3C), 0);
+            lv_obj_set_style_text_color(badge, lv_color_hex(0xFFFFFF), 0);
+            lv_obj_set_style_pad_hor(badge, 8, 0);
+            lv_obj_set_style_pad_ver(badge, 4, 0);
+            lv_obj_set_style_radius(badge, 10, 0);
+            lv_obj_set_style_text_font(badge, &lv_font_montserrat_14, 0);
+            // Position badge top right inside button
+            lv_obj_align(badge, LV_ALIGN_TOP_RIGHT, -5, 5);
+            lv_obj_move_foreground(badge);
+            ESPI_LOGI(TAG, "Category '%s' has %d expiring products", category.c_str(), expiringCount);
+        }
+
+        // Attach category string as user data
+        char *category_str = new char[category.size() + 1];
+        strcpy(category_str, category.c_str());
+        lv_obj_set_user_data(btn, category_str);
+        lv_obj_add_event_cb(btn, category_button_cb, LV_EVENT_CLICKED, category_str);
+        lv_obj_add_event_cb(btn, [](lv_event_t *e)
+                            {
+            char *str = static_cast<char*>(lv_obj_get_user_data((lv_obj_t*)lv_event_get_target(e)));
+            delete[] str; }, LV_EVENT_DELETE, nullptr);
+    }
+
+    // Step 6: Filter products by selected category
+    std::vector<const Product *> category_filtered;
+    for (const Product *p : filtered)
+    {
+        if (p->category == s_selectedCategory)
+        {
+            category_filtered.push_back(p);
+        }
+    }
+
+    // Step 7: Sort the filtered list
+    std::sort(category_filtered.begin(), category_filtered.end(), [sort_idx](const Product *a, const Product *b)
               {
     if (a->category != b->category)
         return a->category < b->category;
 
     if (sort_idx == 1)
     {
-        // Push products with no expiry (9999) to the end
         bool a_valid = days_until_expiry(a->expiry, a->frozen) != 9999;
         bool b_valid = days_until_expiry(b->expiry, b->frozen) != 9999;
         if (a_valid != b_valid)
@@ -458,79 +614,17 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
 
     return a->name < b->name; });
 
-    std::string currentCategory;
-    lv_obj_t *content = nullptr;
-
-    for (const Product *p : sorted)
+    // Step 8: Create product rows in content container
+    for (const Product *p : category_filtered)
     {
-        // Create new category card if category changed
-        if (p->category != currentCategory)
-        {
-            currentCategory = p->category;
-
-            // The Card: Use reusable style
-            lv_obj_t *card = lv_obj_create(root);
-            lv_obj_add_style(card, &style_card, 0);
-            lv_obj_set_width(card, lv_pct(100));
-            lv_obj_set_height(card, LV_SIZE_CONTENT);
-            lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
-            lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
-
-            // Header: Use reusable style
-            lv_obj_t *header = lv_btn_create(card);
-            lv_obj_add_style(header, &style_header, 0);
-            lv_obj_set_width(header, lv_pct(100));
-            lv_obj_set_height(header, 50);
-            lv_obj_set_flex_flow(header, LV_FLEX_FLOW_ROW);
-            lv_obj_set_flex_align(header, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-
-            lv_obj_t *title = lv_label_create(header);
-            lv_label_set_text(title, currentCategory.c_str());
-            lv_obj_set_style_text_color(title, lv_color_hex(0x495057), 0);
-            lv_obj_set_style_text_font(title, &lv_font_montserrat_20, 0);
-
-            lv_obj_t *arrow = lv_label_create(header);
-            lv_label_set_text(arrow, LV_SYMBOL_DOWN);
-            lv_obj_set_style_text_color(arrow, lv_color_hex(0xADB5BD), 0);
-            lv_obj_set_style_translate_y(title, 5, 0);
-            lv_obj_set_style_translate_y(arrow, 5, 0);
-
-            content = lv_obj_create(card);
-            lv_obj_set_width(content, lv_pct(100));
-            lv_obj_set_height(content, LV_SIZE_CONTENT);
-            lv_obj_clear_flag(content, LV_OBJ_FLAG_SCROLLABLE);
-            lv_obj_set_flex_flow(content, LV_FLEX_FLOW_COLUMN);
-            lv_obj_set_style_pad_all(content, 0, 0);
-            lv_obj_set_style_border_width(content, 0, 0);
-
-            GroupUI *group = new GroupUI{content, arrow, false};
-            lv_obj_add_event_cb(header, group_toggle_cb, LV_EVENT_CLICKED, group);
-            lv_obj_add_event_cb(header, free_group_cb, LV_EVENT_DELETE, group);
-        }
-
-        if (!content)
-            continue; // Safety check
-
         // === THE ROW ===
-        lv_obj_t *row = lv_obj_create(content);
+        lv_obj_t *row = lv_obj_create(content_container);
         lv_obj_add_style(row, &style_row, 0);
         lv_obj_set_width(row, lv_pct(100));
         lv_obj_set_height(row, 60);
         lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
         lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-
-        // // Checkbox (before product name)
-        // lv_obj_t *checkbox = lv_checkbox_create(row);
-        // lv_checkbox_set_text(checkbox, "");
-        // lv_obj_set_style_pad_right(checkbox, 8, 0);
-        // lv_obj_add_style(checkbox, &style_checkbox_indicator, LV_PART_INDICATOR);
-        // lv_obj_add_style(checkbox, &style_checkbox_indicator, 0);
-        // lv_obj_set_style_translate_y(checkbox, 5, 0);
-        // // Attach product data to checkbox for selection tracking
-        // CheckboxContext *checkbox_ctx = new CheckboxContext{*p};
-        // lv_obj_add_event_cb(checkbox, checkbox_changed_cb, LV_EVENT_VALUE_CHANGED, checkbox_ctx);
-        // lv_obj_add_event_cb(checkbox, free_checkbox_ctx_cb, LV_EVENT_DELETE, checkbox_ctx);
 
         // Selection image — hidden by default, shown when row is selected
         lv_obj_t *img = lv_image_create(row);
@@ -581,46 +675,6 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
             lv_obj_set_style_translate_y(expiry, 5, 0);
         }
 
-        // Quantity Selector Container (commented out in original)
-        // lv_obj_t *qty_cont = lv_obj_create(row);
-        // lv_obj_add_style(qty_cont, &style_qty_cont, 0);
-        // lv_obj_set_size(qty_cont, 144, 36);
-        // lv_obj_clear_flag(qty_cont, LV_OBJ_FLAG_SCROLLABLE);
-        // lv_obj_set_flex_flow(qty_cont, LV_FLEX_FLOW_ROW);
-        // lv_obj_set_flex_align(qty_cont, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-        //
-        // // Minus Button
-        // lv_obj_t *btn_minus = lv_btn_create(qty_cont);
-        // lv_obj_add_style(btn_minus, &style_qty_btn, 0);
-        // lv_obj_set_size(btn_minus, 30, 36);
-        // lv_obj_t *lbl_minus = lv_label_create(btn_minus);
-        // lv_label_set_text(lbl_minus, LV_SYMBOL_MINUS);
-        // lv_obj_set_style_text_color(lbl_minus, lv_color_hex(0x007AFF), 0);
-        // lv_obj_center(lbl_minus);
-        //
-        // // Quantity Label
-        // lv_obj_t *qty_val = lv_label_create(qty_cont);
-        // lv_label_set_text_fmt(qty_val, "%d", p->quantity);
-        // lv_obj_set_style_bg_color(qty_val, lv_color_hex(0xFFFFFF), 0);
-        // lv_obj_set_style_text_font(qty_val, &lv_font_montserrat_14, 0);
-        // lv_obj_set_style_pad_hor(qty_val, 5, 0);
-        //
-        // // Plus Button
-        // lv_obj_t *btn_plus = lv_btn_create(qty_cont);
-        // lv_obj_add_style(btn_plus, &style_qty_btn, 0);
-        // lv_obj_set_size(btn_plus, 30, 36);
-        // lv_obj_t *lbl_plus = lv_label_create(btn_plus);
-        // lv_label_set_text(lbl_plus, LV_SYMBOL_PLUS);
-        // lv_obj_set_style_text_color(lbl_plus, lv_color_hex(0x007AFF), 0);
-        // lv_obj_center(lbl_plus);
-        //
-        // // Shared QtyContext — owned by btn_minus, freed on its deletion
-        // QtyContext *qty_ctx = new QtyContext{qty_val, row, p->rowId, p->quantity};
-        // lv_obj_add_event_cb(btn_minus, qty_minus_cb, LV_EVENT_CLICKED, qty_ctx);
-        // lv_obj_add_event_cb(btn_minus, free_qty_ctx_cb, LV_EVENT_DELETE, qty_ctx);
-        // lv_obj_add_event_cb(btn_plus, qty_plus_cb, LV_EVENT_CLICKED, qty_ctx);
-        //
-
         // Edit Button
         lv_obj_t *btn_edit = lv_btn_create(row);
         lv_obj_add_style(btn_edit, &style_del_btn, 0);
@@ -637,28 +691,12 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
         lv_obj_add_event_cb(btn_edit, edit_btn_cb, LV_EVENT_CLICKED, edit_id);
         lv_obj_add_event_cb(btn_edit, free_rowid_cb, LV_EVENT_DELETE, edit_id);
 
-        // // Delete Button
-        // lv_obj_t *btn_del = lv_btn_create(row);
-        // lv_obj_add_style(btn_del, &style_del_btn, 0);
-        // lv_obj_set_size(btn_del, 50, 50);
-
-        // lv_obj_t *lbl_del = lv_label_create(btn_del);
-        // lv_label_set_text(lbl_del, LV_SYMBOL_TRASH);
-        // lv_obj_set_style_text_color(lbl_del, lv_color_hex(0xE74C3C), 0);
-        // lv_obj_center(lbl_del);
-        // lv_obj_set_style_translate_y(btn_del, 5, 0);
-
-        // std::string *rowId = new std::string(p->rowId);
-        // lv_obj_add_event_cb(btn_del, delete_btn_cb, LV_EVENT_CLICKED, rowId);
-        // lv_obj_add_event_cb(btn_del, free_rowid_cb, LV_EVENT_DELETE, rowId);
-
-        //
-        // lv_obj_add_flag(qty_cont, LV_OBJ_FLAG_HIDDEN);
         esp_task_wdt_reset();
         vTaskDelay(pdMS_TO_TICKS(10));
     }
-    // Restore scroll position
-    lv_obj_scroll_to_y(root, scroll_y, LV_ANIM_OFF);
+
+    // Restore scroll position (only vertical for content container)
+    lv_obj_scroll_to_y(content_container, scroll_y, LV_ANIM_OFF);
 
     // Initialize selection UI to correct state (panel hidden, count = 0)
     update_selection_ui();

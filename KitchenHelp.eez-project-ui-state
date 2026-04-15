@@ -1,11 +1,11 @@
 {
   "navigation": {
-    "selectedUserPageObject": "[KitchenHelp.eez-project]:/userPages/2",
-    "selectedUserWidgetObject": "[KitchenHelp.eez-project]:/userWidgets/2",
+    "selectedUserPageObject": "[KitchenHelp.eez-project]:/userPages/0",
+    "selectedUserWidgetObject": "[KitchenHelp.eez-project]:/userWidgets/1",
     "selectedActionObject": "[KitchenHelp.eez-project]:/actions/4",
     "selectedStyleObject": "[KitchenHelp.eez-project]:/lvglStyles/styles/2",
     "selectedThemeColorObject": "[KitchenHelp.eez-project]:/colors/1",
-    "selectedFontObject": "[KitchenHelp.eez-project]:/fonts/0",
+    "selectedFontObject": "[KitchenHelp.eez-project]:/fonts/2",
     "selectedBitmapObject": "[KitchenHelp.eez-project]:/bitmaps/6",
     "subnavigationSelectedItems": {}
   },
@@ -27,7 +27,7 @@
           },
           {
             "type": "border",
-            "selected": 3,
+            "selected": 1,
             "size": 183.609375,
             "location": "right",
             "children": [
@@ -194,16 +194,17 @@
               "type": "tabset",
               "id": "EDITORS",
               "weight": 48.879102867338894,
+              "selected": 4,
               "enableDeleteWhenEmpty": false,
               "enableClose": false,
               "children": [
                 {
                   "type": "tab",
                   "id": "#d87ad084-60a3-4802-81ee-5afa040eb605",
-                  "name": "Recipe Phase",
+                  "name": "RecipeDetail",
                   "component": "editor",
                   "config": {
-                    "objectPath": "[KitchenHelp.eez-project]:/userPages/2",
+                    "objectPath": "[KitchenHelp.eez-project]:/userPages/1",
                     "permanent": false
                   },
                   "icon": "svg:page"
@@ -211,10 +212,10 @@
                 {
                   "type": "tab",
                   "id": "#6689bd3f-4ac6-42db-b564-ea503cbc0dca",
-                  "name": "StepProgressBar",
+                  "name": "FiltersPanel",
                   "component": "editor",
                   "config": {
-                    "objectPath": "[KitchenHelp.eez-project]:/userWidgets/2",
+                    "objectPath": "[KitchenHelp.eez-project]:/userWidgets/1",
                     "permanent": false
                   },
                   "icon": "svg:user_widget"
@@ -1127,7 +1128,7 @@
       "transform": {
         "translate": {
           "x": -293.6461502125806,
-          "y": -3.6545870988129536
+          "y": -103.65458709881295
         },
         "scale": 0.75
       },
@@ -1142,14 +1143,15 @@
         "0": {
           "0": {
             "0": {
-              "1": {
+              "2": {
                 "0": {
-                  "2": {
-                    "$selected": true
+                  "0": {
+                    "0": {
+                      "$selected": true
+                    }
                   }
                 }
-              },
-              "2": {}
+              }
             }
           }
         }
@@ -1178,7 +1180,7 @@
       "transform": {
         "translate": {
           "x": -400,
-          "y": 49.114898749457325
+          "y": -350.8851012505427
         },
         "scale": 0.75
       },
@@ -1217,9 +1219,10 @@
         "0": {
           "0": {},
           "1": {},
-          "9": {
+          "7": {
             "$selected": true
-          }
+          },
+          "9": {}
         }
       },
       "transform": {
