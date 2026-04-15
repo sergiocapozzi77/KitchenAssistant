@@ -1,7 +1,6 @@
 {
   "env": {
-    "ANTHROPIC_BASE_URL": "https://api.deepseek.com/anthropic",
-            "ANTHROPIC_AUTH_TOKEN": "sk-72e2ce6a02534bbf9307606107f1d7f3",
+        "ANTHROPIC_BASE_URL": "https://api.deepseek.com/anthropic",
         "ANTHROPIC_MODEL": "deepseek-chat",
         "ANTHROPIC_DEFAULT_HAIKU_MODEL": "deepseek-chat"
 
