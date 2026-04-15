@@ -521,18 +521,13 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
     {
         lv_obj_t *btn = lv_btn_create(sidebar);
         lv_obj_set_width(btn, lv_pct(100));
-        lv_obj_set_height(btn, 120); // Higher button
+        lv_obj_set_height(btn, 120);
         lv_obj_set_style_bg_color(btn, lv_color_hex(0xFFFFFF), 0);
         lv_obj_set_style_bg_color(btn, lv_color_hex(0xE9ECEF), LV_STATE_PRESSED);
         lv_obj_set_style_border_width(btn, 1, 0);
         lv_obj_set_style_border_color(btn, lv_color_hex(0xDEE2E6), 0);
         lv_obj_set_style_radius(btn, 6, 0);
-        lv_obj_set_style_pad_top(btn, 12, 0);
-        lv_obj_set_style_pad_bottom(btn, 8, 0);
-        lv_obj_set_style_pad_left(btn, 8, 0);
-        lv_obj_set_style_pad_right(btn, 12, 0);
-        lv_obj_set_flex_flow(btn, LV_FLEX_FLOW_COLUMN);
-        lv_obj_set_flex_align(btn, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        lv_obj_set_style_pad_all(btn, 8, 0); // Uniform padding
 
         // Highlight selected category
         if (category == s_selectedCategory)
@@ -542,8 +537,17 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
             lv_obj_set_style_border_width(btn, 2, 0);
         }
 
-        // Image in center
-        lv_obj_t *img = lv_image_create(btn);
+        // Create container for image + label
+        lv_obj_t *container = lv_obj_create(btn);
+        lv_obj_remove_style_all(container); // Remove default styling
+        lv_obj_set_size(container, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+        lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
+        lv_obj_set_flex_align(container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        lv_obj_set_style_pad_row(container, 6, 0); // Gap between image and label
+        lv_obj_center(container);                  // Center the container in the button
+
+        // Image
+        lv_obj_t *img = lv_image_create(container);
         if (category == "Baby")
         {
             lv_image_set_src(img, &img_baby);
@@ -628,10 +632,11 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
         lv_obj_set_size(img, 60, 60);
 
         // Category label (multiline wrap under image)
-        lv_obj_t *label = lv_label_create(btn);
+        // Label
+        lv_obj_t *label = lv_label_create(container);
         lv_label_set_text(label, category.c_str());
         lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
-        lv_obj_set_width(label, lv_pct(100));
+        lv_obj_set_width(label, 100); // Fixed width for wrapping
         lv_obj_set_style_text_color(label, lv_color_hex(0x495057), 0);
         lv_obj_set_style_text_font(label, &lv_font_montserrat_16, 0);
         lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
@@ -648,8 +653,13 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
             lv_obj_set_style_text_color(badge, lv_color_hex(0xFFFFFF), 0);
             lv_obj_set_style_pad_hor(badge, 8, 0);
             lv_obj_set_style_pad_ver(badge, 4, 0);
-            lv_obj_set_style_radius(badge, 10, 0);
+            lv_obj_set_style_radius(badge, 20, 0);
             lv_obj_set_style_text_font(badge, &lv_font_montserrat_14, 0);
+            lv_obj_set_style_bg_opa(badge, LV_OPA_COVER, 0); // Ensure background is visible
+
+            // Make badge float above flex layout
+            lv_obj_add_flag(badge, LV_OBJ_FLAG_FLOATING);
+
             // Position badge top right inside button
             lv_obj_align(badge, LV_ALIGN_TOP_RIGHT, -5, 5);
             lv_obj_move_foreground(badge);
