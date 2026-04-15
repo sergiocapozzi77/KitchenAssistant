@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-KitchenAssistant is an ESP32-P4 embedded application for kitchen inventory management. It tracks products and expiry dates via Appwrite cloud, and suggests recipes from GoodFood based on available ingredients. The UI runs on an 800x1280 LCD using LVGL 9.x.
+KitchenAssistant is an ESP32-P4 embedded application for kitchen inventory management. It tracks products and expiry dates via Appwrite cloud, and suggests recipes from GoodFood, Giallo Zafferano, and Ania Gotuje based on available ingredients. The UI runs on an 800x1280 LCD using LVGL 9.x.
 
 ## Build Commands
 
@@ -34,7 +34,7 @@ LVGL UI (EEZ Studio generated: main/ui/)
     ↕
 UI Extensions (main/ui_extensions.cpp) — populates LVGL widgets from data
     ↕
-Services (ProductService, RecipeGoodFoodService, WiFiManager)
+Services (ProductService, RecipeService, WiFiManager)
     ↕
 ESP-IDF HTTP client + cJSON + FreeRTOS
 ```
@@ -52,7 +52,7 @@ ESP-IDF HTTP client + cJSON + FreeRTOS
 
 **`main/ProductsManager.cpp`** — Mutex-protected in-memory cache of products. Background task writes here; LVGL tick reads here.
 
-**`main/RecipeGoodFoodService.cpp`** — Fetches recipe suggestions from GoodFood. Parses HTML responses.
+**`main/RecipeService.cpp`** — Fetches recipe suggestions from GoodFood, Giallo Zafferano, and Ania Gotuje. Parses JSON responses from Appwrite function.
 
 **`main/ui_extensions.cpp`** — Bridges data layer to LVGL. `populateProductList()` and `populateRecipeList()` build card widgets, expiry badges, quantity controls, and fetch JPEG thumbnails (limited to 2 concurrent fetches via semaphore).
 

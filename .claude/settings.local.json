@@ -21,7 +21,9 @@
       "Bash(python3:*)",
       "Bash(grep -n \"ThumbDataCtx\" *.cpp)",
       "Bash(find . -maxdepth 2 -type d -name *function*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(find /c/Users/sergi/source/repos/KitchenAssistant -name \"*.h\" -type f -exec grep -l \"virtual\\\\|abstract\\\\|interface\" {} \\\\;)",
+      "Bash(find /c/Users/sergi/source/repos/KitchenAssistant -type f -name \"*.h\" -exec grep -l \"APPWRITE_\" {} \\\\;)"
     ],
     "deny": [
       "Bash(idf.py build *)",

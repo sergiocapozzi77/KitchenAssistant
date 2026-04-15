@@ -1,11 +1,10 @@
-#include "RecipeAniaGotujeService.h"
+#include "RecipeService.h"
 #include "esp_log.h"
 #include "cJSON.h"
 #include "secrets.h"
 #include "AppwriteClientInstance.h"
-static const char *TAG = "RecipeAniaService";
 
-RecipeAniaGotujeService recipeAniaGotujeService;
+static const char *TAG = "RecipeService";
 
 // Helper functions for safe JSON extraction
 static std::string safeJsonString(cJSON *obj, const char *key)
@@ -20,14 +19,32 @@ static double safeJsonDouble(cJSON *obj, const char *key, double def)
     return cJSON_IsNumber(item) ? item->valuedouble : def;
 }
 
-RecipeAniaGotujeService::RecipeAniaGotujeService()
+static int safeJsonInt(cJSON *obj, const char *key, int def)
+{
+    cJSON *item = cJSON_GetObjectItem(obj, key);
+    return cJSON_IsNumber(item) ? item->valueint : def;
+}
+
+RecipeService::RecipeService()
     : _httpClient(getAppwriteClient())
 {
     std::random_device rd;
     _rng = std::mt19937(rd());
 }
 
-std::vector<RecipeSuggestion> RecipeAniaGotujeService::getRecipeSuggestions(
+std::string RecipeService::mapSourceToCanonical(const std::string &uiSource)
+{
+    // Map UI source values to canonical source values used in payload and parsing
+    if (uiSource == "giallozafferanoit")
+    {
+        return "giallozafferano";
+    }
+    // For "goodfood" and "aniagotuje", use as-is
+    return uiSource;
+}
+
+std::vector<RecipeSuggestion> RecipeService::getRecipeSuggestions(
+    const std::string &source,
     const std::vector<std::string> &ingredients,
     const std::string &mealType,
     const std::vector<std::string> &keywords,
@@ -39,7 +56,7 @@ std::vector<RecipeSuggestion> RecipeAniaGotujeService::getRecipeSuggestions(
     const std::string &calories,
     int page)
 {
-    ESP_LOGI(TAG, "Calling Appwrite function for recipe search (page %d)", page);
+    ESP_LOGI(TAG, "Calling Appwrite function for recipe search (source: %s, page %d)", source.c_str(), page);
 
     // Build the JSON payload for the function
     cJSON *payload = cJSON_CreateObject();
@@ -50,9 +67,12 @@ std::vector<RecipeSuggestion> RecipeAniaGotujeService::getRecipeSuggestions(
     }
 
     cJSON_AddStringToObject(payload, "mode", "search");
+    // Map UI source to canonical source (e.g., "giallozafferanoit" -> "giallozafferano")
+    std::string payloadSource = mapSourceToCanonical(source);
+    cJSON_AddStringToObject(payload, "source", payloadSource.c_str());
     cJSON_AddNumberToObject(payload, "page", page);
 
-    // Add optional parameters (even if empty, to match the function's expected fields)
+    // Add optional parameters (the function expects them even if ignored)
     cJSON_AddStringToObject(payload, "mealType", mealType.c_str());
     cJSON_AddStringToObject(payload, "difficulty", difficulty.c_str());
     cJSON_AddStringToObject(payload, "totalTime", totalTime.c_str());
@@ -101,12 +121,13 @@ std::vector<RecipeSuggestion> RecipeAniaGotujeService::getRecipeSuggestions(
     }
 
     // Parse the envelope and extract suggestions
-    return parseSuggestionsResponse(envelope);
+    return parseSuggestionsResponse(source, envelope);
 }
 
-std::vector<RecipeSuggestion> RecipeAniaGotujeService::parseSuggestionsResponse(const std::string &envelope)
+std::vector<RecipeSuggestion> RecipeService::parseSuggestionsResponse(const std::string &source, const std::string &envelope)
 {
     std::vector<RecipeSuggestion> results;
+    std::string canonicalSource = RecipeService::mapSourceToCanonical(source);
 
     // ── Layer 1: Appwrite execution envelope ──────────────────────────────────
     cJSON *outer = cJSON_Parse(envelope.c_str());
@@ -154,7 +175,7 @@ std::vector<RecipeSuggestion> RecipeAniaGotujeService::parseSuggestionsResponse(
     }
 
     int count = cJSON_GetArraySize(suggestions);
-    ESP_LOGI(TAG, "Received %d recipe suggestions", count);
+    ESP_LOGI(TAG, "Received %d recipe suggestions for source %s", count, source.c_str());
 
     for (int i = 0; i < count; i++)
     {
@@ -175,9 +196,26 @@ std::vector<RecipeSuggestion> RecipeAniaGotujeService::parseSuggestionsResponse(
         r.recipeSource = safeJsonString(item, "recipeSource");
         r.author = safeJsonString(item, "author");
 
+        // Source-specific fields
+        if (canonicalSource == "goodfood")
+        {
+            r.ratingCount = safeJsonInt(item, "ratingCount", 0);
+            r.id = safeJsonString(item, "id");
+        }
+        else if (canonicalSource == "giallozafferano")
+        {
+            // Giallo Zafferano provides id but not ratingCount
+            r.id = safeJsonString(item, "id");
+            // ratingCount stays default (0)
+        }
+        // else: aniagotuje and any other sources - no id or ratingCount fields expected
+
         results.push_back(r);
     }
 
     cJSON_Delete(inner);
     return results;
 }
+
+// Global instance definition
+RecipeService recipeService;

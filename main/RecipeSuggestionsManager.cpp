@@ -1,9 +1,7 @@
 
 #include "RecipeSuggestionsManager.h"
 #include "esp_heap_caps.h"
-#include "RecipeGoodFoodService.h"
-#include "RecipeGialloZafferanoService.h"
-#include "RecipeAniaGotujeService.h"
+#include "RecipeService.h"
 #include "esp_log.h"
 #include "lvgl.h"
 #include "ui_extensions.h"
@@ -244,48 +242,19 @@ void fetchRecipesTask(void *param)
              (int)ingredients.size(), (int)keywords.size());
 
     std::vector<RecipeSuggestion> suggestions;
-    if (filterState->source == NULL || strcmp(filterState->source, "goodfood") == 0)
-    {
-        suggestions = recipeGoodFoodService.getRecipeSuggestions(
-            ingredients,
-            mealType,
-            keywords,
-            difficulty,
-            totalTime,
-            diet,
-            cuisine,
-            "", // ratings
-            "", // calories
-            1);
-    }
-    else if (strcmp(filterState->source, "giallozafferanoit") == 0)
-    {
-        suggestions = recipeGialloZafferanoService.getRecipeSuggestions(
-            ingredients,
-            mealType,
-            keywords,
-            difficulty,
-            totalTime,
-            diet,
-            cuisine,
-            "", // ratings
-            "", // calories
-            1);
-    }
-    else if (strcmp(filterState->source, "aniagotuje") == 0)
-    {
-        suggestions = recipeAniaGotujeService.getRecipeSuggestions(
-            ingredients,
-            mealType,
-            keywords,
-            difficulty,
-            totalTime,
-            diet,
-            cuisine,
-            "", // ratings
-            "", // calories
-            1);
-    }
+    std::string sourceStr = filterState->source ? filterState->source : "goodfood";
+    suggestions = recipeService.getRecipeSuggestions(
+        sourceStr,
+        ingredients,
+        mealType,
+        keywords,
+        difficulty,
+        totalTime,
+        diet,
+        cuisine,
+        "", // ratings
+        "", // calories
+        1);
 
     manager->appendSuggestions(suggestions);
 

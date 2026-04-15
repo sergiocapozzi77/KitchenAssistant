@@ -4,9 +4,7 @@ idf_component_register(
         app.cpp
         ProductService.cpp
         ProductsManager.cpp
-        RecipeGoodFoodService.cpp
-        RecipeGialloZafferanoService.cpp
-        RecipeAniaGotujeService.cpp
+        RecipeService.cpp
         RecipeSuggestionsManager.cpp
         RecipeStepsAggregationService.cpp
         RecipeDetailService.cpp
