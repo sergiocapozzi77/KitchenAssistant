@@ -38,6 +38,10 @@ idf_component_register(
         ui/ui_image_favourite_add.c
         ui/ui_image_favourite_remove.c
         ui/ui_image_favourite.c
+        ui/ui_image_baby.c
+        ui/ui_image_meat.c
+        ui/ui_image_produce.c
+        ui/ui_image_condiment.c
     INCLUDE_DIRS 
     . 
     ui)

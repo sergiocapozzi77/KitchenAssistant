@@ -544,8 +544,88 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
 
         // Image in center
         lv_obj_t *img = lv_image_create(btn);
-        lv_image_set_src(img, &img_restaurant);
-        lv_obj_set_size(img, 40, 40);
+        if (category == "Baby")
+        {
+            lv_image_set_src(img, &img_baby);
+        }
+        else if (category == "Pet Supplies")
+        {
+            // ...
+        }
+        else if (category == "Wine, Beer & Spirit")
+        {
+            // ...
+        }
+        else if (category == "Produce")
+        {
+            lv_image_set_src(img, &img_produce);
+        }
+        else if (category == "Meat")
+        {
+            lv_image_set_src(img, &img_meat);
+        }
+        else if (category == "Seafood")
+        {
+            // ...
+        }
+        else if (category == "Deli")
+        {
+            // ...
+        }
+        else if (category == "Dairy")
+        {
+            // ...
+        }
+        else if (category == "Bakery")
+        {
+            // ...
+        }
+        else if (category == "Frozen Foods")
+        {
+            // ...
+        }
+        else if (category == "Beverages")
+        {
+            // ...
+        }
+        else if (category == "Snacks")
+        {
+            // ...
+        }
+        else if (category == "Breakfast & Cereal")
+        {
+            // ...
+        }
+        else if (category == "Soups & Canned Food")
+        {
+            // ...
+        }
+        else if (category == "Grains, Pasta & Sides")
+        {
+            // ...
+        }
+        else if (category == "Cooking & Baking")
+        {
+            // ...
+        }
+        else if (category == "Condiments & Dressing")
+        {
+            lv_image_set_src(img, &img_condiment);
+        }
+        else if (category == "Health & Personal Care")
+        {
+            // ...
+        }
+        else if (category == "Household & Cleaning")
+        {
+            // ...
+        }
+        else
+        {
+            // default case
+        }
+
+        lv_obj_set_size(img, 60, 60);
 
         // Category label (multiline wrap under image)
         lv_obj_t *label = lv_label_create(btn);
@@ -573,7 +653,7 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
             // Position badge top right inside button
             lv_obj_align(badge, LV_ALIGN_TOP_RIGHT, -5, 5);
             lv_obj_move_foreground(badge);
-            ESPI_LOGI(TAG, "Category '%s' has %d expiring products", category.c_str(), expiringCount);
+            ESP_LOGI(TAG, "Category '%s' has %d expiring products", category.c_str(), expiringCount);
         }
 
         // Attach category string as user data
