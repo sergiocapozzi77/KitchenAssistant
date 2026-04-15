@@ -42,6 +42,11 @@ idf_component_register(
         ui/ui_image_meat.c
         ui/ui_image_produce.c
         ui/ui_image_condiment.c
+        ui/ui_image_bakery.c
+        ui/ui_image_dairy.c
+        ui/ui_image_wine.c
+        ui/ui_image_other.c
+        ui/ui_image_snacks.c
     INCLUDE_DIRS 
     . 
     ui)

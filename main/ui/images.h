@@ -18,6 +18,11 @@ extern const lv_img_dsc_t img_baby;
 extern const lv_img_dsc_t img_meat;
 extern const lv_img_dsc_t img_produce;
 extern const lv_img_dsc_t img_condiment;
+extern const lv_img_dsc_t img_dairy;
+extern const lv_img_dsc_t img_bakery;
+extern const lv_img_dsc_t img_wine;
+extern const lv_img_dsc_t img_other;
+extern const lv_img_dsc_t img_snacks;
 
 #ifndef EXT_IMG_DESC_T
 #define EXT_IMG_DESC_T
@@ -27,7 +32,7 @@ typedef struct _ext_img_desc_t {
 } ext_img_desc_t;
 #endif
 
-extern const ext_img_desc_t images[11];
+extern const ext_img_desc_t images[16];
 
 #ifdef __cplusplus
 }

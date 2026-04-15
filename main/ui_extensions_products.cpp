@@ -539,8 +539,9 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
 
         // Create container for image + label
         lv_obj_t *container = lv_obj_create(btn);
-        lv_obj_remove_style_all(container); // Remove default styling
-        lv_obj_set_size(container, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+        lv_obj_remove_style_all(container);                  // Remove default styling
+        lv_obj_clear_flag(container, LV_OBJ_FLAG_CLICKABLE); // Ensure clicks pass through to button
+        lv_obj_set_size(container, lv_pct(100), LV_SIZE_CONTENT);
         lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
         lv_obj_set_flex_align(container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
         lv_obj_set_style_pad_row(container, 6, 0); // Gap between image and label
@@ -548,6 +549,7 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
 
         // Image
         lv_obj_t *img = lv_image_create(container);
+        lv_obj_clear_flag(img, LV_OBJ_FLAG_CLICKABLE); // Ensure clicks pass through to button
         if (category == "Baby")
         {
             lv_image_set_src(img, &img_baby);
@@ -558,7 +560,7 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
         }
         else if (category == "Wine, Beer & Spirit")
         {
-            // ...
+            lv_image_set_src(img, &img_wine);
         }
         else if (category == "Produce")
         {
@@ -578,11 +580,11 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
         }
         else if (category == "Dairy")
         {
-            // ...
+            lv_image_set_src(img, &img_dairy);
         }
         else if (category == "Bakery")
         {
-            // ...
+            lv_image_set_src(img, &img_bakery);
         }
         else if (category == "Frozen Foods")
         {
@@ -594,7 +596,7 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
         }
         else if (category == "Snacks")
         {
-            // ...
+            lv_image_set_src(img, &img_snacks);
         }
         else if (category == "Breakfast & Cereal")
         {
@@ -626,7 +628,7 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
         }
         else
         {
-            // default case
+            lv_image_set_src(img, &img_other);
         }
 
         lv_obj_set_size(img, 60, 60);
@@ -634,9 +636,10 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
         // Category label (multiline wrap under image)
         // Label
         lv_obj_t *label = lv_label_create(container);
+        lv_obj_clear_flag(label, LV_OBJ_FLAG_CLICKABLE); // Ensure clicks pass through to button
         lv_label_set_text(label, category.c_str());
         lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
-        lv_obj_set_width(label, 100); // Fixed width for wrapping
+        lv_obj_set_width(label, lv_pct(100));
         lv_obj_set_style_text_color(label, lv_color_hex(0x495057), 0);
         lv_obj_set_style_text_font(label, &lv_font_montserrat_16, 0);
         lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
@@ -646,6 +649,7 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
         if (expiringCount > 0)
         {
             lv_obj_t *badge = lv_label_create(btn);
+            lv_obj_clear_flag(badge, LV_OBJ_FLAG_CLICKABLE); // Ensure clicks pass through to button
             char buf[16];
             snprintf(buf, sizeof(buf), "%d", expiringCount);
             lv_label_set_text(badge, buf);
@@ -710,6 +714,7 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
         // === THE ROW ===
         lv_obj_t *row = lv_obj_create(content_container);
         lv_obj_add_style(row, &style_row, 0);
+        lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE); // Make row receive click events
         lv_obj_set_width(row, lv_pct(100));
         lv_obj_set_height(row, 60);
         lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
@@ -718,12 +723,14 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
 
         // Selection image — hidden by default, shown when row is selected
         lv_obj_t *img = lv_image_create(row);
+        lv_obj_clear_flag(img, LV_OBJ_FLAG_CLICKABLE); // Ensure clicks pass through to row
         lv_image_set_src(img, &img_restaurant);
         lv_obj_add_flag(img, LV_OBJ_FLAG_HIDDEN);
         lv_obj_set_style_translate_y(img, 5, 0);
 
         // Product Name
         lv_obj_t *name = lv_label_create(row);
+        lv_obj_clear_flag(name, LV_OBJ_FLAG_CLICKABLE); // Ensure clicks pass through to row
         lv_label_set_text(name, p->name.c_str());
         lv_obj_set_flex_grow(name, 1);
         lv_obj_set_style_text_color(name, lv_color_hex(0x495057), 0);
@@ -738,6 +745,7 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
         if (p->frozen)
         {
             lv_obj_t *frozen_img = lv_image_create(row);
+            lv_obj_clear_flag(frozen_img, LV_OBJ_FLAG_CLICKABLE); // Ensure clicks pass through to row
             lv_image_set_src(frozen_img, &img_snowflake);
             lv_obj_set_style_translate_y(frozen_img, 5, 0);
         }
@@ -748,6 +756,7 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
         if (days != 9999) // Only show expiry if date is valid
         {
             lv_obj_t *expiry = lv_label_create(row);
+            lv_obj_clear_flag(expiry, LV_OBJ_FLAG_CLICKABLE); // Ensure clicks pass through to row
             lv_obj_add_style(expiry, &style_expiry_badge, 0);
 
             char buf[32];
@@ -771,6 +780,7 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
         lv_obj_set_size(btn_edit, 50, 50);
 
         lv_obj_t *lbl_edit = lv_label_create(btn_edit);
+        lv_obj_clear_flag(lbl_edit, LV_OBJ_FLAG_CLICKABLE); // Ensure clicks pass through to button
         lv_label_set_text(lbl_edit, LV_SYMBOL_EDIT);
         lv_obj_set_style_text_color(lbl_edit, lv_color_hex(theme_colors[active_theme_index][0]), 0);
         lv_obj_center(lbl_edit);

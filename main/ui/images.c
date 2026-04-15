@@ -1,6 +1,6 @@
 #include "images.h"
 
-const ext_img_desc_t images[11] = {
+const ext_img_desc_t images[16] = {
     { "Shopping", &img_shopping },
     { "Chef", &img_chef },
     { "Restaurant", &img_restaurant },
@@ -12,4 +12,9 @@ const ext_img_desc_t images[11] = {
     { "Meat", &img_meat },
     { "Produce", &img_produce },
     { "Condiment", &img_condiment },
+    { "Dairy", &img_dairy },
+    { "Bakery", &img_bakery },
+    { "Wine", &img_wine },
+    { "Other", &img_other },
+    { "Snacks", &img_snacks },
 };
