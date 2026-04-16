@@ -1791,10 +1791,10 @@ void create_user_widget_filters_panel(lv_obj_t *parent_obj, int startWidgetIndex
                     ((lv_obj_t **)&objects)[startWidgetIndex + 8] = obj;
                     lv_obj_set_pos(obj, 483, 49);
                     lv_obj_set_size(obj, 220, 40);
-                    lv_dropdown_set_options_static(obj, "Source\nGoodFood\nGialloZafferano.it\nAniaGotuje.pl");
+                    lv_dropdown_set_options_static(obj, "Source\nBBC Good Food\nGialloZafferano.it\nAniaGotuje.pl\nAllRecipes");
                     lv_dropdown_set_dir(obj, LV_DIR_TOP);
                     lv_dropdown_set_symbol(obj, LV_SYMBOL_UP);
-                    lv_dropdown_set_selected(obj, 0);
+                    lv_dropdown_set_selected(obj, 1);
                     lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
                     add_style_drop_down_with_shadow(obj);
                     lv_obj_set_style_text_font(obj, &lv_font_montserrat_16, LV_PART_MAIN | LV_STATE_DEFAULT);

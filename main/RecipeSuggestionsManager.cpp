@@ -154,7 +154,8 @@ void RecipeSuggestionsManager::showCurrentPageRecipes(bool force)
 int RecipeSuggestionsManager::getTotalPages() const
 {
     std::lock_guard<std::mutex> lock(_suggestionMutex);
-    if (allSuggestions.empty()) return 0;
+    if (allSuggestions.empty())
+        return 0;
     return (allSuggestions.size() + pageSize - 1) / pageSize;
 }
 
@@ -242,7 +243,7 @@ void fetchRecipesTask(void *param)
              (int)ingredients.size(), (int)keywords.size());
 
     std::vector<RecipeSuggestion> suggestions;
-    std::string sourceStr = filterState->source ? filterState->source : "goodfood";
+    std::string sourceStr = filterState->source ? filterState->source : "bbcgoodfood";
     suggestions = recipeService.getRecipeSuggestions(
         sourceStr,
         ingredients,

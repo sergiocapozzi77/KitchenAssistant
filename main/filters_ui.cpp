@@ -137,9 +137,22 @@ static const int calories_count = sizeof(calories_options) / sizeof(calories_opt
 
 // Source options
 static filter_option_t source_options[] = {
-    {"GoodFood", "goodfood"},
+    {"BBC Good Food", "bbcgoodfood"},
     {"GialloZafferano.it", "giallozafferanoit"},
-    {"AniaGotuje.pl", "aniagotuje"}};
+    {"AniaGotuje.pl", "aniagotuje"},
+    {"AllRecipes", "allrecipes"},
+    // {"Food52", "food52"},
+    // {"Serious Eats", "seriouseats"},
+    // {"Smitten Kitchen", "smittenkitchen"},
+    // {"Epicurious", "epicurious"},
+    // {"Taste of Home", "tasteofhome"},
+    // {"Food Network", "foodnetwork"},
+    // {"Delish", "delish"},
+    // {"Simply Recipes", "simplyrecipes"},
+    // {"The Spruce Eats", "thespruceeats"},
+    // {"EatingWell", "eatingwell"},
+    // {"Bon Appétit", "bonappetit"}
+};
 static const int source_count = sizeof(source_options) / sizeof(source_options[0]);
 
 // LVGL dropdown objects
@@ -309,21 +322,21 @@ static void textarea_event_handler(lv_event_t *e)
 {
     if (is_syncing)
         return;
-    
+
     is_syncing = true;
-    
+
     filter_panel_t *origin_panel = (filter_panel_t *)lv_event_get_user_data(e);
     const char *text = lv_textarea_get_text(origin_panel->keywords_textarea);
-    
+
     // Sync textarea content to all other panels
     for (auto panel : panels)
     {
         if (panel == origin_panel || !panel->keywords_textarea)
             continue;
-        
+
         lv_textarea_set_text(panel->keywords_textarea, text);
     }
-    
+
     update_keywords(origin_panel);
     is_syncing = false;
 }

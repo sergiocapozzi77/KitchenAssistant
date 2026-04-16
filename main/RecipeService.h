@@ -15,7 +15,7 @@ public:
     /**
      * Fetch recipe suggestions from the specified source.
      *
-     * @param source Recipe source identifier ("goodfood", "giallozafferano", "aniagotuje")
+     * @param source Recipe source identifier ("bbcgoodfood", "giallozafferano", "aniagotuje")
      * @param ingredients List of ingredient names to search for
      * @param mealType Optional meal type filter
      * @param keywords Optional keyword list

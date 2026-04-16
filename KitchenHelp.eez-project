@@ -18,7 +18,9 @@
       "resourceFiles": [],
       "hiddenWidgetLines": "dimmed",
       "dimmedLinesOpacity": "20",
-      "embedFonts": true
+      "embedBitmaps": true,
+      "embedFonts": true,
+      "cacheFonts": false
     },
     "build": {
       "objID": "72794a43-a0fc-13c2-7eb5-67dd952141a4",
@@ -6485,7 +6487,9 @@
               "groupIndex": 0,
               "todayYear": 2022,
               "todayMonth": 11,
-              "todayDay": 1
+              "todayDay": 1,
+              "header": "Arrow",
+              "chineseMode": false
             },
             {
               "objID": "452b4198-c5c5-4a86-9663-08a4788d328d",
@@ -7124,9 +7128,9 @@
               },
               "group": "",
               "groupIndex": 0,
-              "options": "Source\nGoodFood\nGialloZafferano.it\nAniaGotuje.pl",
+              "options": "Source\nBBC Good Food\nGialloZafferano.it\nAniaGotuje.pl\nAllRecipes",
               "optionsType": "literal",
-              "selected": 0,
+              "selected": 1,
               "selectedType": "literal",
               "direction": "top"
             },
@@ -9417,6 +9421,7 @@
       "glyphs": [],
       "lvglRanges": "32-127,160-255,256-383,8528-8543",
       "lvglSymbols": "¼ ½ ¾ ⅐ ⅑ ⅒ ⅓ ⅔ ⅕ ⅖ ⅗ ⅘ ⅙ ⅚ ⅛ ⅜ ⅝ ⅞ ‘ ’ “ ” '",
+      "lvglAdditionalSources": [],
       "lvglGlyphs": {
         "encodings": [
           {
@@ -9444,6 +9449,7 @@
       "glyphs": [],
       "lvglRanges": "32-127,160-255,256-383,8528-8543",
       "lvglSymbols": "¼ ½ ¾ ⅐ ⅑ ⅒ ⅓ ⅔ ⅕ ⅖ ⅗ ⅘ ⅙ ⅚ ⅛ ⅜ ⅝ ⅞ ‘ ’ “ ” '",
+      "lvglAdditionalSources": [],
       "lvglGlyphs": {
         "encodings": [
           {
@@ -9472,6 +9478,7 @@
       "glyphs": [],
       "lvglRanges": "32-127,160-255,256-383,8528-8543",
       "lvglSymbols": "¼ ½ ¾ ⅐ ⅑ ⅒ ⅓ ⅔ ⅕ ⅖ ⅗ ⅘ ⅙ ⅚ ⅛ ⅜ ⅝ ⅞ ‘ ’ “ ” '",
+      "lvglAdditionalSources": [],
       "lvglGlyphs": {
         "encodings": [
           {

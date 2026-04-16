@@ -197,7 +197,7 @@ std::vector<RecipeSuggestion> RecipeService::parseSuggestionsResponse(const std:
         r.author = safeJsonString(item, "author");
 
         // Source-specific fields
-        if (canonicalSource == "goodfood")
+        if (canonicalSource == "bbcgoodfood")
         {
             r.ratingCount = safeJsonInt(item, "ratingCount", 0);
             r.id = safeJsonString(item, "id");
