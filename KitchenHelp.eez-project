@@ -337,6 +337,15 @@
       "componentGroups": [],
       "userProperties": [],
       "name": "IngredientsFactor"
+    },
+    {
+      "objID": "6a8161c0-6f5d-427a-8c2e-31d4270e65a5",
+      "components": [],
+      "connectionLines": [],
+      "localVariables": [],
+      "componentGroups": [],
+      "userProperties": [],
+      "name": "CreateRecipeCloseClick"
     }
   ],
   "userPages": [
@@ -1037,7 +1046,7 @@
                                       "type": "LVGLLabelWidget",
                                       "left": 0,
                                       "top": 0,
-                                      "width": 99,
+                                      "width": 111,
                                       "height": 29,
                                       "customInputs": [],
                                       "customOutputs": [],
@@ -1076,7 +1085,7 @@
                                       },
                                       "group": "",
                                       "groupIndex": 0,
-                                      "text": "RECIPE",
+                                      "text": "SEARCH",
                                       "textType": "literal",
                                       "longMode": "WRAP",
                                       "recolor": false
@@ -1096,6 +1105,105 @@
                                   "useStyle": "MainButton",
                                   "localStyles": {
                                     "objID": "521e2f36-d7ce-45c4-b06e-62643db23a40"
+                                  },
+                                  "group": "",
+                                  "groupIndex": 0
+                                },
+                                {
+                                  "objID": "f9c8b047-96a8-4f4e-cb11-ce212c218256",
+                                  "type": "LVGLButtonWidget",
+                                  "left": 687,
+                                  "top": -11,
+                                  "width": 50,
+                                  "height": 50,
+                                  "customInputs": [],
+                                  "customOutputs": [],
+                                  "style": {
+                                    "objID": "0616300b-a32f-4604-b0a6-118f4e2782f2",
+                                    "useStyle": "default",
+                                    "conditionalStyles": [],
+                                    "childStyles": []
+                                  },
+                                  "timeline": [],
+                                  "eventHandlers": [
+                                    {
+                                      "objID": "10b9fd4d-6625-4035-b0fb-17855bd1b12b",
+                                      "eventName": "CLICKED",
+                                      "handlerType": "action",
+                                      "action": "CreateRecipeCloseClick",
+                                      "userData": 0
+                                    }
+                                  ],
+                                  "identifier": "panel_create_recipe_close_btn",
+                                  "leftUnit": "px",
+                                  "topUnit": "px",
+                                  "widthUnit": "px",
+                                  "heightUnit": "px",
+                                  "children": [
+                                    {
+                                      "objID": "cc28e044-07a9-4f8f-c786-4a6aa0882da7",
+                                      "type": "LVGLLabelWidget",
+                                      "left": 0,
+                                      "top": 0,
+                                      "width": 18,
+                                      "height": 29,
+                                      "customInputs": [],
+                                      "customOutputs": [],
+                                      "style": {
+                                        "objID": "8047f689-f715-47a4-9a10-9f5c1146506f",
+                                        "useStyle": "default",
+                                        "conditionalStyles": [],
+                                        "childStyles": []
+                                      },
+                                      "timeline": [],
+                                      "eventHandlers": [],
+                                      "leftUnit": "px",
+                                      "topUnit": "px",
+                                      "widthUnit": "content",
+                                      "heightUnit": "content",
+                                      "children": [],
+                                      "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+                                      "hiddenFlagType": "literal",
+                                      "clickableFlagType": "literal",
+                                      "flagScrollbarMode": "",
+                                      "flagScrollDirection": "",
+                                      "scrollSnapX": "",
+                                      "scrollSnapY": "",
+                                      "checkedStateType": "literal",
+                                      "disabledStateType": "literal",
+                                      "states": "",
+                                      "localStyles": {
+                                        "objID": "19777e2c-1fa1-4400-9730-d7c268e55170",
+                                        "definition": {
+                                          "MAIN": {
+                                            "DEFAULT": {
+                                              "align": "CENTER"
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "group": "",
+                                      "groupIndex": 0,
+                                      "text": "\\uF00D",
+                                      "textType": "literal",
+                                      "longMode": "CLIP",
+                                      "recolor": false
+                                    }
+                                  ],
+                                  "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_ON_FOCUS|SCROLL_WITH_ARROW|SNAPPABLE",
+                                  "hiddenFlagType": "literal",
+                                  "clickableFlag": true,
+                                  "clickableFlagType": "literal",
+                                  "flagScrollbarMode": "",
+                                  "flagScrollDirection": "",
+                                  "scrollSnapX": "",
+                                  "scrollSnapY": "",
+                                  "checkedStateType": "literal",
+                                  "disabledStateType": "literal",
+                                  "states": "",
+                                  "useStyle": "MainButton",
+                                  "localStyles": {
+                                    "objID": "44f75440-acc2-4fed-f129-3b8e8ad697fe"
                                   },
                                   "group": "",
                                   "groupIndex": 0
@@ -6757,7 +6865,7 @@
               "groupIndex": 0,
               "text": "",
               "textType": "literal",
-              "placeholder": "Keywords...",
+              "placeholder": "Free search...",
               "oneLineMode": true,
               "passwordMode": false,
               "acceptedCharacters": "",

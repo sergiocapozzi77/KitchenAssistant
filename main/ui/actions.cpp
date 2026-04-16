@@ -662,3 +662,8 @@ void action_ingredients_factor(lv_event_t *e)
     }
     UIExtensionsRecipeSteps::applyScalingFactor(factor);
 }
+
+void action_create_recipe_close_click(lv_event_t *e)
+{
+    lv_obj_add_flag(objects.create_recipe_pnl, LV_OBJ_FLAG_HIDDEN);
+}
