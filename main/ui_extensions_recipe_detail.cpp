@@ -302,7 +302,7 @@ static void fetch_recipe_detail_task(void *arg)
         ThumbWorkerCtx *wctx = new ThumbWorkerCtx{pending_thumbs, 800, 280, true, ctx->generation};
 
         BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
-            thumb_worker_task, "header_img_worker", 8192, wctx, 5, NULL, 1,
+            thumb_worker_task, "header_img_worker", 8192, wctx, 2, NULL, 1,
             MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
         if (ret != pdPASS)
         {
@@ -442,7 +442,7 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
 
     BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
         fetch_recipe_detail_task, "RecipeDetail",
-        16384, fctx, 5, NULL, tskNO_AFFINITY,
+        16384, fctx, 2, NULL, tskNO_AFFINITY,
         MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 
     if (ret != pdPASS)

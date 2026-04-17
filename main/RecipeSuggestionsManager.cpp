@@ -72,14 +72,14 @@ void RecipeSuggestionsManager::loadCurrentPage()
     if (hasRange)
     {
         ESP_LOGI("ShowRecipesTask", "Recipes available, showing them");
-        BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(showRecipesTask, "ShowRecipes", 32768, this, 5, nullptr, tskNO_AFFINITY, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(showRecipesTask, "ShowRecipes", 32768, this, 2, nullptr, tskNO_AFFINITY, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
         if (ret != pdPASS)
             ESP_LOGE("ShowRecipesTask", "Failed to create ShowRecipes task");
     }
     else
     {
         ESP_LOGI("ShowRecipesTask", "No recipes available, fetching them");
-        BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(fetchRecipesTask, "FetchRecipes", 32768, this, 5, nullptr, tskNO_AFFINITY, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(fetchRecipesTask, "FetchRecipes", 32768, this, 2, nullptr, tskNO_AFFINITY, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
         if (ret != pdPASS)
             ESP_LOGE("ShowRecipesTask", "Failed to create FetchRecipes task");
     }

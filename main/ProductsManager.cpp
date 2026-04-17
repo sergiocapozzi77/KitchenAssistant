@@ -117,7 +117,7 @@ std::vector<Product> ProductsManager::getSelectedProducts() const
 void ProductsManager::fetchProducts()
 {
     // Task to fetch products expiring today or tomorrow
-    xTaskCreate(ProductsManager::fetchProductsTask, "FetchProducts", 8096, this, 5, NULL);
+    xTaskCreate(ProductsManager::fetchProductsTask, "FetchProducts", 8096, this, 2, NULL);
 }
 
 // Task to fetch products expiring today or tomorrow

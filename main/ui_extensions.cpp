@@ -28,6 +28,7 @@ static const char *TAG = "UIEXTENSIONS";
 
 // Global variables defined here
 uint32_t s_thumb_generation = 0;
+static SemaphoreHandle_t s_http_concurrency_sem = NULL;
 
 lv_style_t style_card;
 lv_style_t style_header;
@@ -156,6 +157,20 @@ void init_styles()
     // Checkbox indicator style
     lv_style_init(&style_checkbox_indicator);
     lv_style_set_border_color(&style_checkbox_indicator, lv_color_hex(0x007AFF));
+
+    // Create HTTP concurrency semaphore (max 2 concurrent requests)
+    if (s_http_concurrency_sem == NULL)
+    {
+        s_http_concurrency_sem = xSemaphoreCreateCounting(2, 2);
+        if (s_http_concurrency_sem == NULL)
+        {
+            ESP_LOGE(TAG, "Failed to create HTTP concurrency semaphore");
+        }
+        else
+        {
+            ESP_LOGI(TAG, "HTTP concurrency semaphore created");
+        }
+    }
 
     styles_initialized = true;
     ESP_LOGI(TAG, "Styles initialized");
@@ -359,7 +374,7 @@ void make_children_bubble(lv_obj_t *obj)
         make_children_bubble(lv_obj_get_child(obj, i));
 }
 
-static lv_obj_t *createRecipeCardInternal(lv_obj_t *parent, const std::string &name, const std::string &description, const std::string &imageUrl, const std::string &difficulty, const std::string &totalTime, std::vector<ThumbContext*> &pending_thumbs)
+static lv_obj_t *createRecipeCardInternal(lv_obj_t *parent, const std::string &name, const std::string &description, const std::string &imageUrl, const std::string &difficulty, const std::string &totalTime, std::vector<ThumbContext *> &pending_thumbs)
 {
     // === CARD ===
     lv_obj_t *card = lv_obj_create(parent);
@@ -377,7 +392,7 @@ static lv_obj_t *createRecipeCardInternal(lv_obj_t *parent, const std::string &n
     lv_obj_set_size(thumb, 112, 112);
     lv_obj_set_style_bg_color(thumb, lv_color_hex(0xDEE2E6), 0); // grey until loaded
     lv_obj_set_style_bg_opa(thumb, LV_OPA_COVER, 0);
-    lv_obj_set_style_radius(thumb, 12, 0); // increased from 8 for more rounded corners
+    lv_obj_set_style_radius(thumb, 12, 0);        // increased from 8 for more rounded corners
     lv_obj_set_style_clip_corner(thumb, true, 0); // clip image to rounded corners
     lv_obj_set_style_border_width(thumb, 0, 0);
     lv_image_set_inner_align(thumb, LV_IMAGE_ALIGN_COVER);
@@ -482,12 +497,12 @@ static lv_obj_t *createRecipeCardInternal(lv_obj_t *parent, const std::string &n
     return card;
 }
 
-lv_obj_t *createRecipeCard(lv_obj_t *parent, const RecipeSuggestion &recipe, std::vector<ThumbContext*> &pending_thumbs)
+lv_obj_t *createRecipeCard(lv_obj_t *parent, const RecipeSuggestion &recipe, std::vector<ThumbContext *> &pending_thumbs)
 {
     return createRecipeCardInternal(parent, recipe.name, recipe.description, recipe.imageUrl, recipe.difficulty, recipe.totalTime, pending_thumbs);
 }
 
-lv_obj_t *createRecipeCard(lv_obj_t *parent, const Favorite &fav, std::vector<ThumbContext*> &pending_thumbs)
+lv_obj_t *createRecipeCard(lv_obj_t *parent, const Favorite &fav, std::vector<ThumbContext *> &pending_thumbs)
 {
     return createRecipeCardInternal(parent, fav.name, fav.description, fav.imageUrl, fav.difficulty, fav.totalTime, pending_thumbs);
 }
@@ -560,10 +575,12 @@ static bool decode_jpeg_buffer(uint8_t *jpeg_buf, size_t jpeg_len, uint8_t **out
         ESP_LOGE(TAG, "work malloc failed");
         return false;
     }
+    ESP_LOGI(TAG, "decode_jpeg_buffer: work buffer allocated, jpeg_len=%u", jpeg_len);
 
     JpegIo io = {jpeg_buf, jpeg_len, 0, nullptr, 0};
     JDEC jd;
     JRESULT res = jd_prepare(&jd, tjpgd_in_cb, work, 3100, &io);
+    esp_task_wdt_reset();
     ESP_LOGI(TAG, "jd_prepare: %d  img size: %ux%u", res, jd.width, jd.height);
 
     uint8_t *px = nullptr;
@@ -580,6 +597,7 @@ static bool decode_jpeg_buffer(uint8_t *jpeg_buf, size_t jpeg_len, uint8_t **out
             heap_caps_free(work);
             return false;
         }
+        ESP_LOGI(TAG, "decode_jpeg_buffer: pixel buffer allocated %ux%u = %u bytes", decoded_w, decoded_h, decoded_w * decoded_h * 3);
 
         io.dst = px;
         io.out_w = decoded_w;
@@ -587,6 +605,7 @@ static bool decode_jpeg_buffer(uint8_t *jpeg_buf, size_t jpeg_len, uint8_t **out
         *out_height = decoded_h;
 
         res = jd_decomp(&jd, tjpgd_out_cb, jd.scale);
+        esp_task_wdt_reset();
         ESP_LOGI(TAG, "jd_decomp: %d", res);
     }
 
@@ -601,6 +620,7 @@ static bool decode_jpeg_buffer(uint8_t *jpeg_buf, size_t jpeg_len, uint8_t **out
     }
 
     *out_px = px;
+    ESP_LOGI(TAG, "decode_jpeg_buffer succeeded: %ux%u", *out_width, *out_height);
     return true;
 }
 
@@ -612,12 +632,17 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
     bool fromCache = false;
     uint16_t reqW = W;
     uint16_t reqH = H;
+    ESP_LOGI(TAG, "fetch_and_decode_jpeg: url=%s, requested size=%ux%u, useCache=%d", url.c_str(), W, H, useCache);
 
     // Try cache first if enabled
     if (useCache && thumbnail_cache::get(url, W, H, cached_jpeg))
     {
         ESP_LOGI(TAG, "Cache hit for %s %ux%u", url.c_str(), W, H);
         fromCache = true;
+    }
+    else if (useCache)
+    {
+        ESP_LOGI(TAG, "Cache miss for %s %ux%u", url.c_str(), W, H);
     }
 
     if (fromCache)
@@ -667,6 +692,7 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
     cJSON_AddNumberToObject(bodyJson, "maxHeight", H);
     char *bodyJsonStr = cJSON_PrintUnformatted(bodyJson);
     cJSON_Delete(bodyJson);
+    ESP_LOGI(TAG, "Request payload length: %d", strlen(bodyJsonStr));
     if (!bodyJsonStr)
     {
         ESP_LOGE(TAG, "Failed to stringify body JSON");
@@ -676,7 +702,23 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
     // -------------------------------------------------------------------------
     // Execute Appwrite function
     // -------------------------------------------------------------------------
+    bool sem_taken = false;
+    if (s_http_concurrency_sem)
+    {
+        if (xSemaphoreTake(s_http_concurrency_sem, portMAX_DELAY) == pdTRUE)
+        {
+            sem_taken = true;
+        }
+        else
+        {
+            ESP_LOGE(TAG, "Failed to take HTTP concurrency semaphore");
+            free(bodyJsonStr);
+            return false;
+        }
+    }
+
     int status = 0;
+    ESP_LOGI(TAG, "Calling Appwrite function %s", APPWRITE_IMAGE_RESIZE_FUNCTION_ID);
     std::string response = getAppwriteClient().executeFunction(APPWRITE_IMAGE_RESIZE_FUNCTION_ID, bodyJsonStr, false, status);
     free(bodyJsonStr);
     ESP_LOGI(TAG, "HTTP status: %d, response size: %d", status, response.size());
@@ -686,6 +728,8 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
         ESP_LOGE(TAG, "HTTP request failed or empty response");
         if (!response.empty())
             ESP_LOGE(TAG, "Error response: %.*s", response.size(), response.c_str());
+        if (sem_taken)
+            xSemaphoreGive(s_http_concurrency_sem);
         return false;
     }
 
@@ -698,6 +742,8 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
         if (!root)
         {
             ESP_LOGE(TAG, "Failed to parse Appwrite envelope JSON");
+            if (sem_taken)
+                xSemaphoreGive(s_http_concurrency_sem);
             return false;
         }
 
@@ -706,6 +752,8 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
         {
             ESP_LOGE(TAG, "Missing or invalid 'responseBody' field");
             cJSON_Delete(root);
+            if (sem_taken)
+                xSemaphoreGive(s_http_concurrency_sem);
             return false;
         }
 
@@ -714,6 +762,8 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
         if (!innerJson)
         {
             ESP_LOGE(TAG, "Failed to parse inner responseBody JSON");
+            if (sem_taken)
+                xSemaphoreGive(s_http_concurrency_sem);
             return false;
         }
 
@@ -722,6 +772,8 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
         {
             ESP_LOGE(TAG, "Missing or invalid 'image' field in response");
             cJSON_Delete(innerJson);
+            if (sem_taken)
+                xSemaphoreGive(s_http_concurrency_sem);
             return false;
         }
 
@@ -735,30 +787,45 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
     // -------------------------------------------------------------------------
     const uint8_t *b64 = reinterpret_cast<const uint8_t *>(b64Str.c_str());
     size_t b64Len = b64Str.size();
+    ESP_LOGI(TAG, "Base64 length: %u bytes", b64Len);
 
     size_t jpegLen = 0;
     int ret = mbedtls_base64_decode(nullptr, 0, &jpegLen, b64, b64Len);
     if (ret != 0 && ret != MBEDTLS_ERR_BASE64_BUFFER_TOO_SMALL)
     {
         ESP_LOGE(TAG, "mbedtls_base64_decode size check failed: -0x%04X", -ret);
+        if (sem_taken)
+            xSemaphoreGive(s_http_concurrency_sem);
         return false;
     }
+    ESP_LOGI(TAG, "JPEG length after base64 decode: %u bytes", jpegLen);
 
     uint8_t *jpeg_buf = (uint8_t *)heap_caps_malloc(jpegLen, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (!jpeg_buf)
     {
         ESP_LOGE(TAG, "jpeg_buf malloc failed, requested: %u", jpegLen);
+        if (sem_taken)
+            xSemaphoreGive(s_http_concurrency_sem);
         return false;
     }
+    ESP_LOGI(TAG, "JPEG buffer allocated: %u bytes", jpegLen);
 
     ret = mbedtls_base64_decode(jpeg_buf, jpegLen, &jpegLen, b64, b64Len);
     if (ret != 0)
     {
         ESP_LOGE(TAG, "mbedtls_base64_decode failed: -0x%04X", -ret);
         heap_caps_free(jpeg_buf);
+        if (sem_taken)
+            xSemaphoreGive(s_http_concurrency_sem);
         return false;
     }
     ESP_LOGI(TAG, "Decoded JPEG: %u bytes", jpegLen);
+    // Release HTTP concurrency semaphore before CPU-intensive decode
+    if (sem_taken)
+    {
+        xSemaphoreGive(s_http_concurrency_sem);
+        sem_taken = false;
+    }
 
     // -------------------------------------------------------------------------
     // tjpgd decode
@@ -770,6 +837,7 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
         heap_caps_free(jpeg_buf);
         return false;
     }
+    ESP_LOGI(TAG, "Work buffer allocated for JPEG decode");
 
     JpegIo io = {jpeg_buf, jpegLen, 0, nullptr, 0};
     JDEC jd;
@@ -791,6 +859,7 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
             heap_caps_free(work);
             return false;
         }
+        ESP_LOGI(TAG, "Pixel buffer allocated: %u x %u = %u bytes", decoded_w, decoded_h, decoded_w * decoded_h * 3);
 
         io.dst = px;
         io.out_w = decoded_w;
@@ -807,6 +876,10 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
         if (!thumbnail_cache::put(url, reqW, reqH, jpeg_buf, jpegLen))
         {
             ESP_LOGW(TAG, "Failed to store thumbnail in cache");
+        }
+        else
+        {
+            ESP_LOGI(TAG, "Thumbnail stored in cache for %s", url.c_str());
         }
     }
 
@@ -834,6 +907,7 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
 
     *out_dsc = dsc;
     *out_px = px;
+    ESP_LOGI(TAG, "fetch_and_decode_jpeg succeeded: %ux%u image", W, H);
     return true;
 }
 

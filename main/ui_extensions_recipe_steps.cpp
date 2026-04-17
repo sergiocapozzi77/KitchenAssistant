@@ -318,7 +318,7 @@ void UIExtensionsRecipeSteps::populatePhaseImages(const Recipe &recipe, int phas
         wctx->maxHeight = thumbHeight;
 
         BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
-            thumb_worker_task, "phase_img_worker", 8192, wctx, 5, NULL, 1,
+            thumb_worker_task, "phase_img_worker", 8192, wctx, 2, NULL, 1,
             MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
         if (ret != pdPASS)
         {

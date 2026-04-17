@@ -102,7 +102,7 @@ void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &rec
     {
         ThumbWorkerCtx *wctx = new ThumbWorkerCtx{pending_thumbs, 112, 112, true, s_thumb_generation};
         BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
-            thumb_worker_task, "thumb_worker", 8192, wctx, 5, NULL, 1,
+            thumb_worker_task, "thumb_worker", 8192, wctx, 2, NULL, 1,
             MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
         if (ret != pdPASS)
         {
