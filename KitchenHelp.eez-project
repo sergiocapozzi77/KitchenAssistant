@@ -1808,7 +1808,7 @@
                               "widthUnit": "%",
                               "heightUnit": "%",
                               "children": [],
-                              "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLL_MOMENTUM|SCROLL_ELASTIC",
+                              "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE",
                               "hiddenFlagType": "literal",
                               "clickableFlag": true,
                               "clickableFlagType": "literal",
@@ -6546,60 +6546,6 @@
               "groupIndex": 0
             },
             {
-              "objID": "ef0bdab4-4aae-4da8-e124-f00e255a6d38",
-              "type": "LVGLCalendarWidget",
-              "left": 20,
-              "top": 313,
-              "width": 428,
-              "height": 352,
-              "customInputs": [],
-              "customOutputs": [],
-              "style": {
-                "objID": "c332c2b8-a6c2-47f3-b695-0484a9ed5161",
-                "useStyle": "default",
-                "conditionalStyles": [],
-                "childStyles": []
-              },
-              "timeline": [],
-              "eventHandlers": [
-                {
-                  "objID": "e200e6ba-ee98-46cd-d848-9afa46127802",
-                  "eventName": "VALUE_CHANGED",
-                  "handlerType": "action",
-                  "action": "ProductCalendarValueChanged",
-                  "userData": 0
-                }
-              ],
-              "identifier": "calendar_editproduct",
-              "leftUnit": "px",
-              "topUnit": "px",
-              "widthUnit": "px",
-              "heightUnit": "px",
-              "children": [],
-              "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
-              "hiddenFlag": true,
-              "hiddenFlagType": "literal",
-              "clickableFlag": true,
-              "clickableFlagType": "literal",
-              "flagScrollbarMode": "",
-              "flagScrollDirection": "",
-              "scrollSnapX": "",
-              "scrollSnapY": "",
-              "checkedStateType": "literal",
-              "disabledStateType": "literal",
-              "states": "",
-              "localStyles": {
-                "objID": "587c679a-d6b9-43dc-b848-a21345e848fc"
-              },
-              "group": "",
-              "groupIndex": 0,
-              "todayYear": 2022,
-              "todayMonth": 11,
-              "todayDay": 1,
-              "header": "Arrow",
-              "chineseMode": false
-            },
-            {
               "objID": "452b4198-c5c5-4a86-9663-08a4788d328d",
               "type": "LVGLButtonWidget",
               "left": -3,
@@ -6706,6 +6652,118 @@
               },
               "group": "",
               "groupIndex": 0
+            },
+            {
+              "objID": "9c3ddfdc-4383-4f6d-ca9a-83cd581d8a11",
+              "type": "LVGLCheckboxWidget",
+              "left": 20,
+              "top": 512,
+              "width": 104,
+              "height": 26,
+              "customInputs": [],
+              "customOutputs": [],
+              "style": {
+                "objID": "a29b6cac-16db-4f89-e156-796d37edcb9f",
+                "useStyle": "default",
+                "conditionalStyles": [],
+                "childStyles": []
+              },
+              "timeline": [],
+              "eventHandlers": [
+                {
+                  "objID": "6cf60ce2-5207-4175-96de-f117c172388f",
+                  "eventName": "VALUE_CHANGED",
+                  "handlerType": "action",
+                  "action": "ProductEditFrozen",
+                  "userData": 0
+                }
+              ],
+              "identifier": "product_edit_frozen_cb",
+              "leftUnit": "px",
+              "topUnit": "px",
+              "widthUnit": "content",
+              "heightUnit": "content",
+              "children": [],
+              "widgetFlags": "CHECKABLE|CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_ON_FOCUS|SCROLL_WITH_ARROW|SNAPPABLE",
+              "hiddenFlagType": "literal",
+              "clickableFlag": true,
+              "clickableFlagType": "literal",
+              "flagScrollbarMode": "",
+              "flagScrollDirection": "",
+              "scrollSnapX": "",
+              "scrollSnapY": "",
+              "checkedStateType": "literal",
+              "disabledStateType": "literal",
+              "states": "",
+              "useStyle": "CheckboxDefault",
+              "localStyles": {
+                "objID": "3e807052-09c5-43f7-f979-954ce4405d56",
+                "definition": {
+                  "MAIN": {
+                    "DEFAULT": {
+                      "text_font": "MONTSERRAT_20"
+                    }
+                  }
+                }
+              },
+              "group": "",
+              "groupIndex": 0,
+              "text": "Frozen",
+              "textType": "literal"
+            },
+            {
+              "objID": "ef0bdab4-4aae-4da8-e124-f00e255a6d38",
+              "type": "LVGLCalendarWidget",
+              "left": 20,
+              "top": 313,
+              "width": 428,
+              "height": 352,
+              "customInputs": [],
+              "customOutputs": [],
+              "style": {
+                "objID": "c332c2b8-a6c2-47f3-b695-0484a9ed5161",
+                "useStyle": "default",
+                "conditionalStyles": [],
+                "childStyles": []
+              },
+              "timeline": [],
+              "eventHandlers": [
+                {
+                  "objID": "e200e6ba-ee98-46cd-d848-9afa46127802",
+                  "eventName": "VALUE_CHANGED",
+                  "handlerType": "action",
+                  "action": "ProductCalendarValueChanged",
+                  "userData": 0
+                }
+              ],
+              "identifier": "calendar_editproduct",
+              "leftUnit": "px",
+              "topUnit": "px",
+              "widthUnit": "px",
+              "heightUnit": "px",
+              "children": [],
+              "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLLABLE|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
+              "hiddenFlag": true,
+              "hiddenFlagType": "literal",
+              "clickableFlag": true,
+              "clickableFlagType": "literal",
+              "flagScrollbarMode": "",
+              "flagScrollDirection": "",
+              "scrollSnapX": "",
+              "scrollSnapY": "",
+              "checkedStateType": "literal",
+              "disabledStateType": "literal",
+              "states": "",
+              "localStyles": {
+                "objID": "587c679a-d6b9-43dc-b848-a21345e848fc"
+              },
+              "group": "",
+              "groupIndex": 0,
+              "todayYear": 2022,
+              "todayMonth": 11,
+              "todayDay": 1,
+              "header": "Arrow",
+              "chineseMode": false
             }
           ],
           "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_WITH_ARROW|SNAPPABLE",
@@ -6724,64 +6782,6 @@
           },
           "group": "",
           "groupIndex": 0
-        },
-        {
-          "objID": "9c3ddfdc-4383-4f6d-ca9a-83cd581d8a11",
-          "type": "LVGLCheckboxWidget",
-          "left": 42,
-          "top": 514,
-          "width": 104,
-          "height": 26,
-          "customInputs": [],
-          "customOutputs": [],
-          "style": {
-            "objID": "a29b6cac-16db-4f89-e156-796d37edcb9f",
-            "useStyle": "default",
-            "conditionalStyles": [],
-            "childStyles": []
-          },
-          "timeline": [],
-          "eventHandlers": [
-            {
-              "objID": "6cf60ce2-5207-4175-96de-f117c172388f",
-              "eventName": "VALUE_CHANGED",
-              "handlerType": "action",
-              "action": "ProductEditFrozen",
-              "userData": 0
-            }
-          ],
-          "identifier": "product_edit_frozen_cb",
-          "leftUnit": "px",
-          "topUnit": "px",
-          "widthUnit": "content",
-          "heightUnit": "content",
-          "children": [],
-          "widgetFlags": "CHECKABLE|CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_ON_FOCUS|SCROLL_WITH_ARROW|SNAPPABLE",
-          "hiddenFlagType": "literal",
-          "clickableFlag": true,
-          "clickableFlagType": "literal",
-          "flagScrollbarMode": "",
-          "flagScrollDirection": "",
-          "scrollSnapX": "",
-          "scrollSnapY": "",
-          "checkedStateType": "literal",
-          "disabledStateType": "literal",
-          "states": "",
-          "useStyle": "CheckboxDefault",
-          "localStyles": {
-            "objID": "3e807052-09c5-43f7-f979-954ce4405d56",
-            "definition": {
-              "MAIN": {
-                "DEFAULT": {
-                  "text_font": "MONTSERRAT_20"
-                }
-              }
-            }
-          },
-          "group": "",
-          "groupIndex": 0,
-          "text": "Frozen",
-          "textType": "literal"
         }
       ],
       "connectionLines": [],

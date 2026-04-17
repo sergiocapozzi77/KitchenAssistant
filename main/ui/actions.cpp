@@ -117,6 +117,21 @@ struct BarcodeUpsertCtx
     std::string category;
 };
 
+// Structure for product update task
+struct ProductUpdateCtx
+{
+    Product product;
+    std::string barcode;
+    bool success = false;
+};
+
+// Structure for product delete task
+struct ProductDeleteCtx
+{
+    std::string rowId;
+    bool success = false;
+};
+
 static void barcode_upsert_task(void *arg)
 {
     BarcodeUpsertCtx *ctx = (BarcodeUpsertCtx *)arg;
@@ -133,6 +148,70 @@ static void barcode_upsert_task(void *arg)
         }
     }
     delete ctx;
+    vTaskDelete(NULL);
+}
+
+static void product_update_ui_cb(void *arg) {
+    ProductUpdateCtx *ctx = (ProductUpdateCtx *)arg;
+    if (!ctx) return;
+    if (ctx->success) {
+        ESP_LOGI("actions", "Product updated successfully");
+        showSnackbar("Product updated", 3000);
+        productsManager.updateProduct(ctx->product);
+        // Spawn barcode upsert task if barcode exists
+        if (!ctx->barcode.empty()) {
+            BarcodeUpsertCtx *barcode_ctx = new BarcodeUpsertCtx{ctx->barcode, ctx->product.name, ctx->product.category};
+            BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
+                barcode_upsert_task, "BarcodeUpsert",
+                16384, barcode_ctx, 3, NULL, tskNO_AFFINITY,
+                MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+            if (ret != pdPASS) {
+                ESP_LOGE("actions", "Failed to create barcode upsert task");
+                delete barcode_ctx;
+            }
+        }
+        close_product_edit_modal();
+        productsManager.populateProductList();
+    } else {
+        ESP_LOGE("actions", "Failed to update product");
+        showSnackbar("Failed to update product", 5000);
+        close_product_edit_modal();
+    }
+    delete ctx;
+}
+
+static void product_delete_ui_cb(void *arg) {
+    ProductDeleteCtx *ctx = (ProductDeleteCtx *)arg;
+    if (!ctx) return;
+    if (ctx->success) {
+        ESP_LOGI("actions", "Product deleted successfully");
+        showSnackbar("Product deleted", 5000);
+        productsManager.deleteProduct(ctx->rowId);
+        close_product_edit_modal();
+        productsManager.populateProductList();
+    } else {
+        ESP_LOGE("actions", "Failed to delete product");
+        showSnackbar("Failed to delete product", 5000);
+        close_product_edit_modal();
+    }
+    delete ctx;
+}
+
+static void product_update_task(void *arg) {
+    ProductUpdateCtx *ctx = (ProductUpdateCtx *)arg;
+    if (ctx) {
+        ctx->success = productService.updateProduct(ctx->product);
+        lv_async_call(product_update_ui_cb, ctx);
+    }
+    vTaskDelete(NULL);
+}
+
+static void product_delete_task(void *arg) {
+    ProductDeleteCtx *ctx = (ProductDeleteCtx *)arg;
+    if (ctx) {
+        ctx->success = productService.deleteProduct(ctx->rowId);
+        lv_async_call(product_delete_ui_cb, ctx);
+    }
     vTaskDelete(NULL);
 }
 
@@ -447,41 +526,16 @@ void action_product_edit_save(lv_event_t *e)
     std::string barcode = (it != allProducts.end()) ? it->barcode : "";
     // NOTE: do NOT mutate allProducts — it's a local copy
 
-    bool success = productService.updateProduct(product);
-    if (success)
-    {
-        ESP_LOGI("actions", "Product updated successfully");
-        showSnackbar("Product updated", 3000);
-        productsManager.updateProduct(product);
-
-        // Spawn barcode upsert task if barcode exists
-        if (!barcode.empty())
-        {
-            BarcodeUpsertCtx *barcode_ctx = new BarcodeUpsertCtx{barcode, product.name, product.category};
-            BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
-                barcode_upsert_task, "BarcodeUpsert",
-                16384, barcode_ctx, 3, NULL, tskNO_AFFINITY,
-                MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-
-            if (ret != pdPASS)
-            {
-                ESP_LOGE("actions", "Failed to create barcode upsert task");
-                delete barcode_ctx;
-            }
-        }
-
-        // Defer close + refresh — we are still inside the button's event chain.
-        // Destroying the modal now would free objects still on the call stack.
-        lv_async_call([](void *)
-                      {
-            close_product_edit_modal();
-            productsManager.populateProductList(); }, nullptr);
-    }
-    else
-    {
-        ESP_LOGE("actions", "Failed to update product");
-        showSnackbar("Failed to update product", 5000);
-
+    // Create async update task
+    ProductUpdateCtx *ctx = new ProductUpdateCtx{product, barcode};
+    BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
+        product_update_task, "ProductUpdate",
+        16384, ctx, 3, NULL, tskNO_AFFINITY,
+        MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (ret != pdPASS) {
+        ESP_LOGE("actions", "Failed to create product update task");
+        delete ctx;
+        showSnackbar("Failed to start update", 5000);
         lv_async_call([](void *)
                       { close_product_edit_modal(); }, nullptr);
     }
@@ -555,25 +609,16 @@ void action_product_edit_delete(lv_event_t *e)
         return;
     }
 
-    bool success = productService.deleteProduct(*rowId);
-    if (success)
-    {
-        ESP_LOGI("actions", "Product delete successfully");
-        showSnackbar("Product deleted", 5000);
-        productsManager.deleteProduct(*rowId);
-
-        // Defer close + refresh — we are still inside the button's event chain.
-        // Destroying the modal now would free objects still on the call stack.
-        lv_async_call([](void *)
-                      {
-            close_product_edit_modal();
-            productsManager.populateProductList(); }, nullptr);
-    }
-    else
-    {
-        ESP_LOGE("actions", "Failed to delete product");
-        showSnackbar("Failed to update product", 5000);
-
+    // Create async delete task
+    ProductDeleteCtx *ctx = new ProductDeleteCtx{*rowId};
+    BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
+        product_delete_task, "ProductDelete",
+        16384, ctx, 3, NULL, tskNO_AFFINITY,
+        MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (ret != pdPASS) {
+        ESP_LOGE("actions", "Failed to create product delete task");
+        delete ctx;
+        showSnackbar("Failed to start delete", 5000);
         lv_async_call([](void *)
                       { close_product_edit_modal(); }, nullptr);
     }

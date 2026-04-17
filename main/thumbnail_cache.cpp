@@ -470,7 +470,12 @@ namespace thumbnail_cache
             return false;
         }
 
-        xSemaphoreTake(done, portMAX_DELAY); // block until IO task signals completion
+        if (xSemaphoreTake(done, pdMS_TO_TICKS(5000)) != pdTRUE)
+        {
+            ESP_LOGW(TAG, "Cache IO timeout");
+            result = false;
+        }
+
         vSemaphoreDelete(done);
 
         if (result)

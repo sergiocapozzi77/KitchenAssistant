@@ -1,12 +1,12 @@
 #include "AppwriteClientInstance.h"
 
-AppwriteHttpClient& getAppwriteClient()
+AppwriteHttpClient &getAppwriteClient()
 {
     static AppwriteHttpClient instance(
         APPWRITE_ENDPOINT,
         APPWRITE_PROJECT_ID,
         APPWRITE_API_KEY,
-        90000 // timeout in milliseconds
+        15000 // timeout in milliseconds
     );
     return instance;
 }

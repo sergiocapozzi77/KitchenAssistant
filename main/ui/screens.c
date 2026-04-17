@@ -430,7 +430,7 @@ void create_screen_main() {
                                             lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                                             lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                                             lv_obj_set_style_radius(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-                                            lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE|LV_OBJ_FLAG_SCROLL_CHAIN_HOR|LV_OBJ_FLAG_SCROLL_CHAIN_VER|LV_OBJ_FLAG_SCROLL_WITH_ARROW|LV_OBJ_FLAG_SNAPPABLE);
+                                            lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLL_CHAIN_HOR|LV_OBJ_FLAG_SCROLL_CHAIN_VER|LV_OBJ_FLAG_SCROLL_ELASTIC|LV_OBJ_FLAG_SCROLL_MOMENTUM|LV_OBJ_FLAG_SCROLL_WITH_ARROW|LV_OBJ_FLAG_SNAPPABLE);
                                             lv_obj_set_scrollbar_mode(obj, LV_SCROLLBAR_MODE_AUTO);
                                             lv_obj_set_scroll_dir(obj, LV_DIR_VER);
                                             lv_obj_set_style_layout(obj, LV_LAYOUT_FLEX, LV_PART_ANY | LV_STATE_DEFAULT);
@@ -1639,21 +1639,9 @@ void create_user_widget_product_edit(lv_obj_t *parent_obj, int startWidgetIndex)
                     }
                 }
                 {
-                    // calendar_editproduct
-                    lv_obj_t *obj = lv_calendar_create(parent_obj);
-                    ((lv_obj_t **)&objects)[startWidgetIndex + 12] = obj;
-                    lv_obj_set_pos(obj, 20, 313);
-                    lv_obj_set_size(obj, 428, 352);
-                    lv_calendar_add_header_arrow(obj);
-                    lv_calendar_set_today_date(obj, 2022, 11, 1);
-                    lv_calendar_set_month_shown(obj, 2022, 11);
-                    lv_obj_add_event_cb(obj, action_product_calendar_value_changed, LV_EVENT_VALUE_CHANGED, (void *)0);
-                    lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
-                }
-                {
                     // product_edit_delete_btn
                     lv_obj_t *obj = lv_button_create(parent_obj);
-                    ((lv_obj_t **)&objects)[startWidgetIndex + 13] = obj;
+                    ((lv_obj_t **)&objects)[startWidgetIndex + 12] = obj;
                     lv_obj_set_pos(obj, -3, 595);
                     lv_obj_set_size(obj, 661, 70);
                     lv_obj_add_event_cb(obj, action_product_edit_delete, LV_EVENT_CLICKED, (void *)0);
@@ -1673,18 +1661,30 @@ void create_user_widget_product_edit(lv_obj_t *parent_obj, int startWidgetIndex)
                         }
                     }
                 }
+                {
+                    // product_edit_frozen_cb
+                    lv_obj_t *obj = lv_checkbox_create(parent_obj);
+                    ((lv_obj_t **)&objects)[startWidgetIndex + 13] = obj;
+                    lv_obj_set_pos(obj, 20, 512);
+                    lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                    lv_checkbox_set_text_static(obj, "Frozen");
+                    lv_obj_add_event_cb(obj, action_product_edit_frozen, LV_EVENT_VALUE_CHANGED, (void *)0);
+                    add_style_checkbox_default(obj);
+                    lv_obj_set_style_text_font(obj, &lv_font_montserrat_20, LV_PART_MAIN | LV_STATE_DEFAULT);
+                }
+                {
+                    // calendar_editproduct
+                    lv_obj_t *obj = lv_calendar_create(parent_obj);
+                    ((lv_obj_t **)&objects)[startWidgetIndex + 14] = obj;
+                    lv_obj_set_pos(obj, 20, 313);
+                    lv_obj_set_size(obj, 428, 352);
+                    lv_calendar_add_header_arrow(obj);
+                    lv_calendar_set_today_date(obj, 2022, 11, 1);
+                    lv_calendar_set_month_shown(obj, 2022, 11);
+                    lv_obj_add_event_cb(obj, action_product_calendar_value_changed, LV_EVENT_VALUE_CHANGED, (void *)0);
+                    lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
+                }
             }
-        }
-        {
-            // product_edit_frozen_cb
-            lv_obj_t *obj = lv_checkbox_create(parent_obj);
-            ((lv_obj_t **)&objects)[startWidgetIndex + 14] = obj;
-            lv_obj_set_pos(obj, 42, 514);
-            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-            lv_checkbox_set_text_static(obj, "Frozen");
-            lv_obj_add_event_cb(obj, action_product_edit_frozen, LV_EVENT_VALUE_CHANGED, (void *)0);
-            add_style_checkbox_default(obj);
-            lv_obj_set_style_text_font(obj, &lv_font_montserrat_20, LV_PART_MAIN | LV_STATE_DEFAULT);
         }
     }
 }
@@ -1811,7 +1811,7 @@ void create_user_widget_filters_panel(lv_obj_t *parent_obj, int startWidgetIndex
                     ((lv_obj_t **)&objects)[startWidgetIndex + 8] = obj;
                     lv_obj_set_pos(obj, 483, 49);
                     lv_obj_set_size(obj, 220, 40);
-                    lv_dropdown_set_options_static(obj, "Source\nBBC Good Food\nGialloZafferano.it\nAniaGotuje.pl\nAllRecipes");
+                    lv_dropdown_set_options_static(obj, "Source\nBBC Good Food\nGialloZafferano.it\nAniaGotuje.pl");
                     lv_dropdown_set_dir(obj, LV_DIR_TOP);
                     lv_dropdown_set_symbol(obj, LV_SYMBOL_UP);
                     lv_dropdown_set_selected(obj, 1);
