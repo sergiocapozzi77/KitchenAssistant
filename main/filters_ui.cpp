@@ -200,8 +200,8 @@ static void sync_panel(filter_panel_t *panel)
     lv_dropdown_set_selected(panel->calories_dropdown,
                              find_index(current_filters.calories, calories_options, calories_count));
 
-    lv_dropdown_set_selected(panel->source_dropdown,
-                             find_index(current_filters.source, source_options, source_count));
+    int idx = find_index(current_filters.source, source_options, source_count);
+    lv_dropdown_set_selected(panel->source_dropdown, idx >= 0 ? idx : 1);
 
     is_syncing = false;
 }

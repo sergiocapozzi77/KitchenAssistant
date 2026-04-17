@@ -39,7 +39,7 @@ std::string RecipeService::mapSourceToCanonical(const std::string &uiSource)
     {
         return "giallozafferano";
     }
-    // For "goodfood" and "aniagotuje", use as-is
+    // For "bbcgoodfood" and "aniagotuje", use as-is
     return uiSource;
 }
 

@@ -252,7 +252,7 @@ void create_screen_main() {
                                                             lv_obj_set_pos(obj, 0, 0);
                                                             lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
                                                             lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
-                                                            lv_label_set_text_static(obj, "RECIPE");
+                                                            lv_label_set_text_static(obj, "SEARCH");
                                                         }
                                                     }
                                                 }
@@ -1715,7 +1715,7 @@ void create_user_widget_filters_panel(lv_obj_t *parent_obj, int startWidgetIndex
                     lv_obj_set_pos(obj, 3, 49);
                     lv_obj_set_size(obj, 460, 40);
                     lv_textarea_set_max_length(obj, 128);
-                    lv_textarea_set_placeholder_text(obj, "Keywords...");
+                    lv_textarea_set_placeholder_text(obj, "Free search...");
                     lv_textarea_set_one_line(obj, true);
                     lv_textarea_set_password_mode(obj, false);
                     lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
