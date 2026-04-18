@@ -27,10 +27,12 @@ static std::string trimWhitespace(const std::string &str)
     size_t start = 0;
     size_t end = str.length();
 
-    while (start < end && std::isspace(static_cast<unsigned char>(str[start]))) {
+    while (start < end && std::isspace(static_cast<unsigned char>(str[start])))
+    {
         start++;
     }
-    while (end > start && std::isspace(static_cast<unsigned char>(str[end-1]))) {
+    while (end > start && std::isspace(static_cast<unsigned char>(str[end - 1])))
+    {
         end--;
     }
 
@@ -286,27 +288,38 @@ std::vector<RecipeSuggestion> DeepSeekAIService::parseAIResponse(const std::stri
     size_t end = innerJson.length();
 
     // Remove leading ```json or ``` markers
-    if (innerJson.substr(0, 7) == "```json") {
+    if (innerJson.substr(0, 7) == "```json")
+    {
         start = innerJson.find('\n', 7);
-        if (start != std::string::npos) {
+        if (start != std::string::npos)
+        {
             start++; // move past newline
-        } else {
+        }
+        else
+        {
             start = 7; // no newline after ```json
         }
-    } else if (innerJson.substr(0, 3) == "```") {
+    }
+    else if (innerJson.substr(0, 3) == "```")
+    {
         start = innerJson.find('\n', 3);
-        if (start != std::string::npos) {
+        if (start != std::string::npos)
+        {
             start++; // move past newline
-        } else {
+        }
+        else
+        {
             start = 3; // no newline after ```
         }
     }
 
     // Remove trailing ``` markers
-    if (innerJson.substr(end - 3, 3) == "```") {
+    if (innerJson.substr(end - 3, 3) == "```")
+    {
         end = end - 3;
         // Also remove any trailing whitespace/newline before ```
-        while (end > start && (innerJson[end-1] == '\n' || innerJson[end-1] == '\r' || innerJson[end-1] == ' ')) {
+        while (end > start && (innerJson[end - 1] == '\n' || innerJson[end - 1] == '\r' || innerJson[end - 1] == ' '))
+        {
             end--;
         }
     }
@@ -347,7 +360,7 @@ std::vector<RecipeSuggestion> DeepSeekAIService::parseAIResponse(const std::stri
         r.difficulty = safeJsonString(item, "difficulty");
         // Default values for other fields
         r.imageUrl = "";
-        r.recipeSource = "deepseek";
+        r.recipeSource = "ai-deepseek";
         r.author = "";
         r.ratingValue = 0.0;
         r.ratingCount = 0;
