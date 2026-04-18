@@ -8,6 +8,7 @@
 #include "ui.h"
 #include "fonts.h"
 #include "models.h"
+#include "esp_task_wdt.h"
 
 static const char *TAG = "UIEXTENSIONS";
 
@@ -66,6 +67,7 @@ void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &rec
         return;
     }
 
+    esp_task_wdt_reset();
     s_thumb_generation++;
 
     lv_lock();
@@ -83,6 +85,7 @@ void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &rec
 
     for (const auto &r : recipes)
     {
+        esp_task_wdt_reset();
         // === CARD ===
         lv_obj_t *card = createRecipeCard(root, r, pending_thumbs);
 

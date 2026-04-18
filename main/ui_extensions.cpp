@@ -368,10 +368,21 @@ void populateIngredientsUI(lv_obj_t *container, const std::vector<std::string> &
 
 void make_children_bubble(lv_obj_t *obj)
 {
-    lv_obj_add_flag(obj, LV_OBJ_FLAG_EVENT_BUBBLE);
-    uint32_t count = lv_obj_get_child_count(obj);
-    for (uint32_t i = 0; i < count; i++)
-        make_children_bubble(lv_obj_get_child(obj, i));
+    std::vector<lv_obj_t *> stack;
+    stack.push_back(obj);
+
+    while (!stack.empty())
+    {
+        lv_obj_t *current = stack.back();
+        stack.pop_back();
+
+        lv_obj_add_flag(current, LV_OBJ_FLAG_EVENT_BUBBLE);
+        uint32_t count = lv_obj_get_child_count(current);
+        for (uint32_t i = 0; i < count; i++)
+        {
+            stack.push_back(lv_obj_get_child(current, i));
+        }
+    }
 }
 
 static lv_obj_t *createRecipeCardInternal(lv_obj_t *parent, const std::string &name, const std::string &description, const std::string &imageUrl, const std::string &difficulty, const std::string &totalTime, std::vector<ThumbContext *> &pending_thumbs)
