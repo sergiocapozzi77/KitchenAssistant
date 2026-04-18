@@ -22,6 +22,7 @@
 #include "StepProgressBar.h"
 #include "ui_extensions_internal.h"
 #include "ui_extensions_recipe_steps.h"
+#include "filters_ui.h"
 
 filter_panel_t products_panel;
 filter_panel_t recipes_panel;
@@ -151,28 +152,35 @@ static void barcode_upsert_task(void *arg)
     vTaskDelete(NULL);
 }
 
-static void product_update_ui_cb(void *arg) {
+static void product_update_ui_cb(void *arg)
+{
     ProductUpdateCtx *ctx = (ProductUpdateCtx *)arg;
-    if (!ctx) return;
-    if (ctx->success) {
+    if (!ctx)
+        return;
+    if (ctx->success)
+    {
         ESP_LOGI("actions", "Product updated successfully");
         showSnackbar("Product updated", 3000);
         productsManager.updateProduct(ctx->product);
         // Spawn barcode upsert task if barcode exists
-        if (!ctx->barcode.empty()) {
+        if (!ctx->barcode.empty())
+        {
             BarcodeUpsertCtx *barcode_ctx = new BarcodeUpsertCtx{ctx->barcode, ctx->product.name, ctx->product.category};
             BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
                 barcode_upsert_task, "BarcodeUpsert",
                 16384, barcode_ctx, 3, NULL, tskNO_AFFINITY,
                 MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-            if (ret != pdPASS) {
+            if (ret != pdPASS)
+            {
                 ESP_LOGE("actions", "Failed to create barcode upsert task");
                 delete barcode_ctx;
             }
         }
         close_product_edit_modal();
         productsManager.populateProductList();
-    } else {
+    }
+    else
+    {
         ESP_LOGE("actions", "Failed to update product");
         showSnackbar("Failed to update product", 5000);
         close_product_edit_modal();
@@ -180,16 +188,21 @@ static void product_update_ui_cb(void *arg) {
     delete ctx;
 }
 
-static void product_delete_ui_cb(void *arg) {
+static void product_delete_ui_cb(void *arg)
+{
     ProductDeleteCtx *ctx = (ProductDeleteCtx *)arg;
-    if (!ctx) return;
-    if (ctx->success) {
+    if (!ctx)
+        return;
+    if (ctx->success)
+    {
         ESP_LOGI("actions", "Product deleted successfully");
         showSnackbar("Product deleted", 5000);
         productsManager.deleteProduct(ctx->rowId);
         close_product_edit_modal();
         productsManager.populateProductList();
-    } else {
+    }
+    else
+    {
         ESP_LOGE("actions", "Failed to delete product");
         showSnackbar("Failed to delete product", 5000);
         close_product_edit_modal();
@@ -197,18 +210,22 @@ static void product_delete_ui_cb(void *arg) {
     delete ctx;
 }
 
-static void product_update_task(void *arg) {
+static void product_update_task(void *arg)
+{
     ProductUpdateCtx *ctx = (ProductUpdateCtx *)arg;
-    if (ctx) {
+    if (ctx)
+    {
         ctx->success = productService.updateProduct(ctx->product);
         lv_async_call(product_update_ui_cb, ctx);
     }
     vTaskDelete(NULL);
 }
 
-static void product_delete_task(void *arg) {
+static void product_delete_task(void *arg)
+{
     ProductDeleteCtx *ctx = (ProductDeleteCtx *)arg;
-    if (ctx) {
+    if (ctx)
+    {
         ctx->success = productService.deleteProduct(ctx->rowId);
         lv_async_call(product_delete_ui_cb, ctx);
     }
@@ -532,7 +549,8 @@ void action_product_edit_save(lv_event_t *e)
         product_update_task, "ProductUpdate",
         16384, ctx, 3, NULL, tskNO_AFFINITY,
         MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    if (ret != pdPASS) {
+    if (ret != pdPASS)
+    {
         ESP_LOGE("actions", "Failed to create product update task");
         delete ctx;
         showSnackbar("Failed to start update", 5000);
@@ -615,7 +633,8 @@ void action_product_edit_delete(lv_event_t *e)
         product_delete_task, "ProductDelete",
         16384, ctx, 3, NULL, tskNO_AFFINITY,
         MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    if (ret != pdPASS) {
+    if (ret != pdPASS)
+    {
         ESP_LOGE("actions", "Failed to create product delete task");
         delete ctx;
         showSnackbar("Failed to start delete", 5000);
@@ -711,4 +730,36 @@ void action_ingredients_factor(lv_event_t *e)
 void action_create_recipe_close_click(lv_event_t *e)
 {
     lv_obj_add_flag(objects.create_recipe_pnl, LV_OBJ_FLAG_HIDDEN);
+}
+
+int find_index(const char *value, filter_option_t *options, int count)
+{
+    if (!value)
+        return 0;
+    for (int i = 0; i < count; i++)
+    {
+        if (strcmp(value, options[i].value) == 0)
+            return i + 1;
+    }
+    return 0;
+}
+
+void action_generate_ai_recipes_click(lv_event_t *e)
+{
+    ESP_LOGI("actions", "Generate Recipe button clicked");
+    log_filter_state();
+
+    lv_lock();
+    lv_obj_add_flag(objects.recipe_list_filter_container, LV_OBJ_FLAG_HIDDEN);
+    lv_tabview_set_active(objects.tabview, 1, LV_ANIM_OFF);
+    lv_dropdown_set_selected(objects.recipes_filters_panel__source_dropdown, find_index("ai-deepseek", source_options, source_count)); // Set source filter to AI DeepSeek
+    lv_unlock();
+
+    // Ensure filter state source is set to ai-deepseek
+    filter_state_t* filterState = get_filter_state();
+    filterState->source = (char*)"ai-deepseek";
+
+    // Somewhere in initTasks() or after WiFi connects:
+    recipeSuggestionsManager.reset();
+    recipeSuggestionsManager.loadCurrentPage();
 }

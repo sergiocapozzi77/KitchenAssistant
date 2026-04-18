@@ -41,6 +41,7 @@ typedef struct _objects_t {
     lv_obj_t *products_filters_panel__source_dropdown;
     lv_obj_t *products_filters_panel__poducts_selected_cb;
     lv_obj_t *products_filters_panel__product_selected_lbl;
+    lv_obj_t *generate_ai_recipes_btn;
     lv_obj_t *generate_recipe_btn;
     lv_obj_t *panel_create_recipe_close_btn;
     lv_obj_t *product_edit_modal;

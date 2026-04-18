@@ -33,6 +33,7 @@ extern void action_recipe_phase_prev(lv_event_t * e);
 extern void action_favourites_reload_click(lv_event_t * e);
 extern void action_ingredients_factor(lv_event_t * e);
 extern void action_create_recipe_close_click(lv_event_t * e);
+extern void action_generate_ai_recipes_click(lv_event_t * e);
 
 #ifdef __cplusplus
 }

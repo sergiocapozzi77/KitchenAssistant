@@ -32,6 +32,12 @@ typedef struct
     lv_obj_t *products_selected_cb;
 } filter_panel_t;
 
+typedef struct
+{
+    const char *display;
+    const char *value;
+} filter_option_t;
+
 // Filter option structure
 
 // Function to create the filter panel
@@ -49,5 +55,8 @@ void init_recipes_filter_panel(filter_panel_t *panel);
  * @return Pointer to the current filter state structure
  */
 filter_state_t *get_filter_state(void);
+
+extern filter_option_t source_options[];
+extern const int source_count;
 
 #endif /* FILTERS_H */

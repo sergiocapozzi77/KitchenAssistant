@@ -2,6 +2,7 @@
 #include "RecipeSuggestionsManager.h"
 #include "esp_heap_caps.h"
 #include "RecipeService.h"
+#include "DeepSeekAIService.h"
 #include "esp_log.h"
 #include "lvgl.h"
 #include "ui_extensions.h"
@@ -244,18 +245,36 @@ void fetchRecipesTask(void *param)
 
     std::vector<RecipeSuggestion> suggestions;
     std::string sourceStr = filterState->source ? filterState->source : "bbcgoodfood";
-    suggestions = recipeService.getRecipeSuggestions(
-        sourceStr,
-        ingredients,
-        mealType,
-        keywords,
-        difficulty,
-        totalTime,
-        diet,
-        cuisine,
-        "", // ratings
-        "", // calories
-        1);
+    if (sourceStr == "ai-deepseek")
+    {
+        ESP_LOGI("ShowRecipesTask", "Using DeepSeek AI for recipe suggestions");
+        suggestions = deepSeekAIService.getRecipeSuggestions(
+            ingredients,
+            mealType,
+            keywords,
+            difficulty,
+            totalTime,
+            diet,
+            cuisine,
+            "", // ratings
+            "", // calories
+            1);
+    }
+    else
+    {
+        suggestions = recipeService.getRecipeSuggestions(
+            sourceStr,
+            ingredients,
+            mealType,
+            keywords,
+            difficulty,
+            totalTime,
+            diet,
+            cuisine,
+            "", // ratings
+            "", // calories
+            1);
+    }
 
     manager->appendSuggestions(suggestions);
 

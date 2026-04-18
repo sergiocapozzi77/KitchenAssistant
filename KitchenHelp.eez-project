@@ -346,6 +346,15 @@
       "componentGroups": [],
       "userProperties": [],
       "name": "CreateRecipeCloseClick"
+    },
+    {
+      "objID": "2279d0e9-60f2-4d3a-dc1a-4520a9ab5ff5",
+      "components": [],
+      "connectionLines": [],
+      "localVariables": [],
+      "componentGroups": [],
+      "userProperties": [],
+      "name": "GenerateAiRecipesClick"
     }
   ],
   "userPages": [
@@ -936,7 +945,16 @@
                                     "childStyles": []
                                   },
                                   "timeline": [],
-                                  "eventHandlers": [],
+                                  "eventHandlers": [
+                                    {
+                                      "objID": "8808db15-b284-4e0e-fd0c-c6bc85f1af36",
+                                      "eventName": "CLICKED",
+                                      "handlerType": "action",
+                                      "action": "GenerateAiRecipesClick",
+                                      "userData": 0
+                                    }
+                                  ],
+                                  "identifier": "generate_ai_recipes_btn",
                                   "leftUnit": "px",
                                   "topUnit": "px",
                                   "widthUnit": "px",
@@ -7236,7 +7254,7 @@
               },
               "group": "",
               "groupIndex": 0,
-              "options": "Source\nBBC Good Food\nGialloZafferano.it\nAniaGotuje.pl",
+              "options": "Source\nBBC Good Food\nGialloZafferano.it\nAniaGotuje.pl\nAI (DeepSeek)",
               "optionsType": "literal",
               "selected": 1,
               "selectedType": "literal",

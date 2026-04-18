@@ -20,12 +20,6 @@ static filter_state_t current_filters = {
 
 // ===================== OPTIONS =====================
 
-typedef struct
-{
-    const char *display;
-    const char *value;
-} filter_option_t;
-
 // Define all filter options
 static filter_option_t meal_type_options[] = {
     {"Afternoon tea", "afternoon-tea"},
@@ -136,11 +130,12 @@ static filter_option_t calories_options[] = {
 static const int calories_count = sizeof(calories_options) / sizeof(calories_options[0]);
 
 // Source options
-static filter_option_t source_options[] = {
+filter_option_t source_options[] = {
     {"BBC Good Food", "bbcgoodfood"},
     {"GialloZafferano.it", "giallozafferanoit"},
     {"AniaGotuje.pl", "aniagotuje"},
     {"AllRecipes", "allrecipes"},
+    {"AI (DeepSeek)", "ai-deepseek"},
     // {"Food52", "food52"},
     // {"Serious Eats", "seriouseats"},
     // {"Smitten Kitchen", "smittenkitchen"},
@@ -153,7 +148,7 @@ static filter_option_t source_options[] = {
     // {"EatingWell", "eatingwell"},
     // {"Bon Appétit", "bonappetit"}
 };
-static const int source_count = sizeof(source_options) / sizeof(source_options[0]);
+const int source_count = sizeof(source_options) / sizeof(source_options[0]);
 
 // LVGL dropdown objects
 

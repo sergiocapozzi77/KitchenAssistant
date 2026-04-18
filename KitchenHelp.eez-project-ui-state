@@ -1,7 +1,7 @@
 {
   "navigation": {
     "selectedUserPageObject": "[KitchenHelp.eez-project]:/userPages/0",
-    "selectedUserWidgetObject": "[KitchenHelp.eez-project]:/userWidgets/1",
+    "selectedUserWidgetObject": "[KitchenHelp.eez-project]:/userWidgets/0",
     "selectedActionObject": "[KitchenHelp.eez-project]:/actions/4",
     "selectedStyleObject": "[KitchenHelp.eez-project]:/lvglStyles/styles/2",
     "selectedThemeColorObject": "[KitchenHelp.eez-project]:/colors/1",
@@ -170,8 +170,7 @@
                       "enableClose": false,
                       "icon": "svg:hierarchy"
                     }
-                  ],
-                  "active": true
+                  ]
                 },
                 {
                   "type": "tabset",
@@ -213,10 +212,10 @@
                 {
                   "type": "tab",
                   "id": "#6689bd3f-4ac6-42db-b564-ea503cbc0dca",
-                  "name": "FiltersPanel",
+                  "name": "ProductEdit",
                   "component": "editor",
                   "config": {
-                    "objectPath": "[KitchenHelp.eez-project]:/userWidgets/1",
+                    "objectPath": "[KitchenHelp.eez-project]:/userWidgets/0",
                     "permanent": false
                   },
                   "icon": "svg:user_widget"
@@ -278,7 +277,8 @@
                       "enableClose": false,
                       "icon": "svg:properties"
                     }
-                  ]
+                  ],
+                  "active": true
                 },
                 {
                   "type": "tabset",
@@ -1128,7 +1128,7 @@
       "transform": {
         "translate": {
           "x": -293.6461502125806,
-          "y": -703.654587098813
+          "y": -302.821287652707
         },
         "scale": 0.75
       },
@@ -1143,8 +1143,13 @@
         "0": {
           "0": {
             "0": {
-              "0": {
-                "$selected": true
+              "0": {},
+              "1": {
+                "0": {
+                  "1": {
+                    "$selected": true
+                  }
+                }
               },
               "2": {
                 "0": {
@@ -1181,7 +1186,7 @@
       "transform": {
         "translate": {
           "x": -400,
-          "y": -350.8851012505427
+          "y": -323.3851069725885
         },
         "scale": 0.75
       },
@@ -1196,14 +1201,16 @@
       "selectionFront": {},
       "selectionBack": {
         "0": {
-          "$selected": true
-        },
-        "1": {}
+          "8": {
+            "$selected": true
+          },
+          "12": {}
+        }
       },
       "transform": {
         "translate": {
-          "x": -400,
-          "y": -773.3333435058593
+          "x": -258,
+          "y": -348.33334350585926
         },
         "scale": 0.75
       },

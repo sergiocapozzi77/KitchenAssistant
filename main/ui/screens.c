@@ -222,9 +222,12 @@ void create_screen_main() {
                                                     lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
                                                 }
                                                 {
+                                                    // generate_ai_recipes_btn
                                                     lv_obj_t *obj = lv_button_create(parent_obj);
+                                                    objects.generate_ai_recipes_btn = obj;
                                                     lv_obj_set_pos(obj, 5, 261);
                                                     lv_obj_set_size(obj, 350, 50);
+                                                    lv_obj_add_event_cb(obj, action_generate_ai_recipes_click, LV_EVENT_CLICKED, (void *)0);
                                                     add_style_main_button(obj);
                                                     {
                                                         lv_obj_t *parent_obj = obj;
@@ -309,7 +312,7 @@ void create_screen_main() {
                                             lv_obj_set_style_pad_bottom(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                                             lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                                             lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-                                            create_user_widget_product_edit(obj, 27);
+                                            create_user_widget_product_edit(obj, 28);
                                         }
                                     }
                                 }
@@ -462,7 +465,7 @@ void create_screen_main() {
                                                     lv_obj_set_style_pad_bottom(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                                                     lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                                                     lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-                                                    create_user_widget_filters_panel(obj, 48);
+                                                    create_user_widget_filters_panel(obj, 49);
                                                     lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
                                                 }
                                                 {
@@ -708,8 +711,8 @@ void create_screen_main() {
 
 void tick_screen_main() {
     tick_user_widget_filters_panel(12);
-    tick_user_widget_product_edit(27);
-    tick_user_widget_filters_panel(48);
+    tick_user_widget_product_edit(28);
+    tick_user_widget_filters_panel(49);
 }
 
 void create_screen_recipe_detail() {
@@ -1233,7 +1236,7 @@ void create_screen_recipe_phase() {
                     lv_obj_set_style_pad_bottom(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-                    create_user_widget_step_progress_bar(obj, 99);
+                    create_user_widget_step_progress_bar(obj, 100);
                     lv_obj_set_style_grid_cell_row_pos(obj, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
                 }
                 {
@@ -1456,7 +1459,7 @@ void create_screen_recipe_phase() {
 }
 
 void tick_screen_recipe_phase() {
-    tick_user_widget_step_progress_bar(99);
+    tick_user_widget_step_progress_bar(100);
 }
 
 void create_user_widget_product_edit(lv_obj_t *parent_obj, int startWidgetIndex) {
@@ -1811,7 +1814,7 @@ void create_user_widget_filters_panel(lv_obj_t *parent_obj, int startWidgetIndex
                     ((lv_obj_t **)&objects)[startWidgetIndex + 8] = obj;
                     lv_obj_set_pos(obj, 483, 49);
                     lv_obj_set_size(obj, 220, 40);
-                    lv_dropdown_set_options_static(obj, "Source\nBBC Good Food\nGialloZafferano.it\nAniaGotuje.pl");
+                    lv_dropdown_set_options_static(obj, "Source\nBBC Good Food\nGialloZafferano.it\nAniaGotuje.pl\nAI (DeepSeek)");
                     lv_dropdown_set_dir(obj, LV_DIR_TOP);
                     lv_dropdown_set_symbol(obj, LV_SYMBOL_UP);
                     lv_dropdown_set_selected(obj, 1);
