@@ -8,9 +8,12 @@
 #include "fonts.h"
 #include "models.h"
 #include "RecipeDetailService.h"
+#include "RecipeAIDetailService.h"
 #include "FavouritesManager.h"
 #include "FavouriteService.h"
 #include "styles.h"
+#include "filters_ui.h"
+#include "ProductsManager.h"
 
 static const char *TAG = "UIEXTENSIONS";
 static uint32_t s_current_generation = 0;
@@ -181,7 +184,25 @@ static void fetch_recipe_detail_task(void *arg)
         return;
     }
 
-    bool ok = recipeDetailService.fetchDetails(ctx->recipe);
+    bool ok = false;
+    if (ctx->recipe.recipeSource == "ai-deepseek") {
+        // Build ingredients list from selected products (if checkbox checked)
+        std::vector<std::string> ingredients;
+        lv_lock();
+        bool useSelected = lv_obj_has_state(objects.products_filters_panel__poducts_selected_cb, LV_STATE_CHECKED);
+        lv_unlock();
+        if (useSelected) {
+            std::vector<Product> selectedProducts = productsManager.getSelectedProducts();
+            for (const auto &p : selectedProducts) {
+                ingredients.push_back(p.name);
+            }
+        }
+        // Get filter state
+        filter_state_t *filterState = get_filter_state();
+        ok = recipeAIDetailService.fetchDetails(ctx->recipe, ingredients, filterState);
+    } else {
+        ok = recipeDetailService.fetchDetails(ctx->recipe);
+    }
     ESP_LOGI("RecipeDetail", "fetchDetails: %s, ings=%d steps=%d",
              ok ? "ok" : "fail",
              (int)ctx->recipe.ingredients.size(),
