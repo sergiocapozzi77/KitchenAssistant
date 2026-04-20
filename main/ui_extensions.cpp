@@ -919,6 +919,10 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
     *out_dsc = dsc;
     *out_px = px;
     ESP_LOGI(TAG, "fetch_and_decode_jpeg succeeded: %ux%u image", W, H);
+
+    ESP_LOGI("DBG", "Task %s HWM: %u", pcTaskGetName(NULL),
+             uxTaskGetStackHighWaterMark(NULL));
+
     return true;
 }
 
