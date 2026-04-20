@@ -303,15 +303,22 @@ static void fetch_recipe_detail_task(void *arg)
 
     lv_unlock();
 
-    // Kick off header image fetch at larger size if we have a URL
-    if (!ctx->recipe.imageUrl.empty() && ctx->header_img)
+    // Kick off header image fetch at larger size if we have a URL or need to generate for AI recipe
+    std::string thumbUrl = ctx->recipe.imageUrl;
+    if (ctx->recipe.imageUrl.empty() && ctx->recipe.recipeSource == "ai-deepseek") {
+        // Generate a placeholder URL that will trigger AI image generation
+        thumbUrl = "generate:" + ctx->recipe.name + "|||" + ctx->recipe.description;
+        ESP_LOGI(TAG, "AI recipe with no image, will generate header: %s", ctx->recipe.name.c_str());
+    }
+
+    if (!thumbUrl.empty() && ctx->header_img)
     {
         lv_lock();
         // Create shimmer overlay for loading indicator
         lv_obj_t *shimmer = create_shimmer_overlay(ctx->header_img);
         start_shimmer_animation(shimmer, ctx->header_img);
         // Create thumb context for header image
-        ThumbContext *tctx = new ThumbContext{ctx->header_img, shimmer, ctx->recipe.imageUrl, ctx->generation};
+        ThumbContext *tctx = new ThumbContext{ctx->header_img, shimmer, thumbUrl, ctx->generation};
         // Add delete callback to nullify thumb pointer if header_img is deleted before fetch completes
         lv_obj_add_event_cb(ctx->header_img, thumb_obj_deleted_cb, LV_EVENT_DELETE, tctx);
         lv_unlock();

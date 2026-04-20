@@ -41,7 +41,7 @@ static std::string trimWhitespace(const std::string &str)
 }
 
 // Helper function to perform HTTP POST to DeepSeek API with custom timeout
-static std::string deepSeekHttpPost(const std::string &url, const std::string &body, int &status, int timeout_ms = 120000)
+std::string RecipeAIDetailService::deepSeekHttpPost(const std::string &url, const std::string &body, int &status, int timeout_ms)
 {
     ESP_LOGI(TAG, "POST to DeepSeek: %s", url.c_str());
 

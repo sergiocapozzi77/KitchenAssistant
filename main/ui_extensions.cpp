@@ -10,6 +10,8 @@
 #include "esp_heap_caps.h"
 #include "esp_err.h"
 #include "esp_task_wdt.h"
+#include "esp_http_client.h"
+#include "esp_crt_bundle.h"
 #include "ui_extensions.h"
 #include "ui_extensions_internal.h"
 #include "ui.h"
@@ -385,7 +387,7 @@ void make_children_bubble(lv_obj_t *obj)
     }
 }
 
-static lv_obj_t *createRecipeCardInternal(lv_obj_t *parent, const std::string &name, const std::string &description, const std::string &imageUrl, const std::string &difficulty, const std::string &totalTime, std::vector<ThumbContext *> &pending_thumbs)
+static lv_obj_t *createRecipeCardInternal(lv_obj_t *parent, const std::string &name, const std::string &description, const std::string &imageUrl, const std::string &difficulty, const std::string &totalTime, const std::string &recipeSource, std::vector<ThumbContext *> &pending_thumbs)
 {
     // === CARD ===
     lv_obj_t *card = lv_obj_create(parent);
@@ -408,12 +410,19 @@ static lv_obj_t *createRecipeCardInternal(lv_obj_t *parent, const std::string &n
     lv_obj_set_style_border_width(thumb, 0, 0);
     lv_image_set_inner_align(thumb, LV_IMAGE_ALIGN_COVER);
 
-    if (!imageUrl.empty())
+    std::string thumbUrl = imageUrl;
+    if (imageUrl.empty() && recipeSource == "ai-deepseek") {
+        // Generate a placeholder URL that will trigger AI image generation
+        thumbUrl = "generate:" + name + "|||" + description;
+        ESP_LOGI(TAG, "AI recipe with no image, will generate: %s", name.c_str());
+    }
+
+    if (!thumbUrl.empty())
     {
         ESP_LOGI(TAG, "Scheduling thumb fetch for recipe: %s", name.c_str());
         lv_obj_t *shimmer = create_shimmer_overlay(thumb);
         start_shimmer_animation(shimmer, thumb);
-        ThumbContext *tctx = new ThumbContext{thumb, shimmer, imageUrl, s_thumb_generation};
+        ThumbContext *tctx = new ThumbContext{thumb, shimmer, thumbUrl, s_thumb_generation};
         ESP_LOGI(TAG, ">>> about to create task, internal heap: %" PRIu32,
                  heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
         pending_thumbs.push_back(tctx);
@@ -510,12 +519,12 @@ static lv_obj_t *createRecipeCardInternal(lv_obj_t *parent, const std::string &n
 
 lv_obj_t *createRecipeCard(lv_obj_t *parent, const RecipeSuggestion &recipe, std::vector<ThumbContext *> &pending_thumbs)
 {
-    return createRecipeCardInternal(parent, recipe.name, recipe.description, recipe.imageUrl, recipe.difficulty, recipe.totalTime, pending_thumbs);
+    return createRecipeCardInternal(parent, recipe.name, recipe.description, recipe.imageUrl, recipe.difficulty, recipe.totalTime, recipe.recipeSource, pending_thumbs);
 }
 
 lv_obj_t *createRecipeCard(lv_obj_t *parent, const Favorite &fav, std::vector<ThumbContext *> &pending_thumbs)
 {
-    return createRecipeCardInternal(parent, fav.name, fav.description, fav.imageUrl, fav.difficulty, fav.totalTime, pending_thumbs);
+    return createRecipeCardInternal(parent, fav.name, fav.description, fav.imageUrl, fav.difficulty, fav.totalTime, "", pending_thumbs);
 }
 
 // === THUMBNAIL FETCH/DECODE ===
@@ -635,6 +644,137 @@ static bool decode_jpeg_buffer(uint8_t *jpeg_buf, size_t jpeg_len, uint8_t **out
     return true;
 }
 
+// Helper function to generate image using Gemini API
+static std::string gemini_generate_image(const std::string &prompt, uint16_t width, uint16_t height, int &status, int timeout_ms = 120000)
+{
+    ESP_LOGI(TAG, "Generating image with Gemini API, prompt: %s", prompt.c_str());
+
+    // Build the full URL with API key
+    std::string url = std::string(GEMINI_ENDPOINT) + "/" + std::string(GEMINI_IMAGE_MODEL) + ":generateImages?key=" + std::string(GEMINI_API_KEY);
+
+    esp_http_client_config_t cfg = {};
+    cfg.url = url.c_str();
+    cfg.timeout_ms = timeout_ms;
+    cfg.buffer_size = 8192; // Larger buffer for image responses
+    cfg.buffer_size_tx = 2048;
+    cfg.skip_cert_common_name_check = false;
+    cfg.crt_bundle_attach = esp_crt_bundle_attach;
+
+    esp_http_client_handle_t client = esp_http_client_init(&cfg);
+    if (!client)
+    {
+        ESP_LOGE(TAG, "Failed to create HTTP client for Gemini");
+        status = -1;
+        return {};
+    }
+
+    // Build JSON payload for image generation
+    cJSON *payload = cJSON_CreateObject();
+    cJSON_AddStringToObject(payload, "prompt", prompt.c_str());
+    cJSON_AddNumberToObject(payload, "numberOfImages", 1);
+    // Add width and height parameters
+    cJSON_AddNumberToObject(payload, "width", width);
+    cJSON_AddNumberToObject(payload, "height", height);
+    // Calculate aspect ratio string (simplified)
+    if (width == height) {
+        cJSON_AddStringToObject(payload, "aspectRatio", "1:1");
+    } else if (width > height) {
+        cJSON_AddStringToObject(payload, "aspectRatio", "16:9"); // landscape
+    } else {
+        cJSON_AddStringToObject(payload, "aspectRatio", "9:16"); // portrait
+    }
+    cJSON_AddStringToObject(payload, "outputFormat", "JPEG");
+    cJSON_AddNumberToObject(payload, "outputQuality", 85);
+
+    char *payloadStr = cJSON_PrintUnformatted(payload);
+    cJSON_Delete(payload);
+    if (!payloadStr)
+    {
+        ESP_LOGE(TAG, "Failed to stringify Gemini payload");
+        esp_http_client_cleanup(client);
+        status = -1;
+        return {};
+    }
+
+    ESP_LOGI(TAG, "Gemini payload: %s", payloadStr);
+
+    // Set headers
+    esp_http_client_set_header(client, "Content-Type", "application/json");
+    esp_http_client_set_method(client, HTTP_METHOD_POST);
+
+    esp_err_t err = esp_http_client_open(client, strlen(payloadStr));
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG, "HTTP open error: %s", esp_err_to_name(err));
+        free(payloadStr);
+        status = -1;
+        esp_http_client_cleanup(client);
+        return {};
+    }
+
+    int bytes_written = esp_http_client_write(client, payloadStr, strlen(payloadStr));
+    free(payloadStr);
+    if (bytes_written != strlen(payloadStr))
+    {
+        ESP_LOGE(TAG, "Write error: wrote %d of %d bytes", bytes_written, (int)strlen(payloadStr));
+        status = -1;
+        esp_http_client_cleanup(client);
+        return {};
+    }
+
+    esp_http_client_fetch_headers(client);
+    status = esp_http_client_get_status_code(client);
+    ESP_LOGI(TAG, "Gemini API Status: %d. Reading response", status);
+
+    std::string response;
+    char buffer[2048];
+    int bytes_read;
+    while ((bytes_read = esp_http_client_read(client, buffer, sizeof(buffer))) > 0)
+    {
+        response.append(buffer, bytes_read);
+    }
+
+    ESP_LOGI(TAG, "Gemini response length: %d", response.length());
+    esp_http_client_cleanup(client);
+
+    if (status != 200)
+    {
+        ESP_LOGE(TAG, "Gemini API error: HTTP %d, response: %s", status, response.c_str());
+        return {};
+    }
+
+    // Parse response to extract base64 image
+    cJSON *root = cJSON_Parse(response.c_str());
+    if (!root)
+    {
+        ESP_LOGE(TAG, "Failed to parse Gemini response JSON");
+        return {};
+    }
+
+    cJSON *images = cJSON_GetObjectItem(root, "images");
+    if (!cJSON_IsArray(images) || cJSON_GetArraySize(images) == 0)
+    {
+        ESP_LOGE(TAG, "No images array in Gemini response");
+        cJSON_Delete(root);
+        return {};
+    }
+
+    cJSON *firstImage = cJSON_GetArrayItem(images, 0);
+    cJSON *bytesField = cJSON_GetObjectItem(firstImage, "bytes");
+    if (!cJSON_IsString(bytesField))
+    {
+        ESP_LOGE(TAG, "No bytes field in Gemini image");
+        cJSON_Delete(root);
+        return {};
+    }
+
+    std::string base64Image = bytesField->valuestring;
+    cJSON_Delete(root);
+
+    ESP_LOGI(TAG, "Gemini image generation successful, base64 length: %d", base64Image.length());
+    return base64Image;
+}
+
 bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
                            lv_image_dsc_t **out_dsc, uint8_t **out_px,
                            bool useCache)
@@ -690,30 +830,13 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
     }
 
     // -------------------------------------------------------------------------
-    // Build request payload
+    // Determine if we need to generate an image (special "generate:" URL)
     // -------------------------------------------------------------------------
-    cJSON *bodyJson = cJSON_CreateObject();
-    if (!bodyJson)
-    {
-        ESP_LOGE(TAG, "Failed to create body JSON object");
-        return false;
-    }
-    cJSON_AddStringToObject(bodyJson, "url", url.c_str());
-    cJSON_AddNumberToObject(bodyJson, "maxWidth", W);
-    cJSON_AddNumberToObject(bodyJson, "maxHeight", H);
-    char *bodyJsonStr = cJSON_PrintUnformatted(bodyJson);
-    cJSON_Delete(bodyJson);
-    ESP_LOGI(TAG, "Request payload length: %d", strlen(bodyJsonStr));
-    if (!bodyJsonStr)
-    {
-        ESP_LOGE(TAG, "Failed to stringify body JSON");
-        return false;
-    }
-
-    // -------------------------------------------------------------------------
-    // Execute Appwrite function
-    // -------------------------------------------------------------------------
+    bool isGenerate = (url.find("generate:") == 0);
+    std::string b64Str;
     bool sem_taken = false;
+
+    // Take HTTP concurrency semaphore before any network request
     if (s_http_concurrency_sem)
     {
         if (xSemaphoreTake(s_http_concurrency_sem, portMAX_DELAY) == pdTRUE)
@@ -723,32 +846,100 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
         else
         {
             ESP_LOGE(TAG, "Failed to take HTTP concurrency semaphore");
-            free(bodyJsonStr);
             return false;
         }
     }
 
-    int status = 0;
-    ESP_LOGI(TAG, "Calling Appwrite function %s", APPWRITE_IMAGE_RESIZE_FUNCTION_ID);
-    std::string response = getAppwriteClient().executeFunction(APPWRITE_IMAGE_RESIZE_FUNCTION_ID, bodyJsonStr, false, status);
-    free(bodyJsonStr);
-    ESP_LOGI(TAG, "HTTP status: %d, response size: %d", status, response.size());
-
-    if ((status != 200 && status != 201 && status != 202) || response.empty())
+    if (isGenerate)
     {
-        ESP_LOGE(TAG, "HTTP request failed or empty response");
-        if (!response.empty())
-            ESP_LOGE(TAG, "Error response: %.*s", response.size(), response.c_str());
-        if (sem_taken)
-            xSemaphoreGive(s_http_concurrency_sem);
-        return false;
+        // Parse "generate:Name|||Description"
+        std::string rest = url.substr(9); // skip "generate:"
+        size_t delim = rest.find("|||");
+        std::string recipeName = (delim != std::string::npos) ? rest.substr(0, delim) : rest;
+        std::string recipeDesc = (delim != std::string::npos) ? rest.substr(delim + 3) : "";
+        ESP_LOGI(TAG, "Generating image for AI recipe: %s", recipeName.c_str());
+
+        // Check if Gemini API key is configured
+        if (strlen(GEMINI_API_KEY) == 0)
+        {
+            ESP_LOGW(TAG, "GEMINI_API_KEY not configured, cannot generate image");
+            if (sem_taken)
+                xSemaphoreGive(s_http_concurrency_sem);
+            return false;
+        }
+
+        // Build a prompt for image generation
+        std::string prompt = "Generate an appetizing, high-quality food photography image of ";
+        prompt += recipeName;
+        if (!recipeDesc.empty())
+        {
+            prompt += ". Description: ";
+            prompt += recipeDesc;
+        }
+        prompt += ". The image should be ";
+        if (W == H) {
+            prompt += "square";
+        } else if (W > H) {
+            prompt += "landscape orientation";
+        } else {
+            prompt += "portrait orientation";
+        }
+        prompt += ", professional food photography style, realistic, well-lit.";
+
+        int status = 0;
+        b64Str = gemini_generate_image(prompt, W, H, status);
+        if (b64Str.empty())
+        {
+            ESP_LOGE(TAG, "Gemini image generation failed with status: %d", status);
+            if (sem_taken)
+                xSemaphoreGive(s_http_concurrency_sem);
+            return false;
+        }
     }
-
-    // -------------------------------------------------------------------------
-    // Parse Appwrite envelope → responseBody → image (base64)
-    // -------------------------------------------------------------------------
-    std::string b64Str;
+    else
     {
+        // Regular image URL - use Appwrite resize function
+        cJSON *bodyJson = cJSON_CreateObject();
+        if (!bodyJson)
+        {
+            ESP_LOGE(TAG, "Failed to create body JSON object");
+            if (sem_taken)
+                xSemaphoreGive(s_http_concurrency_sem);
+            return false;
+        }
+
+        cJSON_AddStringToObject(bodyJson, "url", url.c_str());
+        cJSON_AddNumberToObject(bodyJson, "maxWidth", W);
+        cJSON_AddNumberToObject(bodyJson, "maxHeight", H);
+
+        char *bodyJsonStr = cJSON_PrintUnformatted(bodyJson);
+        cJSON_Delete(bodyJson);
+        ESP_LOGI(TAG, "Request payload length: %d", strlen(bodyJsonStr));
+        if (!bodyJsonStr)
+        {
+            ESP_LOGE(TAG, "Failed to stringify body JSON");
+            if (sem_taken)
+                xSemaphoreGive(s_http_concurrency_sem);
+            return false;
+        }
+
+        int status = 0;
+        ESP_LOGI(TAG, "Calling Appwrite function %s", APPWRITE_IMAGE_RESIZE_FUNCTION_ID);
+        std::string response = getAppwriteClient().executeFunction(APPWRITE_IMAGE_RESIZE_FUNCTION_ID, bodyJsonStr, false, status);
+        free(bodyJsonStr);
+        ESP_LOGI(TAG, "HTTP status: %d, response size: %d", status, response.size());
+
+        if ((status != 200 && status != 201 && status != 202) || response.empty())
+        {
+            ESP_LOGE(TAG, "HTTP request failed or empty response");
+            if (!response.empty())
+                ESP_LOGE(TAG, "Error response: %.*s", response.size(), response.c_str());
+            if (sem_taken)
+                xSemaphoreGive(s_http_concurrency_sem);
+            return false;
+        }
+
+        // Parse Appwrite envelope → responseBody → image (base64)
         cJSON *root = cJSON_Parse(response.c_str());
         if (!root)
         {
