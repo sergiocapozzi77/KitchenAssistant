@@ -411,7 +411,8 @@ static lv_obj_t *createRecipeCardInternal(lv_obj_t *parent, const std::string &n
     lv_image_set_inner_align(thumb, LV_IMAGE_ALIGN_COVER);
 
     std::string thumbUrl = imageUrl;
-    if (imageUrl.empty() && recipeSource == "ai-deepseek") {
+    if (imageUrl.empty() && recipeSource == "ai-deepseek")
+    {
         // Generate a placeholder URL that will trigger AI image generation
         thumbUrl = "generate:" + name + "|||" + description;
         ESP_LOGI(TAG, "AI recipe with no image, will generate: %s", name.c_str());
@@ -564,6 +565,7 @@ void thumb_obj_deleted_cb(lv_event_t *e)
     ThumbContext *ctx = (ThumbContext *)lv_event_get_user_data(e);
     if (ctx)
     {
+        ctx->cancelled.store(true);
         ctx->thumb = nullptr;
         // If shimmer exists (child of thumb), it will be automatically deleted when thumb is deleted
         // but we should stop its animation and null the pointer
@@ -676,11 +678,16 @@ static std::string gemini_generate_image(const std::string &prompt, uint16_t wid
     cJSON_AddNumberToObject(payload, "width", width);
     cJSON_AddNumberToObject(payload, "height", height);
     // Calculate aspect ratio string (simplified)
-    if (width == height) {
+    if (width == height)
+    {
         cJSON_AddStringToObject(payload, "aspectRatio", "1:1");
-    } else if (width > height) {
+    }
+    else if (width > height)
+    {
         cJSON_AddStringToObject(payload, "aspectRatio", "16:9"); // landscape
-    } else {
+    }
+    else
+    {
         cJSON_AddStringToObject(payload, "aspectRatio", "9:16"); // portrait
     }
     cJSON_AddStringToObject(payload, "outputFormat", "JPEG");
@@ -877,11 +884,16 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
             prompt += recipeDesc;
         }
         prompt += ". The image should be ";
-        if (W == H) {
+        if (W == H)
+        {
             prompt += "square";
-        } else if (W > H) {
+        }
+        else if (W > H)
+        {
             prompt += "landscape orientation";
-        } else {
+        }
+        else
+        {
             prompt += "portrait orientation";
         }
         prompt += ", professional food photography style, realistic, well-lit.";
@@ -1199,7 +1211,7 @@ void thumb_worker_task(void *arg)
         {
             lv_lock();
             lv_obj_t *thumb = ctx->thumb;
-            if (thumb && lv_obj_is_valid(thumb))
+            if (!ctx->cancelled.load() && ctx->thumb && lv_obj_is_valid(ctx->thumb))
             {
                 // Clean up shimmer overlay before setting image
                 if (ctx->shimmer && lv_obj_is_valid(ctx->shimmer))
@@ -1217,7 +1229,7 @@ void thumb_worker_task(void *arg)
             }
             else
             {
-                free(px);
+                heap_caps_free(px);
                 delete dsc;
             }
             lv_unlock();

@@ -10,6 +10,7 @@
 #include "esp_heap_caps.h"
 #include "esp_err.h"
 #include "models.h"
+#include <atomic>
 
 // Forward declarations of internal functions
 void init_styles();
@@ -22,10 +23,11 @@ lv_obj_t *create_shimmer_overlay(lv_obj_t *parent);
 // Thumbnail fetch/decode
 struct ThumbContext
 {
-    lv_obj_t *thumb; // nulled under lv_lock if object deleted before task finishes
+    lv_obj_t *thumb;   // nulled under lv_lock if object deleted before task finishes
     lv_obj_t *shimmer; // shimmer overlay object, null if not present
     std::string url;
     uint32_t generation;
+    std::atomic<bool> cancelled{false};
 };
 
 struct ThumbWorkerCtx
@@ -81,8 +83,8 @@ void populateIngredientsUI(lv_obj_t *container, const std::vector<std::string> &
 
 // Recipe card helpers
 void make_children_bubble(lv_obj_t *obj);
-lv_obj_t *createRecipeCard(lv_obj_t *parent, const RecipeSuggestion &recipe, std::vector<ThumbContext*> &pending_thumbs);
-lv_obj_t *createRecipeCard(lv_obj_t *parent, const Favorite &fav, std::vector<ThumbContext*> &pending_thumbs);
+lv_obj_t *createRecipeCard(lv_obj_t *parent, const RecipeSuggestion &recipe, std::vector<ThumbContext *> &pending_thumbs);
+lv_obj_t *createRecipeCard(lv_obj_t *parent, const Favorite &fav, std::vector<ThumbContext *> &pending_thumbs);
 
 // Global variables (declared extern, defined in ui_extensions.cpp)
 extern uint32_t s_thumb_generation;
