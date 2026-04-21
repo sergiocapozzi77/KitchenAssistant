@@ -614,6 +614,13 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
 
     return a->name < b->name; });
 
+    // Get selected products to restore selection state
+    std::vector<Product> selectedProducts = productsManager.getSelectedProducts();
+    std::set<std::string> selectedRowIds;
+    for (const auto& p : selectedProducts) {
+        selectedRowIds.insert(p.rowId);
+    }
+
     // Step 8: Create product rows in content container
     for (const Product *p : category_filtered)
     {
@@ -631,7 +638,10 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
         lv_obj_t *img = lv_image_create(row);
         lv_obj_clear_flag(img, LV_OBJ_FLAG_CLICKABLE); // Ensure clicks pass through to row
         lv_image_set_src(img, &img_restaurant);
-        lv_obj_add_flag(img, LV_OBJ_FLAG_HIDDEN);
+        bool isSelected = selectedRowIds.find(p->rowId) != selectedRowIds.end();
+        if (!isSelected) {
+            lv_obj_add_flag(img, LV_OBJ_FLAG_HIDDEN);
+        }
         lv_obj_set_style_translate_y(img, 5, 0);
 
         // Product Name
@@ -643,7 +653,7 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
         lv_obj_set_style_text_font(name, &ui_font_ext_font_montserrat_18, 0);
         lv_obj_set_style_translate_y(name, 5, 0);
 
-        RowClickCtx *row_ctx = new RowClickCtx{*p, img, false};
+        RowClickCtx *row_ctx = new RowClickCtx{*p, img, isSelected};
         lv_obj_add_event_cb(row, row_prod_click_cb, LV_EVENT_CLICKED, row_ctx);
         lv_obj_add_event_cb(row, free_row_click_ctx_cb, LV_EVENT_DELETE, row_ctx);
 
