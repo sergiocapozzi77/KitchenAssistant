@@ -647,18 +647,104 @@ static bool decode_jpeg_buffer(uint8_t *jpeg_buf, size_t jpeg_len, uint8_t **out
     return true;
 }
 
+static bool fetch_resized_base64(const std::string &image_url,
+                                 uint16_t W, uint16_t H,
+                                 std::string &out_b64)
+{
+    cJSON *bodyJson = cJSON_CreateObject();
+    if (!bodyJson)
+    {
+        ESP_LOGE(TAG, "Failed to create body JSON object");
+        return false;
+    }
 
-bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
-                           lv_image_dsc_t **out_dsc, uint8_t **out_px,
+    cJSON_AddStringToObject(bodyJson, "url", image_url.c_str());
+    cJSON_AddNumberToObject(bodyJson, "maxWidth", W);
+    cJSON_AddNumberToObject(bodyJson, "maxHeight", H);
+
+    char *bodyJsonStr = cJSON_PrintUnformatted(bodyJson);
+    cJSON_Delete(bodyJson);
+    if (!bodyJsonStr)
+    {
+        ESP_LOGE(TAG, "Failed to stringify body JSON");
+        return false;
+    }
+
+    ESP_LOGI(TAG, "Request payload length: %d", strlen(bodyJsonStr));
+    ESP_LOGI(TAG, "Calling Appwrite function %s", APPWRITE_IMAGE_RESIZE_FUNCTION_ID);
+
+    int status = 0;
+    std::string response = getAppwriteClient().executeFunction(
+        APPWRITE_IMAGE_RESIZE_FUNCTION_ID, bodyJsonStr, false, status);
+    free(bodyJsonStr);
+
+    ESP_LOGI(TAG, "HTTP status: %d, response size: %d", status, response.size());
+
+    if ((status != 200 && status != 201 && status != 202) || response.empty())
+    {
+        ESP_LOGE(TAG, "HTTP request failed or empty response");
+        if (!response.empty())
+            ESP_LOGE(TAG, "Error response: %.*s", response.size(), response.c_str());
+        return false;
+    }
+
+    // Parse Appwrite envelope → responseBody → image (base64)
+    cJSON *root = cJSON_Parse(response.c_str());
+    if (!root)
+    {
+        ESP_LOGE(TAG, "Failed to parse Appwrite envelope JSON");
+        return false;
+    }
+
+    cJSON *responseBodyField = cJSON_GetObjectItem(root, "responseBody");
+    if (!responseBodyField || !cJSON_IsString(responseBodyField))
+    {
+        ESP_LOGE(TAG, "Missing or invalid 'responseBody' field");
+        cJSON_Delete(root);
+        return false;
+    }
+
+    cJSON *innerJson = cJSON_Parse(responseBodyField->valuestring);
+    cJSON_Delete(root); // responseBodyField pointer now invalid
+    if (!innerJson)
+    {
+        ESP_LOGE(TAG, "Failed to parse inner responseBody JSON");
+        return false;
+    }
+
+    cJSON *imageField = cJSON_GetObjectItem(innerJson, "image");
+    if (!imageField || !cJSON_IsString(imageField))
+    {
+        ESP_LOGE(TAG, "Missing or invalid 'image' field in response");
+        cJSON_Delete(innerJson);
+        return false;
+    }
+
+    out_b64 = imageField->valuestring;
+    cJSON_Delete(innerJson);
+    return true;
+}
+
+// -----------------------------------------------------------------------------
+// Main function
+// -----------------------------------------------------------------------------
+bool fetch_and_decode_jpeg(const std::string &url,
+                           uint16_t W, uint16_t H,
+                           lv_image_dsc_t **out_dsc,
+                           uint8_t **out_px,
                            bool useCache)
 {
     std::vector<uint8_t> cached_jpeg;
     bool fromCache = false;
-    uint16_t reqW = W;
+    uint16_t reqW = W; // store requested dimensions for cache storage
     uint16_t reqH = H;
-    ESP_LOGI(TAG, "fetch_and_decode_jpeg: url=%s, requested size=%ux%u, useCache=%d", url.c_str(), W, H, useCache);
 
-    // Try cache first if enabled
+    ESP_LOGI(TAG, "fetch_and_decode_jpeg: url=%s, requested size=%ux%u, useCache=%d",
+             url.c_str(), W, H, useCache);
+
+    // -------------------------------------------------------------------------
+    // 1. Try cache if enabled
+    // -------------------------------------------------------------------------
     if (useCache && thumbnail_cache::get(url, W, H, cached_jpeg))
     {
         ESP_LOGI(TAG, "Cache hit for %s %ux%u", url.c_str(), W, H);
@@ -671,11 +757,13 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
 
     if (fromCache)
     {
-        // Decode cached JPEG
-        uint8_t *jpeg_buf = (uint8_t *)heap_caps_malloc(cached_jpeg.size(), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        // Decode from cache
+        uint8_t *jpeg_buf = (uint8_t *)heap_caps_malloc(cached_jpeg.size(),
+                                                        MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
         if (!jpeg_buf)
         {
-            ESP_LOGE(TAG, "jpeg_buf malloc failed for cached data, requested: %u", cached_jpeg.size());
+            ESP_LOGE(TAG, "jpeg_buf malloc failed for cached data, requested: %u",
+                     cached_jpeg.size());
             return false;
         }
         memcpy(jpeg_buf, cached_jpeg.data(), cached_jpeg.size());
@@ -703,45 +791,36 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
     }
 
     // -------------------------------------------------------------------------
-    // Determine if we need to generate an image (special "generate:" URL)
+    // 2. Network path: acquire concurrency semaphore once
     // -------------------------------------------------------------------------
-    bool isGenerate = (url.find("generate:") == 0);
-    std::string b64Str;
-    bool sem_taken = false;
-
-    // Take HTTP concurrency semaphore before any network request
-    if (s_http_concurrency_sem)
+    SemaphoreGuard semGuard(s_http_concurrency_sem);
+    if (!semGuard.acquired())
     {
-        if (xSemaphoreTake(s_http_concurrency_sem, portMAX_DELAY) == pdTRUE)
-        {
-            sem_taken = true;
-        }
-        else
-        {
-            ESP_LOGE(TAG, "Failed to take HTTP concurrency semaphore");
-            return false;
-        }
+        ESP_LOGE(TAG, "Failed to take HTTP concurrency semaphore");
+        return false;
     }
 
+    std::string image_url_to_fetch;
+
+    // -------------------------------------------------------------------------
+    // 3. Handle "generate:" URLs (Gemini)
+    // -------------------------------------------------------------------------
+    bool isGenerate = (url.find("generate:") == 0);
     if (isGenerate)
     {
-        // Parse "generate:Name|||Description"
         std::string rest = url.substr(9); // skip "generate:"
         size_t delim = rest.find("|||");
         std::string recipeName = (delim != std::string::npos) ? rest.substr(0, delim) : rest;
         std::string recipeDesc = (delim != std::string::npos) ? rest.substr(delim + 3) : "";
+
         ESP_LOGI(TAG, "Generating image for AI recipe: %s", recipeName.c_str());
 
-        // Check if Gemini API key is configured
         if (strlen(GEMINI_API_KEY) == 0)
         {
             ESP_LOGW(TAG, "GEMINI_API_KEY not configured, cannot generate image");
-            if (sem_taken)
-                xSemaphoreGive(s_http_concurrency_sem);
             return false;
         }
 
-        // Build a prompt for image generation
         std::string prompt = "Generate an appetizing, high-quality food photography image of ";
         prompt += recipeName;
         if (!recipeDesc.empty())
@@ -750,121 +829,37 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
             prompt += recipeDesc;
         }
         prompt += ". The image should be ";
-        if (W == H)
-        {
-            prompt += "square";
-        }
-        else if (W > H)
-        {
-            prompt += "landscape orientation";
-        }
-        else
-        {
-            prompt += "portrait orientation";
-        }
+        prompt += (W == H) ? "square" : (W > H ? "landscape orientation" : "portrait orientation");
         prompt += ", professional food photography style, realistic, well-lit.";
 
         int status = 0;
-        static GeminiImageGenerator geminiGen(GEMINI_ENDPOINT, GEMINI_IMAGE_MODEL, GEMINI_API_KEY, 120000);
-        b64Str = geminiGen.generateImage(prompt, W, H, status);
-        if (b64Str.empty())
+        static GeminiImageGenerator geminiGen(GEMINI_ENDPOINT, GEMINI_IMAGE_MODEL,
+                                              GEMINI_API_KEY, 120000);
+        std::string generatedUrl = geminiGen.generateImage(prompt, W, H, status);
+        if (generatedUrl.empty())
         {
             ESP_LOGE(TAG, "Gemini image generation failed with status: %d", status);
-            if (sem_taken)
-                xSemaphoreGive(s_http_concurrency_sem);
             return false;
         }
+        image_url_to_fetch = generatedUrl;
     }
     else
     {
-        // Regular image URL - use Appwrite resize function
-        cJSON *bodyJson = cJSON_CreateObject();
-        if (!bodyJson)
-        {
-            ESP_LOGE(TAG, "Failed to create body JSON object");
-            if (sem_taken)
-                xSemaphoreGive(s_http_concurrency_sem);
-            return false;
-        }
-
-        cJSON_AddStringToObject(bodyJson, "url", url.c_str());
-        cJSON_AddNumberToObject(bodyJson, "maxWidth", W);
-        cJSON_AddNumberToObject(bodyJson, "maxHeight", H);
-
-        char *bodyJsonStr = cJSON_PrintUnformatted(bodyJson);
-        cJSON_Delete(bodyJson);
-        ESP_LOGI(TAG, "Request payload length: %d", strlen(bodyJsonStr));
-        if (!bodyJsonStr)
-        {
-            ESP_LOGE(TAG, "Failed to stringify body JSON");
-            if (sem_taken)
-                xSemaphoreGive(s_http_concurrency_sem);
-            return false;
-        }
-
-        int status = 0;
-        ESP_LOGI(TAG, "Calling Appwrite function %s", APPWRITE_IMAGE_RESIZE_FUNCTION_ID);
-        std::string response = getAppwriteClient().executeFunction(APPWRITE_IMAGE_RESIZE_FUNCTION_ID, bodyJsonStr, false, status);
-        free(bodyJsonStr);
-        ESP_LOGI(TAG, "HTTP status: %d, response size: %d", status, response.size());
-
-        if ((status != 200 && status != 201 && status != 202) || response.empty())
-        {
-            ESP_LOGE(TAG, "HTTP request failed or empty response");
-            if (!response.empty())
-                ESP_LOGE(TAG, "Error response: %.*s", response.size(), response.c_str());
-            if (sem_taken)
-                xSemaphoreGive(s_http_concurrency_sem);
-            return false;
-        }
-
-        // Parse Appwrite envelope → responseBody → image (base64)
-        cJSON *root = cJSON_Parse(response.c_str());
-        if (!root)
-        {
-            ESP_LOGE(TAG, "Failed to parse Appwrite envelope JSON");
-            if (sem_taken)
-                xSemaphoreGive(s_http_concurrency_sem);
-            return false;
-        }
-
-        cJSON *responseBodyField = cJSON_GetObjectItem(root, "responseBody");
-        if (!responseBodyField || !cJSON_IsString(responseBodyField))
-        {
-            ESP_LOGE(TAG, "Missing or invalid 'responseBody' field");
-            cJSON_Delete(root);
-            if (sem_taken)
-                xSemaphoreGive(s_http_concurrency_sem);
-            return false;
-        }
-
-        cJSON *innerJson = cJSON_Parse(responseBodyField->valuestring);
-        cJSON_Delete(root); // done with outer — responseBodyField is now invalid
-        if (!innerJson)
-        {
-            ESP_LOGE(TAG, "Failed to parse inner responseBody JSON");
-            if (sem_taken)
-                xSemaphoreGive(s_http_concurrency_sem);
-            return false;
-        }
-
-        cJSON *imageField = cJSON_GetObjectItem(innerJson, "image");
-        if (!imageField || !cJSON_IsString(imageField))
-        {
-            ESP_LOGE(TAG, "Missing or invalid 'image' field in response");
-            cJSON_Delete(innerJson);
-            if (sem_taken)
-                xSemaphoreGive(s_http_concurrency_sem);
-            return false;
-        }
-
-        // Copy out before freeing innerJson — pointer would dangle otherwise
-        b64Str = imageField->valuestring;
-        cJSON_Delete(innerJson);
+        // Regular URL
+        image_url_to_fetch = url;
     }
 
     // -------------------------------------------------------------------------
-    // Base64 decode → JPEG buffer
+    // 4. Common Appwrite fetch + base64 extraction
+    // -------------------------------------------------------------------------
+    std::string b64Str;
+    if (!fetch_resized_base64(image_url_to_fetch, W, H, b64Str))
+    {
+        return false;
+    }
+
+    // -------------------------------------------------------------------------
+    // 5. Base64 decode → JPEG buffer
     // -------------------------------------------------------------------------
     const uint8_t *b64 = reinterpret_cast<const uint8_t *>(b64Str.c_str());
     size_t b64Len = b64Str.size();
@@ -875,8 +870,6 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
     if (ret != 0 && ret != MBEDTLS_ERR_BASE64_BUFFER_TOO_SMALL)
     {
         ESP_LOGE(TAG, "mbedtls_base64_decode size check failed: -0x%04X", -ret);
-        if (sem_taken)
-            xSemaphoreGive(s_http_concurrency_sem);
         return false;
     }
     ESP_LOGI(TAG, "JPEG length after base64 decode: %u bytes", jpegLen);
@@ -885,8 +878,6 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
     if (!jpeg_buf)
     {
         ESP_LOGE(TAG, "jpeg_buf malloc failed, requested: %u", jpegLen);
-        if (sem_taken)
-            xSemaphoreGive(s_http_concurrency_sem);
         return false;
     }
     ESP_LOGI(TAG, "JPEG buffer allocated: %u bytes", jpegLen);
@@ -896,20 +887,17 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
     {
         ESP_LOGE(TAG, "mbedtls_base64_decode failed: -0x%04X", -ret);
         heap_caps_free(jpeg_buf);
-        if (sem_taken)
-            xSemaphoreGive(s_http_concurrency_sem);
         return false;
     }
     ESP_LOGI(TAG, "Decoded JPEG: %u bytes", jpegLen);
-    // Release HTTP concurrency semaphore before CPU-intensive decode
-    if (sem_taken)
-    {
-        xSemaphoreGive(s_http_concurrency_sem);
-        sem_taken = false;
-    }
 
     // -------------------------------------------------------------------------
-    // tjpgd decode
+    // 6. Release HTTP semaphore early before CPU‑intensive JPEG decode
+    // -------------------------------------------------------------------------
+    semGuard.release();
+
+    // -------------------------------------------------------------------------
+    // 7. tjpgd decode
     // -------------------------------------------------------------------------
     uint8_t *work = (uint8_t *)heap_caps_malloc(3100, MALLOC_CAP_INTERNAL);
     if (!work)
@@ -932,7 +920,8 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
         uint16_t decoded_w = jd.width >> jd.scale;
         uint16_t decoded_h = jd.height >> jd.scale;
 
-        px = (uint8_t *)heap_caps_malloc(decoded_w * decoded_h * 3, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        px = (uint8_t *)heap_caps_malloc(decoded_w * decoded_h * 3,
+                                         MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
         if (!px)
         {
             ESP_LOGE(TAG, "px malloc failed (%ux%u)", decoded_w, decoded_h);
@@ -940,18 +929,21 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
             heap_caps_free(work);
             return false;
         }
-        ESP_LOGI(TAG, "Pixel buffer allocated: %u x %u = %u bytes", decoded_w, decoded_h, decoded_w * decoded_h * 3);
+        ESP_LOGI(TAG, "Pixel buffer allocated: %u x %u = %u bytes",
+                 decoded_w, decoded_h, decoded_w * decoded_h * 3);
 
         io.dst = px;
         io.out_w = decoded_w;
-        W = decoded_w;
+        W = decoded_w; // update dimensions to actual decoded size
         H = decoded_h;
 
         res = jd_decomp(&jd, tjpgd_out_cb, jd.scale);
         ESP_LOGI(TAG, "jd_decomp: %d", res);
     }
 
-    // Store in cache if enabled (only if decode succeeded)
+    // -------------------------------------------------------------------------
+    // 8. Store in cache if enabled (only if decode succeeded)
+    // -------------------------------------------------------------------------
     if (res == JDR_OK && useCache)
     {
         if (!thumbnail_cache::put(url, reqW, reqH, jpeg_buf, jpegLen))
@@ -976,7 +968,7 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
     }
 
     // -------------------------------------------------------------------------
-    // Build LVGL image descriptor
+    // 9. Build LVGL image descriptor
     // -------------------------------------------------------------------------
     lv_image_dsc_t *dsc = new lv_image_dsc_t{};
     dsc->header.cf = LV_COLOR_FORMAT_RGB888;
@@ -988,8 +980,8 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
 
     *out_dsc = dsc;
     *out_px = px;
-    ESP_LOGI(TAG, "fetch_and_decode_jpeg succeeded: %ux%u image", W, H);
 
+    ESP_LOGI(TAG, "fetch_and_decode_jpeg succeeded: %ux%u image", W, H);
     ESP_LOGI("DBG", "Task %s HWM: %u", pcTaskGetName(NULL),
              uxTaskGetStackHighWaterMark(NULL));
 

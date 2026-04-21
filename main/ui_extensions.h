@@ -1,5 +1,7 @@
 #pragma once
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include <vector>
 #include <string>
 #include "models.h"
@@ -16,3 +18,30 @@ extern uint32_t s_thumb_generation;
 void showSpinner();
 void hideSpinner();
 void close_product_edit_modal();
+
+class SemaphoreGuard
+{
+public:
+    explicit SemaphoreGuard(SemaphoreHandle_t sem) : sem_(sem)
+    {
+        acquired_ = (sem_ && xSemaphoreTake(sem_, portMAX_DELAY) == pdTRUE);
+    }
+    ~SemaphoreGuard()
+    {
+        if (acquired_)
+            xSemaphoreGive(sem_);
+    }
+    bool acquired() const { return acquired_; }
+    void release()
+    {
+        if (acquired_)
+        {
+            xSemaphoreGive(sem_);
+            acquired_ = false;
+        }
+    }
+
+private:
+    SemaphoreHandle_t sem_;
+    bool acquired_;
+};
