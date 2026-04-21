@@ -22,6 +22,7 @@
 #include "freertos/timers.h"
 #include "secrets.h"
 #include "AppwriteHttpClient.h"
+#include "GeminiImageGenerator.h"
 #include "AppwriteClientInstance.h"
 #include "cJSON.h"
 #include "thumbnail_cache.h"
@@ -646,141 +647,6 @@ static bool decode_jpeg_buffer(uint8_t *jpeg_buf, size_t jpeg_len, uint8_t **out
     return true;
 }
 
-// Helper function to generate image using Gemini API
-static std::string gemini_generate_image(const std::string &prompt, uint16_t width, uint16_t height, int &status, int timeout_ms = 120000)
-{
-    ESP_LOGI(TAG, "Generating image with Gemini API, prompt: %s", prompt.c_str());
-
-    // Build the full URL with API key
-    std::string url = std::string(GEMINI_ENDPOINT) + "/" + std::string(GEMINI_IMAGE_MODEL) + ":generateImages?key=" + std::string(GEMINI_API_KEY);
-
-    esp_http_client_config_t cfg = {};
-    cfg.url = url.c_str();
-    cfg.timeout_ms = timeout_ms;
-    cfg.buffer_size = 8192; // Larger buffer for image responses
-    cfg.buffer_size_tx = 2048;
-    cfg.skip_cert_common_name_check = false;
-    cfg.crt_bundle_attach = esp_crt_bundle_attach;
-
-    esp_http_client_handle_t client = esp_http_client_init(&cfg);
-    if (!client)
-    {
-        ESP_LOGE(TAG, "Failed to create HTTP client for Gemini");
-        status = -1;
-        return {};
-    }
-
-    // Build JSON payload for image generation
-    cJSON *payload = cJSON_CreateObject();
-    cJSON_AddStringToObject(payload, "prompt", prompt.c_str());
-    cJSON_AddNumberToObject(payload, "numberOfImages", 1);
-    // Add width and height parameters
-    cJSON_AddNumberToObject(payload, "width", width);
-    cJSON_AddNumberToObject(payload, "height", height);
-    // Calculate aspect ratio string (simplified)
-    if (width == height)
-    {
-        cJSON_AddStringToObject(payload, "aspectRatio", "1:1");
-    }
-    else if (width > height)
-    {
-        cJSON_AddStringToObject(payload, "aspectRatio", "16:9"); // landscape
-    }
-    else
-    {
-        cJSON_AddStringToObject(payload, "aspectRatio", "9:16"); // portrait
-    }
-    cJSON_AddStringToObject(payload, "outputFormat", "JPEG");
-    cJSON_AddNumberToObject(payload, "outputQuality", 85);
-
-    char *payloadStr = cJSON_PrintUnformatted(payload);
-    cJSON_Delete(payload);
-    if (!payloadStr)
-    {
-        ESP_LOGE(TAG, "Failed to stringify Gemini payload");
-        esp_http_client_cleanup(client);
-        status = -1;
-        return {};
-    }
-
-    ESP_LOGI(TAG, "Gemini payload: %s", payloadStr);
-
-    // Set headers
-    esp_http_client_set_header(client, "Content-Type", "application/json");
-    esp_http_client_set_method(client, HTTP_METHOD_POST);
-
-    esp_err_t err = esp_http_client_open(client, strlen(payloadStr));
-    if (err != ESP_OK)
-    {
-        ESP_LOGE(TAG, "HTTP open error: %s", esp_err_to_name(err));
-        free(payloadStr);
-        status = -1;
-        esp_http_client_cleanup(client);
-        return {};
-    }
-
-    int bytes_written = esp_http_client_write(client, payloadStr, strlen(payloadStr));
-    free(payloadStr);
-    if (bytes_written != strlen(payloadStr))
-    {
-        ESP_LOGE(TAG, "Write error: wrote %d of %d bytes", bytes_written, (int)strlen(payloadStr));
-        status = -1;
-        esp_http_client_cleanup(client);
-        return {};
-    }
-
-    esp_http_client_fetch_headers(client);
-    status = esp_http_client_get_status_code(client);
-    ESP_LOGI(TAG, "Gemini API Status: %d. Reading response", status);
-
-    std::string response;
-    char buffer[2048];
-    int bytes_read;
-    while ((bytes_read = esp_http_client_read(client, buffer, sizeof(buffer))) > 0)
-    {
-        response.append(buffer, bytes_read);
-    }
-
-    ESP_LOGI(TAG, "Gemini response length: %d", response.length());
-    esp_http_client_cleanup(client);
-
-    if (status != 200)
-    {
-        ESP_LOGE(TAG, "Gemini API error: HTTP %d, response: %s", status, response.c_str());
-        return {};
-    }
-
-    // Parse response to extract base64 image
-    cJSON *root = cJSON_Parse(response.c_str());
-    if (!root)
-    {
-        ESP_LOGE(TAG, "Failed to parse Gemini response JSON");
-        return {};
-    }
-
-    cJSON *images = cJSON_GetObjectItem(root, "images");
-    if (!cJSON_IsArray(images) || cJSON_GetArraySize(images) == 0)
-    {
-        ESP_LOGE(TAG, "No images array in Gemini response");
-        cJSON_Delete(root);
-        return {};
-    }
-
-    cJSON *firstImage = cJSON_GetArrayItem(images, 0);
-    cJSON *bytesField = cJSON_GetObjectItem(firstImage, "bytes");
-    if (!cJSON_IsString(bytesField))
-    {
-        ESP_LOGE(TAG, "No bytes field in Gemini image");
-        cJSON_Delete(root);
-        return {};
-    }
-
-    std::string base64Image = bytesField->valuestring;
-    cJSON_Delete(root);
-
-    ESP_LOGI(TAG, "Gemini image generation successful, base64 length: %d", base64Image.length());
-    return base64Image;
-}
 
 bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
                            lv_image_dsc_t **out_dsc, uint8_t **out_px,
@@ -899,7 +765,8 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
         prompt += ", professional food photography style, realistic, well-lit.";
 
         int status = 0;
-        b64Str = gemini_generate_image(prompt, W, H, status);
+        static GeminiImageGenerator geminiGen(GEMINI_ENDPOINT, GEMINI_IMAGE_MODEL, GEMINI_API_KEY, 120000);
+        b64Str = geminiGen.generateImage(prompt, W, H, status);
         if (b64Str.empty())
         {
             ESP_LOGE(TAG, "Gemini image generation failed with status: %d", status);

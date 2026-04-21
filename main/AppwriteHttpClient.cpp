@@ -16,9 +16,13 @@ AppwriteHttpClient::AppwriteHttpClient(const std::string &endpoint, const std::s
 
 void AppwriteHttpClient::configureHttpClient(esp_http_client_handle_t client, const std::string &projectId, const std::string &apiKey)
 {
-    // Set common Appwrite headers
-    esp_http_client_set_header(client, "X-Appwrite-Project", projectId.c_str());
-    esp_http_client_set_header(client, "X-Appwrite-Key", apiKey.c_str());
+    // Set common Appwrite headers only if provided
+    if (!projectId.empty()) {
+        esp_http_client_set_header(client, "X-Appwrite-Project", projectId.c_str());
+    }
+    if (!apiKey.empty()) {
+        esp_http_client_set_header(client, "X-Appwrite-Key", apiKey.c_str());
+    }
 }
 
 esp_http_client_handle_t AppwriteHttpClient::createHttpClient(const std::string &url) const

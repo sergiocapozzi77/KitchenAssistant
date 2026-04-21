@@ -6,6 +6,7 @@ idf_component_register(
         ProductsManager.cpp
         RecipeService.cpp
         DeepSeekAIService.cpp
+        GeminiImageGenerator.cpp
         RecipeAIDetailService.cpp
         RecipeSuggestionsManager.cpp
         RecipeStepsAggregationService.cpp
