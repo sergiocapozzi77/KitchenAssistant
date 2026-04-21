@@ -150,7 +150,14 @@ void ProductsManager::fetchProductsTask(void *param)
         ESP_LOGI(TAG, "Fetched %d products", products.size());
         productsManager.addProducts(products);
         // LVGLManager::updateStatusLabel("Fetched " + std::to_string(products.size()) + " expiring products");
-        populateProductListUi(objects.products_list, productsManager.getAllProducts());
+        if (objects.products_list && lv_obj_is_valid(objects.products_list))
+        {
+            populateProductListUi(objects.products_list, productsManager.getAllProducts());
+        }
+        else
+        {
+            ESP_LOGE(TAG, "products_list is invalid, skipping UI update");
+        }
     }
 
     vTaskDelete(NULL);

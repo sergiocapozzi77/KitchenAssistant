@@ -991,7 +991,10 @@ bool fetch_and_decode_jpeg(const std::string &url,
 static void snackbar_timer_callback(TimerHandle_t xTimer)
 {
     lv_lock();
-    lv_obj_add_flag(objects.snackbar, LV_OBJ_FLAG_HIDDEN);
+    if (objects.snackbar && lv_obj_is_valid(objects.snackbar))
+    {
+        lv_obj_add_flag(objects.snackbar, LV_OBJ_FLAG_HIDDEN);
+    }
     lv_unlock();
 }
 
@@ -1006,8 +1009,12 @@ void showSnackbar(const char *message, int duration_ms)
     }
 
     lv_lock();
-    lv_label_set_text(objects.snackbar_text, message);
-    lv_obj_clear_flag(objects.snackbar, LV_OBJ_FLAG_HIDDEN);
+    if (objects.snackbar_text && lv_obj_is_valid(objects.snackbar_text) &&
+        objects.snackbar && lv_obj_is_valid(objects.snackbar))
+    {
+        lv_label_set_text(objects.snackbar_text, message);
+        lv_obj_clear_flag(objects.snackbar, LV_OBJ_FLAG_HIDDEN);
+    }
     lv_unlock();
 
     // Create a one-shot timer to hide snackbar after duration_ms
@@ -1025,14 +1032,18 @@ void showSnackbar(const char *message, int duration_ms)
 void showSpinner()
 {
     lv_lock();
-    lv_obj_clear_flag(objects.spinner, LV_OBJ_FLAG_HIDDEN);
+    if (objects.spinner && lv_obj_is_valid(objects.spinner)) {
+        lv_obj_clear_flag(objects.spinner, LV_OBJ_FLAG_HIDDEN);
+    }
     lv_unlock();
 }
 
 void hideSpinner()
 {
     lv_lock();
-    lv_obj_add_flag(objects.spinner, LV_OBJ_FLAG_HIDDEN);
+    if (objects.spinner && lv_obj_is_valid(objects.spinner)) {
+        lv_obj_add_flag(objects.spinner, LV_OBJ_FLAG_HIDDEN);
+    }
     lv_unlock();
 }
 

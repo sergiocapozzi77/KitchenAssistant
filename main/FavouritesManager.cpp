@@ -130,7 +130,7 @@ void FavouritesManager::fetchFavouritesTask(void *param)
 
     ESP_LOGI(TAG, "Background favourites fetch task completed");
 
-    if (lv_tabview_get_tab_act(objects.tabview) == 2)
+    if (objects.tabview && lv_obj_is_valid(objects.tabview) && lv_tabview_get_tab_act(objects.tabview) == 2)
     {
         showCurrentPageFavourites(true);
     }

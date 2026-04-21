@@ -61,9 +61,9 @@ static void recipe_card_click_cb(lv_event_t *e)
 
 void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &recipes)
 {
-    if (!root)
+    if (!root || !lv_obj_is_valid(root))
     {
-        ESP_LOGE(TAG, "Root object is NULL");
+        ESP_LOGE(TAG, "Root object is NULL or invalid");
         return;
     }
 

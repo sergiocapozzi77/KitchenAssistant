@@ -67,6 +67,11 @@ static void updateFavouritesPaginationButtons()
 
 void showCurrentPageFavourites(bool force)
 {
+    if (!objects.favourites_list || !lv_obj_is_valid(objects.favourites_list))
+    {
+        ESP_LOGE("favourites", "favourites_list is invalid");
+        return;
+    }
     if (lv_obj_get_child_count(objects.favourites_list) > 0 && !force)
     {
         updateFavouritesPaginationButtons();
@@ -234,12 +239,18 @@ static void product_delete_task(void *arg)
 
 static void keyboard_ready_cb(lv_event_t *e)
 {
-    lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
+    if (objects.keywords_keyboard && lv_obj_is_valid(objects.keywords_keyboard))
+    {
+        lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
+    }
 }
 
 static void keyboard_cancel_cb(lv_event_t *e)
 {
-    lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
+    if (objects.keywords_keyboard && lv_obj_is_valid(objects.keywords_keyboard))
+    {
+        lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
+    }
 }
 
 static void keywords_textarea_focused_cb(lv_event_t *e)
@@ -248,19 +259,24 @@ static void keywords_textarea_focused_cb(lv_event_t *e)
     lv_obj_t *focused_textarea = (lv_obj_t *)lv_event_get_target(e);
 
     // Assign keyboard to this textarea
-    lv_keyboard_set_textarea(objects.keywords_keyboard, focused_textarea);
-
-    // Show keyboard and position at bottom of screen
-    // Screen height 1280, keyboard height 299, tab bar 60
-    // Calculate y position: 1280 - 299 - 60 = 921
-    /// lv_obj_set_pos(objects.keywords_keyboard, 0, 921);
-    lv_obj_clear_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
+    if (objects.keywords_keyboard && lv_obj_is_valid(objects.keywords_keyboard))
+    {
+        lv_keyboard_set_textarea(objects.keywords_keyboard, focused_textarea);
+        // Show keyboard and position at bottom of screen
+        // Screen height 1280, keyboard height 299, tab bar 60
+        // Calculate y position: 1280 - 299 - 60 = 921
+        /// lv_obj_set_pos(objects.keywords_keyboard, 0, 921);
+        lv_obj_clear_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
+    }
 }
 
 static void keywords_textarea_defocused_cb(lv_event_t *e)
 {
     // Hide keyboard when textarea loses focus
-    lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
+    if (objects.keywords_keyboard && lv_obj_is_valid(objects.keywords_keyboard))
+    {
+        lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
+    }
 }
 
 static void product_search_value_changed_cb(lv_event_t *e)

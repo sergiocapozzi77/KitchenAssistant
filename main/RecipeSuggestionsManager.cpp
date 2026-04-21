@@ -118,6 +118,15 @@ int RecipeSuggestionsManager::getSuggestionSize()
 
 void RecipeSuggestionsManager::showCurrentPageRecipes(bool force)
 {
+    if (!objects.recipes_list || !lv_obj_is_valid(objects.recipes_list)) {
+        ESP_LOGE("ShowRecipesTask", "recipes_list is invalid");
+        return;
+    }
+    if (!objects.recipes_list || !lv_obj_is_valid(objects.recipes_list))
+    {
+        ESP_LOGE("ShowRecipesTask", "recipes_list became invalid");
+        return;
+    }
     if (lv_obj_get_child_count(objects.recipes_list) > 0 && !force)
     {
         updatePaginationButtons();
@@ -148,6 +157,12 @@ void RecipeSuggestionsManager::showCurrentPageRecipes(bool force)
         suggestions.begin() + std::min(end, (int)suggestions.size()));
 
     ESP_LOGI("ShowRecipesTask", "Passing %d recipes to UI", pageItems.size());
+    if (!objects.recipes_list || !lv_obj_is_valid(objects.recipes_list))
+    {
+        ESP_LOGE("ShowRecipesTask", "recipes_list invalid before populate");
+        updatePaginationButtons();
+        return;
+    }
     populateRecipeList(objects.recipes_list, pageItems);
     updatePaginationButtons();
 }
@@ -196,7 +211,9 @@ void RecipeSuggestionsManager::updatePaginationButtons()
 void fetchRecipesTask(void *param)
 {
     lv_lock();
-    lv_obj_clear_flag(objects.spinner, LV_OBJ_FLAG_HIDDEN);
+    if (objects.spinner && lv_obj_is_valid(objects.spinner)) {
+        lv_obj_clear_flag(objects.spinner, LV_OBJ_FLAG_HIDDEN);
+    }
     lv_unlock();
 
     RecipeSuggestionsManager *manager = (RecipeSuggestionsManager *)param;
@@ -212,7 +229,8 @@ void fetchRecipesTask(void *param)
     heap_caps_check_integrity_all(true);
     ESP_LOGI("ShowRecipesTask", "Heap OK before building ingredients");
 
-    if (lv_obj_has_state(objects.products_filters_panel__poducts_selected_cb, LV_STATE_CHECKED))
+    if (objects.products_filters_panel__poducts_selected_cb && lv_obj_is_valid(objects.products_filters_panel__poducts_selected_cb) &&
+        lv_obj_has_state(objects.products_filters_panel__poducts_selected_cb, LV_STATE_CHECKED))
     {
         // checkbox is checked
 
@@ -279,7 +297,9 @@ void fetchRecipesTask(void *param)
     manager->appendSuggestions(suggestions);
 
     lv_lock();
-    lv_obj_add_flag(objects.spinner, LV_OBJ_FLAG_HIDDEN);
+    if (objects.spinner && lv_obj_is_valid(objects.spinner)) {
+        lv_obj_add_flag(objects.spinner, LV_OBJ_FLAG_HIDDEN);
+    }
     lv_unlock();
 
     ESP_LOGI("ShowRecipesTask", "Got %d recipe suggestions", manager->getSuggestionSize());
