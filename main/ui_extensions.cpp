@@ -32,6 +32,7 @@ static const char *TAG = "UIEXTENSIONS";
 // Global variables defined here
 uint32_t s_thumb_generation = 0;
 static SemaphoreHandle_t s_http_concurrency_sem = NULL;
+std::map<std::string, std::string> s_leonardo_url_cache; // Maps "generate:prompt|WxH" -> Leonardo URL
 
 lv_style_t style_card;
 lv_style_t style_header;
@@ -808,7 +809,7 @@ bool fetch_and_decode_jpeg(const std::string &url,
     std::string image_url_to_fetch;
 
     // -------------------------------------------------------------------------
-    // 3. Handle "generate:" URLs (Gemini)
+    // 3. Handle "generate:" URLs (Leonardo)
     // -------------------------------------------------------------------------
     bool isGenerate = (url.find("generate:") == 0);
     if (isGenerate)
@@ -822,31 +823,45 @@ bool fetch_and_decode_jpeg(const std::string &url,
 
         if (strlen(LEONARDO_API_KEY) == 0)
         {
-            ESP_LOGW(TAG, "GEMINI_API_KEY not configured, cannot generate image");
+            ESP_LOGW(TAG, "LEONARDO_API_KEY not configured, cannot generate image");
             return false;
         }
 
-        std::string prompt = "Generate an appetizing, high-quality food photography image of ";
-        prompt += recipeName;
-        if (!recipeDesc.empty())
+        // Check Leonardo URL cache first
+        std::string cache_key = url + "|" + std::to_string(W) + "x" + std::to_string(H);
+        auto cache_it = s_leonardo_url_cache.find(cache_key);
+        if (cache_it != s_leonardo_url_cache.end())
         {
-            prompt += ". Description: ";
-            prompt += recipeDesc;
+            ESP_LOGI(TAG, "Leonardo URL cache hit for key: %s", cache_key.c_str());
+            image_url_to_fetch = cache_it->second;
         }
-        prompt += ". The image should be ";
-        prompt += (W == H) ? "square" : (W > H ? "landscape orientation" : "portrait orientation");
-        prompt += ", professional food photography style, realistic, well-lit.";
+        else
+        {
+            std::string prompt = "Generate an appetizing, high-quality food photography image of ";
+            prompt += recipeName;
+            if (!recipeDesc.empty())
+            {
+                prompt += ". Description: ";
+                prompt += recipeDesc;
+            }
+            prompt += ". The image should be ";
+            prompt += (W == H) ? "square" : (W > H ? "landscape orientation" : "portrait orientation");
+            prompt += ", professional food photography style, realistic, well-lit.";
 
-        int status = 0;
-        static LeonardoImageGenerator geminiGen(LEONARDO_ENDPOINT, LEONARDO_IMAGE_MODEL,
-                                                LEONARDO_API_KEY, 120000);
-        std::string generatedUrl = geminiGen.generateImage(prompt, W, H, status);
-        if (generatedUrl.empty())
-        {
-            ESP_LOGE(TAG, "Gemini image generation failed with status: %d", status);
-            return false;
+            int status = 0;
+            static LeonardoImageGenerator leonardoGen(LEONARDO_ENDPOINT, LEONARDO_IMAGE_MODEL,
+                                                      LEONARDO_API_KEY, 120000);
+            std::string generatedUrl = leonardoGen.generateImage(prompt, W, H, status);
+            if (generatedUrl.empty())
+            {
+                ESP_LOGE(TAG, "Leonardo image generation failed with status: %d", status);
+                return false;
+            }
+            // Cache the Leonardo URL for future use
+            s_leonardo_url_cache[cache_key] = generatedUrl;
+            ESP_LOGI(TAG, "Cached Leonardo URL for key: %s", cache_key.c_str());
+            image_url_to_fetch = generatedUrl;
         }
-        image_url_to_fetch = generatedUrl;
     }
     else
     {

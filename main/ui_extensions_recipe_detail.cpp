@@ -1,5 +1,7 @@
 #include <vector>
 #include <string>
+#include <map>
+#include <cstring>
 #include "lvgl.h"
 #include "esp_log.h"
 #include "ui_extensions.h"
@@ -14,6 +16,8 @@
 #include "styles.h"
 #include "filters_ui.h"
 #include "ProductsManager.h"
+#include "LeonardoImageGenerator.h"
+#include "secrets.h"
 
 static const char *TAG = "UIEXTENSIONS";
 static uint32_t s_current_generation = 0;
@@ -108,7 +112,8 @@ static void heart_button_cb(lv_event_t *e)
     {
         // For AI recipes with empty URL, generate a synthetic URL
         std::string url = ctx->url;
-        if (url.empty() && ctx->recipeSource == "ai-deepseek") {
+        if (url.empty() && ctx->recipeSource == "ai-deepseek")
+        {
             url = "ai://deepseek/" + favouriteService.generateId();
             ctx->url = url;
         }
@@ -149,6 +154,22 @@ static void heart_button_cb(lv_event_t *e)
         xTaskCreate([](void *param)
                     {
             RecipeSuggestion *recipe = static_cast<RecipeSuggestion *>(param);
+
+            if (recipe->recipeSource == "ai-deepseek" && recipe->imageUrl.empty()) {
+                ESP_LOGI("Favourite", "Generating image for AI recipe: %s", recipe->name.c_str());
+
+                    // Check cache first
+                    std::string cache_key = "generate:" + recipe->name + "|||" + recipe->description + "|112x112";
+                    auto cache_it = s_leonardo_url_cache.find(cache_key);
+                    if (cache_it != s_leonardo_url_cache.end()) {
+                        ESP_LOGI("Favourite", "Leonardo URL cache hit for key: %s", cache_key.c_str());
+                        recipe->imageUrl = cache_it->second;
+                    } else {
+                        recipe->imageUrl = "generate:" + recipe->name + "|||" + recipe->description;
+                    }
+        
+            }
+
             favouriteService.addFavourite(*recipe);
             delete recipe;
             vTaskDelete(nullptr); }, "addFav", 4096, new RecipeSuggestion(recipe), 1, nullptr);
@@ -199,22 +220,27 @@ static void fetch_recipe_detail_task(void *arg)
     }
 
     bool ok = false;
-    if (ctx->recipe.recipeSource == "ai-deepseek") {
+    if (ctx->recipe.recipeSource == "ai-deepseek")
+    {
         // Build ingredients list from selected products (if checkbox checked)
         std::vector<std::string> ingredients;
         lv_lock();
         bool useSelected = lv_obj_has_state(objects.products_filters_panel__poducts_selected_cb, LV_STATE_CHECKED);
         lv_unlock();
-        if (useSelected) {
+        if (useSelected)
+        {
             std::vector<Product> selectedProducts = productsManager.getSelectedProducts();
-            for (const auto &p : selectedProducts) {
+            for (const auto &p : selectedProducts)
+            {
                 ingredients.push_back(p.name);
             }
         }
         // Get filter state
         filter_state_t *filterState = get_filter_state();
         ok = recipeAIDetailService.fetchDetails(ctx->recipe, ingredients, filterState);
-    } else {
+    }
+    else
+    {
         ok = recipeDetailService.fetchDetails(ctx->recipe);
     }
     ESP_LOGI("RecipeDetail", "fetchDetails: %s, ings=%d steps=%d",
@@ -319,7 +345,8 @@ static void fetch_recipe_detail_task(void *arg)
 
     // Kick off header image fetch at larger size if we have a URL or need to generate for AI recipe
     std::string thumbUrl = ctx->recipe.imageUrl;
-    if (ctx->recipe.imageUrl.empty() && ctx->recipe.recipeSource == "ai-deepseek") {
+    if (ctx->recipe.imageUrl.empty() && ctx->recipe.recipeSource == "ai-deepseek")
+    {
         // Generate a placeholder URL that will trigger AI image generation
         thumbUrl = "generate:" + ctx->recipe.name + "|||" + ctx->recipe.description;
         ESP_LOGI(TAG, "AI recipe with no image, will generate header: %s", ctx->recipe.name.c_str());

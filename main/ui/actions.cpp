@@ -360,6 +360,8 @@ void recipe_detail_back_cb(lv_event_t *e)
         lv_scr_load_anim(prev, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 300, 0, false);
     else
         lv_scr_load_anim(lv_scr_act(), LV_SCR_LOAD_ANIM_MOVE_RIGHT, 300, 0, false);
+
+    heap_caps_check_integrity_all(true); // aborts immediately at the WRITE SITE
 }
 
 void action_screen_loading(lv_event_t *e)
@@ -772,8 +774,8 @@ void action_generate_ai_recipes_click(lv_event_t *e)
     lv_unlock();
 
     // Ensure filter state source is set to ai-deepseek
-    filter_state_t* filterState = get_filter_state();
-    filterState->source = (char*)"ai-deepseek";
+    filter_state_t *filterState = get_filter_state();
+    filterState->source = (char *)"ai-deepseek";
 
     // Somewhere in initTasks() or after WiFi connects:
     recipeSuggestionsManager.reset();
