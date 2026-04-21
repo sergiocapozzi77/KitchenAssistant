@@ -325,6 +325,34 @@ Favorite FavouriteService::parseFavouriteFromJson(cJSON *item)
         {
             fav.totalTime = totalTime->valuestring;
         }
+
+        cJSON *recipeSource = cJSON_GetObjectItem(data, "recipeSource");
+        if (recipeSource && cJSON_IsString(recipeSource))
+        {
+            fav.recipeSource = recipeSource->valuestring;
+        }
+
+        cJSON *ingredients = cJSON_GetObjectItem(data, "ingredients");
+        if (ingredients && cJSON_IsArray(ingredients))
+        {
+            cJSON *ing;
+            cJSON_ArrayForEach(ing, ingredients)
+            {
+                if (cJSON_IsString(ing) && ing->valuestring)
+                    fav.ingredients.push_back(ing->valuestring);
+            }
+        }
+
+        cJSON *methodSteps = cJSON_GetObjectItem(data, "methodSteps");
+        if (methodSteps && cJSON_IsArray(methodSteps))
+        {
+            cJSON *step;
+            cJSON_ArrayForEach(step, methodSteps)
+            {
+                if (cJSON_IsString(step) && step->valuestring)
+                    fav.methodSteps.push_back(step->valuestring);
+            }
+        }
     }
     else
     {
@@ -364,6 +392,34 @@ Favorite FavouriteService::parseFavouriteFromJson(cJSON *item)
         {
             fav.totalTime = totalTime->valuestring;
         }
+
+        cJSON *recipeSource = cJSON_GetObjectItem(item, "recipeSource");
+        if (recipeSource && cJSON_IsString(recipeSource))
+        {
+            fav.recipeSource = recipeSource->valuestring;
+        }
+
+        cJSON *ingredients = cJSON_GetObjectItem(item, "ingredients");
+        if (ingredients && cJSON_IsArray(ingredients))
+        {
+            cJSON *ing;
+            cJSON_ArrayForEach(ing, ingredients)
+            {
+                if (cJSON_IsString(ing) && ing->valuestring)
+                    fav.ingredients.push_back(ing->valuestring);
+            }
+        }
+
+        cJSON *methodSteps = cJSON_GetObjectItem(item, "methodSteps");
+        if (methodSteps && cJSON_IsArray(methodSteps))
+        {
+            cJSON *step;
+            cJSON_ArrayForEach(step, methodSteps)
+            {
+                if (cJSON_IsString(step) && step->valuestring)
+                    fav.methodSteps.push_back(step->valuestring);
+            }
+        }
     }
 
     return fav;
@@ -395,12 +451,36 @@ std::string FavouriteService::buildFavouriteJson(const RecipeSuggestion &recipe)
         return "{}";
     }
 
-    cJSON_AddStringToObject(data, "url", recipe.url.c_str());
+    // For AI recipes with empty URL, generate a synthetic URL
+    std::string url = recipe.url;
+    if (url.empty() && recipe.recipeSource == "ai-deepseek") {
+        url = "ai://deepseek/" + generateId();
+    }
+    cJSON_AddStringToObject(data, "url", url.c_str());
+
     cJSON_AddStringToObject(data, "name", recipe.name.c_str());
     cJSON_AddStringToObject(data, "imageUrl", recipe.imageUrl.c_str());
     cJSON_AddStringToObject(data, "description", recipe.description.c_str());
     cJSON_AddStringToObject(data, "difficulty", recipe.difficulty.c_str());
     cJSON_AddStringToObject(data, "totalTime", recipe.totalTime.c_str());
+
+    if (!recipe.recipeSource.empty()) {
+        cJSON_AddStringToObject(data, "recipeSource", recipe.recipeSource.c_str());
+    }
+
+    if (!recipe.ingredients.empty()) {
+        cJSON *ingredientsArray = cJSON_AddArrayToObject(data, "ingredients");
+        for (const auto &ing : recipe.ingredients) {
+            cJSON_AddItemToArray(ingredientsArray, cJSON_CreateString(ing.c_str()));
+        }
+    }
+
+    if (!recipe.methodSteps.empty()) {
+        cJSON *methodStepsArray = cJSON_AddArrayToObject(data, "methodSteps");
+        for (const auto &step : recipe.methodSteps) {
+            cJSON_AddItemToArray(methodStepsArray, cJSON_CreateString(step.c_str()));
+        }
+    }
 
     char *json = cJSON_PrintUnformatted(root);
     if (!json)

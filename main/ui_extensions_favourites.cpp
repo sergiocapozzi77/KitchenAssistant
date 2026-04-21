@@ -43,6 +43,9 @@ static void favourite_card_click_cb(lv_event_t *e)
     recipe.description = ctx->favourite.description;
     recipe.difficulty = ctx->favourite.difficulty;
     recipe.totalTime = ctx->favourite.totalTime;
+    recipe.recipeSource = ctx->favourite.recipeSource;
+    recipe.ingredients = ctx->favourite.ingredients;
+    recipe.methodSteps = ctx->favourite.methodSteps;
     showRecipeDetailScreen(recipe);
 }
 

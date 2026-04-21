@@ -31,6 +31,7 @@ public:
     bool addFavourite(const RecipeSuggestion &recipe);
     bool removeFavourite(const std::string &url);
     bool isFavourite(const std::string &url);
+    std::string generateId(int length = 20);
 
 private:
     // HTTP helpers
@@ -42,7 +43,6 @@ private:
 
     // Utility
     std::string urlEncode(const std::string &s);
-    std::string generateId(int length = 20);
 
     // JSON helpers
     Favorite parseFavouriteFromJson(cJSON *item);

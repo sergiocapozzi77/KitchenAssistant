@@ -39,6 +39,9 @@ struct HeartButtonContext
     std::string description;
     std::string difficulty;
     std::string totalTime;
+    std::string recipeSource;
+    std::vector<std::string> ingredients;
+    std::vector<std::string> methodSteps;
 
     lv_obj_t *add;
     lv_obj_t *remove;
@@ -103,25 +106,36 @@ static void heart_button_cb(lv_event_t *e)
     }
     else
     {
+        // For AI recipes with empty URL, generate a synthetic URL
+        std::string url = ctx->url;
+        if (url.empty() && ctx->recipeSource == "ai-deepseek") {
+            url = "ai://deepseek/" + favouriteService.generateId();
+            ctx->url = url;
+        }
+
         // Create a minimal RecipeSuggestion with available data
         RecipeSuggestion recipe;
-        recipe.url = ctx->url;
+        recipe.url = url;
         recipe.name = ctx->name;
         recipe.imageUrl = ctx->imageUrl;
         recipe.description = ctx->description;
         recipe.difficulty = ctx->difficulty;
         recipe.totalTime = ctx->totalTime;
-
-        // Other fields remain empty
+        recipe.recipeSource = ctx->recipeSource;
+        recipe.ingredients = ctx->ingredients;
+        recipe.methodSteps = ctx->methodSteps;
 
         // Create Favorite for local cache
         Favorite fav;
-        fav.url = ctx->url;
+        fav.url = url;
         fav.name = ctx->name;
         fav.imageUrl = ctx->imageUrl;
         fav.description = ctx->description;
         fav.difficulty = ctx->difficulty;
         fav.totalTime = ctx->totalTime;
+        fav.recipeSource = ctx->recipeSource;
+        fav.ingredients = ctx->ingredients;
+        fav.methodSteps = ctx->methodSteps;
         favouritesManager.addFavourite(fav);
 
         lv_lock();
@@ -446,6 +460,9 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
         recipe.description,
         recipe.difficulty,
         recipe.totalTime,
+        recipe.recipeSource,
+        recipe.ingredients,
+        recipe.methodSteps,
         objects.recipe_favourite_add,
         objects.recipe_favourite_remove};
 

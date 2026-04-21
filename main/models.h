@@ -47,4 +47,7 @@ struct Favorite
     std::string imageUrl;   // Recipe image URL
     std::string difficulty; // From "skillLevel"
     std::string totalTime;  // From "time"
+    std::string recipeSource; // e.g., "ai-deepseek", "bbcgoodfood", etc.
+    std::vector<std::string> ingredients;
+    std::vector<std::string> methodSteps;
 };

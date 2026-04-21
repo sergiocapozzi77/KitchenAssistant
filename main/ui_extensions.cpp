@@ -627,6 +627,11 @@ static bool decode_jpeg_buffer(uint8_t *jpeg_buf, size_t jpeg_len, uint8_t **out
         *out_width = decoded_w;
         *out_height = decoded_h;
 
+        ESP_LOGI(TAG, "px buffer: %u bytes, decode expects: %u bytes",
+                 decoded_w * decoded_h * 3,
+                 jd.width * jd.height * 3); // what tjpgd will actually write
+        assert(decoded_w * decoded_h * 3 >= (jd.width >> jd.scale) * (jd.height >> jd.scale) * 3);
+
         res = jd_decomp(&jd, tjpgd_out_cb, jd.scale);
         esp_task_wdt_reset();
         ESP_LOGI(TAG, "jd_decomp: %d", res);
@@ -1093,6 +1098,7 @@ void thumb_worker_task(void *arg)
                     ctx->shimmer = nullptr;
                 }
                 lv_image_set_src(thumb, dsc);
+
                 lv_obj_set_style_clip_corner(thumb, true, 0);     // ensure rounded corners clip
                 lv_obj_set_style_bg_opa(thumb, LV_OPA_TRANSP, 0); // remove grey background
                 lv_obj_remove_event_cb_with_user_data(thumb, thumb_obj_deleted_cb, ctx);
