@@ -1,4 +1,4 @@
-#include "AppwriteHttpClient.h"
+#include "HttpClientHelper.h"
 #include "esp_log.h"
 #include "esp_crt_bundle.h"
 #include <random>
@@ -7,25 +7,27 @@
 #include <cctype>
 #include "cJSON.h"
 
-static const char *TAG = "AppwriteHttpClient";
+static const char *TAG = "HttpClientHelper";
 
-AppwriteHttpClient::AppwriteHttpClient(const std::string &endpoint, const std::string &projectId, const std::string &apiKey, const int timeout_ms)
+HttpClientHelper::HttpClientHelper(const std::string &endpoint, const std::string &projectId, const std::string &apiKey, const int timeout_ms)
     : _endpoint(endpoint), _projectId(projectId), _apiKey(apiKey), _timeout_ms(timeout_ms)
 {
 }
 
-void AppwriteHttpClient::configureHttpClient(esp_http_client_handle_t client, const std::string &projectId, const std::string &apiKey)
+void HttpClientHelper::configureHttpClient(esp_http_client_handle_t client, const std::string &projectId, const std::string &apiKey)
 {
     // Set common Appwrite headers only if provided
-    if (!projectId.empty()) {
+    if (!projectId.empty())
+    {
         esp_http_client_set_header(client, "X-Appwrite-Project", projectId.c_str());
     }
-    if (!apiKey.empty()) {
+    if (!apiKey.empty())
+    {
         esp_http_client_set_header(client, "X-Appwrite-Key", apiKey.c_str());
     }
 }
 
-esp_http_client_handle_t AppwriteHttpClient::createHttpClient(const std::string &url) const
+esp_http_client_handle_t HttpClientHelper::createHttpClient(const std::string &url) const
 {
     esp_http_client_config_t cfg = {};
     cfg.url = url.c_str();
@@ -43,7 +45,7 @@ esp_http_client_handle_t AppwriteHttpClient::createHttpClient(const std::string 
     return client;
 }
 
-std::string AppwriteHttpClient::httpGet(const std::string &url, int &status) const
+std::string HttpClientHelper::httpGet(const std::string &url, int &status) const
 {
     ESP_LOGI(TAG, "GET: %s", url.c_str());
 
@@ -92,7 +94,7 @@ std::string AppwriteHttpClient::httpGet(const std::string &url, int &status) con
     return body;
 }
 
-std::string AppwriteHttpClient::httpPost(const std::string &url, const std::string &body, int &status) const
+std::string HttpClientHelper::httpPost(const std::string &url, const std::string &body, int &status) const
 {
     ESP_LOGI(TAG, "POST: %s", url.c_str());
 
@@ -142,7 +144,7 @@ std::string AppwriteHttpClient::httpPost(const std::string &url, const std::stri
     return response;
 }
 
-std::string AppwriteHttpClient::httpPatch(const std::string &url, const std::string &body, int &status) const
+std::string HttpClientHelper::httpPatch(const std::string &url, const std::string &body, int &status) const
 {
     ESP_LOGI(TAG, "PATCH: %s", url.c_str());
 
@@ -190,7 +192,7 @@ std::string AppwriteHttpClient::httpPatch(const std::string &url, const std::str
     return response;
 }
 
-int AppwriteHttpClient::httpDelete(const std::string &url) const
+int HttpClientHelper::httpDelete(const std::string &url) const
 {
     ESP_LOGI(TAG, "DELETE: %s", url.c_str());
 
@@ -216,7 +218,7 @@ int AppwriteHttpClient::httpDelete(const std::string &url) const
     return status;
 }
 
-std::string AppwriteHttpClient::executeFunction(const std::string &functionId, const std::string &payload, bool async, int &status) const
+std::string HttpClientHelper::executeFunction(const std::string &functionId, const std::string &payload, bool async, int &status) const
 {
     std::string url = _endpoint + "/functions/" + functionId + "/executions";
     ESP_LOGI(TAG, "Executing function %s (async: %s)", functionId.c_str(), async ? "true" : "false");
@@ -249,7 +251,7 @@ std::string AppwriteHttpClient::executeFunction(const std::string &functionId, c
     return response;
 }
 
-std::string AppwriteHttpClient::urlEncode(const std::string &s)
+std::string HttpClientHelper::urlEncode(const std::string &s)
 {
     std::ostringstream out;
     out << std::hex << std::uppercase;
@@ -268,7 +270,7 @@ std::string AppwriteHttpClient::urlEncode(const std::string &s)
     return out.str();
 }
 
-std::string AppwriteHttpClient::generateId(int length)
+std::string HttpClientHelper::generateId(int length)
 {
     static const char chars[] =
         "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";

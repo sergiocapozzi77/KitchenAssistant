@@ -1,8 +1,8 @@
 #include "AppwriteClientInstance.h"
 
-AppwriteHttpClient &getAppwriteClient()
+HttpClientHelper &getAppwriteClient()
 {
-    static AppwriteHttpClient instance(
+    static HttpClientHelper instance(
         APPWRITE_ENDPOINT,
         APPWRITE_PROJECT_ID,
         APPWRITE_API_KEY,

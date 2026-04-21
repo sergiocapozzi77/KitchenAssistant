@@ -6,7 +6,7 @@
 #include "cJSON.h"
 #include "secrets.h"
 #include "models.h"
-#include "AppwriteHttpClient.h"
+#include "HttpClientHelper.h"
 #include "AppwriteClientInstance.h"
 
 class ProductService
@@ -37,7 +37,7 @@ private:
     const std::string BarcodeCollectionId = "barcodes";
 
     // HTTP client
-    AppwriteHttpClient& _httpClient;
+    HttpClientHelper &_httpClient;
 };
 
 extern ProductService productService;

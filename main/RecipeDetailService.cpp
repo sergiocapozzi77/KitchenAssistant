@@ -6,7 +6,7 @@
 
 static const char *TAG = "RecipeDetail";
 
-// Initialised in main / app startup with the shared AppwriteHttpClient and
+// Initialised in main / app startup with the shared HttpClientHelper and
 // the function ID from AppwriteConfig (e.g. "recipe-scraper").
 RecipeDetailService recipeDetailService(getAppwriteClient(),
                                         APPWRITE_FUNCTION_ID);

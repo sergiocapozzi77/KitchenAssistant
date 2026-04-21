@@ -435,7 +435,7 @@ bool RecipeStepsAggregationService::getRecipeFromDatabase(const std::string &url
     std::string queryJson(queryStr);
     free(queryStr);
     cJSON_Delete(query);
-    std::string encodedQuery = AppwriteHttpClient::urlEncode(queryJson);
+    std::string encodedQuery = HttpClientHelper::urlEncode(queryJson);
 
     std::string fullUrl = baseUrl + "?queries[0]=" + encodedQuery;
 

@@ -1,4 +1,4 @@
-#include "GeminiImageGenerator.h"
+#include "LeonardoImageGenerator.h"
 #include "esp_log.h"
 #include "cJSON.h"
 #include "esp_http_client.h"
@@ -7,9 +7,9 @@
 #include "freertos/task.h"
 #include <string>
 
-static const char *TAG = "GeminiImageGenerator";
+static const char *TAG = "LeonardoImageGenerator";
 
-GeminiImageGenerator::GeminiImageGenerator(const std::string &endpoint, const std::string &model, const std::string &apiKey, int timeout_ms)
+LeonardoImageGenerator::LeonardoImageGenerator(const std::string &endpoint, const std::string &model, const std::string &apiKey, int timeout_ms)
     : _httpClient(endpoint, "", "", timeout_ms), // Empty projectId and apiKey, headers will be skipped
       _endpoint(endpoint),
       _model(model),
@@ -18,7 +18,7 @@ GeminiImageGenerator::GeminiImageGenerator(const std::string &endpoint, const st
 {
 }
 
-std::string GeminiImageGenerator::generateImage(const std::string &prompt, uint16_t width, uint16_t height, int &status, int timeout_ms)
+std::string LeonardoImageGenerator::generateImage(const std::string &prompt, uint16_t width, uint16_t height, int &status, int timeout_ms)
 {
     ESP_LOGI(TAG, "Generating image with Leonardo AI API, prompt: %s", prompt.c_str());
 
@@ -173,7 +173,7 @@ std::string GeminiImageGenerator::generateImage(const std::string &prompt, uint1
     return imageUrl;
 }
 
-std::string GeminiImageGenerator::leonardoHttpPost(const std::string &url, const std::string &body, int &status) const
+std::string LeonardoImageGenerator::leonardoHttpPost(const std::string &url, const std::string &body, int &status) const
 {
     ESP_LOGI(TAG, "Leonardo POST: %s", url.c_str());
 
@@ -235,7 +235,7 @@ std::string GeminiImageGenerator::leonardoHttpPost(const std::string &url, const
     return response;
 }
 
-std::string GeminiImageGenerator::leonardoHttpGet(const std::string &url, int &status) const
+std::string LeonardoImageGenerator::leonardoHttpGet(const std::string &url, int &status) const
 {
     ESP_LOGI(TAG, "Leonardo GET: %s", url.c_str());
 

@@ -39,7 +39,6 @@ ProductService::ProductService()
 {
 }
 
-
 /* =========================================================
  * HTTP GET
  * ========================================================= */
@@ -106,14 +105,14 @@ std::vector<Product> ProductService::getProducts(const std::vector<std::string> 
 
         for (const auto &q : queries)
         {
-            url += "queries[" + std::to_string(qIdx++) + "]=" + AppwriteHttpClient::urlEncode(q) + "&";
+            url += "queries[" + std::to_string(qIdx++) + "]=" + HttpClientHelper::urlEncode(q) + "&";
         }
 
         std::string limitJson = "{\"method\":\"limit\",\"values\":[" + std::to_string(perPage) + "]}";
         std::string offsetJson = "{\"method\":\"offset\",\"values\":[" + std::to_string(offset) + "]}";
 
-        url += "queries[" + std::to_string(qIdx++) + "]=" + AppwriteHttpClient::urlEncode(limitJson) + "&";
-        url += "queries[" + std::to_string(qIdx++) + "]=" + AppwriteHttpClient::urlEncode(offsetJson);
+        url += "queries[" + std::to_string(qIdx++) + "]=" + HttpClientHelper::urlEncode(limitJson) + "&";
+        url += "queries[" + std::to_string(qIdx++) + "]=" + HttpClientHelper::urlEncode(offsetJson);
 
         // 2. HTTP Request
         int status;
@@ -265,7 +264,7 @@ bool ProductService::addProduct(Product &product)
                       "/tables/" + CollectionId + "/rows";
     ESP_LOGD(TAG, "POST URL: %s", url.c_str());
 
-    std::string rowId = AppwriteHttpClient::generateId();
+    std::string rowId = HttpClientHelper::generateId();
     ESP_LOGD(TAG, "Generated rowId: %s", rowId.c_str());
 
     cJSON *root = cJSON_CreateObject();
@@ -480,7 +479,7 @@ bool ProductService::upsertBarcode(const std::string &barcode, const std::string
             return false;
         }
 
-        std::string rowId = AppwriteHttpClient::generateId();
+        std::string rowId = HttpClientHelper::generateId();
         ESP_LOGD(TAG, "Generated rowId: %s", rowId.c_str());
 
         cJSON_AddStringToObject(root, "rowId", rowId.c_str());
@@ -524,7 +523,6 @@ bool ProductService::upsertBarcode(const std::string &barcode, const std::string
 
     return success;
 }
-
 
 std::vector<Product> ProductService::getExpiringProducts()
 {

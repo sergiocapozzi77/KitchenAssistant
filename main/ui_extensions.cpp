@@ -21,8 +21,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/timers.h"
 #include "secrets.h"
-#include "AppwriteHttpClient.h"
-#include "GeminiImageGenerator.h"
+#include "HttpClientHelper.h"
+#include "LeonardoImageGenerator.h"
 #include "AppwriteClientInstance.h"
 #include "cJSON.h"
 #include "thumbnail_cache.h"
@@ -815,7 +815,7 @@ bool fetch_and_decode_jpeg(const std::string &url,
 
         ESP_LOGI(TAG, "Generating image for AI recipe: %s", recipeName.c_str());
 
-        if (strlen(GEMINI_API_KEY) == 0)
+        if (strlen(LEONARDO_API_KEY) == 0)
         {
             ESP_LOGW(TAG, "GEMINI_API_KEY not configured, cannot generate image");
             return false;
@@ -833,8 +833,8 @@ bool fetch_and_decode_jpeg(const std::string &url,
         prompt += ", professional food photography style, realistic, well-lit.";
 
         int status = 0;
-        static GeminiImageGenerator geminiGen(GEMINI_ENDPOINT, GEMINI_IMAGE_MODEL,
-                                              GEMINI_API_KEY, 120000);
+        static LeonardoImageGenerator geminiGen(LEONARDO_ENDPOINT, LEONARDO_IMAGE_MODEL,
+                                                LEONARDO_API_KEY, 120000);
         std::string generatedUrl = geminiGen.generateImage(prompt, W, H, status);
         if (generatedUrl.empty())
         {
@@ -1032,7 +1032,8 @@ void showSnackbar(const char *message, int duration_ms)
 void showSpinner()
 {
     lv_lock();
-    if (objects.spinner && lv_obj_is_valid(objects.spinner)) {
+    if (objects.spinner && lv_obj_is_valid(objects.spinner))
+    {
         lv_obj_clear_flag(objects.spinner, LV_OBJ_FLAG_HIDDEN);
     }
     lv_unlock();
@@ -1041,7 +1042,8 @@ void showSpinner()
 void hideSpinner()
 {
     lv_lock();
-    if (objects.spinner && lv_obj_is_valid(objects.spinner)) {
+    if (objects.spinner && lv_obj_is_valid(objects.spinner))
+    {
         lv_obj_add_flag(objects.spinner, LV_OBJ_FLAG_HIDDEN);
     }
     lv_unlock();

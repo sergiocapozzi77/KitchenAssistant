@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 #include "models.h"
-#include "AppwriteHttpClient.h"
+#include "HttpClientHelper.h"
 
 class DeepSeekAIService
 {
@@ -38,7 +38,7 @@ public:
         int page = 1);
 
 private:
-    AppwriteHttpClient _httpClient;
+    HttpClientHelper _httpClient;
     std::string _apiKey;
     std::string _endpoint;
 

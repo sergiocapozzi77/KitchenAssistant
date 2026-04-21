@@ -9,18 +9,18 @@
  * Encapsulates common HTTP operations (GET, POST, PATCH, DELETE) with Appwrite
  * authentication headers. Each service can instantiate with its own configuration.
  */
-class AppwriteHttpClient
+class HttpClientHelper
 {
 public:
     /**
-     * @brief Construct a new AppwriteHttpClient instance
+     * @brief Construct a new HttpClientHelper instance
      *
      * @param endpoint Appwrite endpoint (e.g., "https://fra.cloud.appwrite.io/v1")
      * @param projectId Appwrite project ID
      * @param apiKey Appwrite API key
      * @param timeout_ms HTTP request timeout in milliseconds
      */
-    AppwriteHttpClient(const std::string &endpoint, const std::string &projectId, const std::string &apiKey, const int timeout_ms = 30000);
+    HttpClientHelper(const std::string &endpoint, const std::string &projectId, const std::string &apiKey, const int timeout_ms = 30000);
 
     /**
      * @brief Create an HTTP client configured for Appwrite

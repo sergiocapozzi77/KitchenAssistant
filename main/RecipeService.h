@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 #include <random>
-#include "AppwriteHttpClient.h"
+#include "HttpClientHelper.h"
 #include "models.h"
 
 class RecipeService
@@ -42,7 +42,7 @@ public:
         int page = 1);
 
 private:
-    AppwriteHttpClient _httpClient;
+    HttpClientHelper _httpClient;
     std::mt19937 _rng; // kept for potential future use
 
     // Helper to parse the function response

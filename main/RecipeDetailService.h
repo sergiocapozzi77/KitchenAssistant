@@ -1,13 +1,13 @@
 #pragma once
 
-#include "AppwriteHttpClient.h"
+#include "HttpClientHelper.h"
 #include "models.h"
 #include <string>
 
 class RecipeDetailService
 {
 public:
-    explicit RecipeDetailService(const AppwriteHttpClient &client,
+    explicit RecipeDetailService(const HttpClientHelper &client,
                                  const std::string &functionId)
         : _client(client), _functionId(functionId) {}
 
@@ -21,7 +21,7 @@ public:
 
 private:
     RecipeSuggestion selectedRecipe;
-    AppwriteHttpClient _client;
+    HttpClientHelper _client;
     std::string _functionId;
 
     // Parses the two-layer Appwrite response:

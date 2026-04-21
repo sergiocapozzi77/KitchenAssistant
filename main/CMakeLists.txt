@@ -6,14 +6,14 @@ idf_component_register(
         ProductsManager.cpp
         RecipeService.cpp
         DeepSeekAIService.cpp
-        GeminiImageGenerator.cpp
+        LeonardoImageGenerator.cpp
         RecipeAIDetailService.cpp
         RecipeSuggestionsManager.cpp
         RecipeStepsAggregationService.cpp
         RecipeDetailService.cpp
         FavouriteService.cpp
         FavouritesManager.cpp
-        AppwriteHttpClient.cpp
+        HttpClientHelper.cpp
         AppwriteClientInstance.cpp
         WifiManager.cpp
         ui_extensions.cpp
