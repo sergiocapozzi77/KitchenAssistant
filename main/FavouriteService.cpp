@@ -308,6 +308,12 @@ Favorite FavouriteService::parseFavouriteFromJson(cJSON *item)
             fav.imageUrl = imageUrl->valuestring;
         }
 
+        cJSON *imageUrlBig = cJSON_GetObjectItem(data, "imageUrlBig");
+        if (imageUrlBig && cJSON_IsString(imageUrlBig))
+        {
+            fav.imageUrlBig = imageUrlBig->valuestring;
+        }
+
         cJSON *description = cJSON_GetObjectItem(data, "description");
         if (description && cJSON_IsString(description))
         {
@@ -375,6 +381,12 @@ Favorite FavouriteService::parseFavouriteFromJson(cJSON *item)
             fav.imageUrl = imageUrl->valuestring;
         }
 
+        cJSON *imageUrlBig = cJSON_GetObjectItem(item, "imageUrlBig");
+        if (imageUrlBig && cJSON_IsString(imageUrlBig))
+        {
+            fav.imageUrlBig = imageUrlBig->valuestring;
+        }
+
         cJSON *description = cJSON_GetObjectItem(item, "description");
         if (description && cJSON_IsString(description))
         {
@@ -428,7 +440,7 @@ Favorite FavouriteService::parseFavouriteFromJson(cJSON *item)
 /* =========================================================
  * BUILD JSON for creating a favourite
  * ========================================================= */
-std::string FavouriteService::buildFavouriteJson(const RecipeSuggestion &recipe)
+std::string FavouriteService::buildFavouriteJson(const Favorite &recipe)
 {
     // Appwrite expects a JSON object with rowId and data
     std::string rowId = generateId();
@@ -453,31 +465,38 @@ std::string FavouriteService::buildFavouriteJson(const RecipeSuggestion &recipe)
 
     // For AI recipes with empty URL, generate a synthetic URL
     std::string url = recipe.url;
-    if (url.empty() && recipe.recipeSource == "ai-deepseek") {
+    if (url.empty() && recipe.recipeSource == "ai-deepseek")
+    {
         url = "ai://deepseek/" + generateId();
     }
     cJSON_AddStringToObject(data, "url", url.c_str());
 
     cJSON_AddStringToObject(data, "name", recipe.name.c_str());
     cJSON_AddStringToObject(data, "imageUrl", recipe.imageUrl.c_str());
+    cJSON_AddStringToObject(data, "imageUrlBig", recipe.imageUrlBig.c_str());
     cJSON_AddStringToObject(data, "description", recipe.description.c_str());
     cJSON_AddStringToObject(data, "difficulty", recipe.difficulty.c_str());
     cJSON_AddStringToObject(data, "totalTime", recipe.totalTime.c_str());
 
-    if (!recipe.recipeSource.empty()) {
+    if (!recipe.recipeSource.empty())
+    {
         cJSON_AddStringToObject(data, "recipeSource", recipe.recipeSource.c_str());
     }
 
-    if (!recipe.ingredients.empty()) {
+    if (!recipe.ingredients.empty())
+    {
         cJSON *ingredientsArray = cJSON_AddArrayToObject(data, "ingredients");
-        for (const auto &ing : recipe.ingredients) {
+        for (const auto &ing : recipe.ingredients)
+        {
             cJSON_AddItemToArray(ingredientsArray, cJSON_CreateString(ing.c_str()));
         }
     }
 
-    if (!recipe.methodSteps.empty()) {
+    if (!recipe.methodSteps.empty())
+    {
         cJSON *methodStepsArray = cJSON_AddArrayToObject(data, "methodSteps");
-        for (const auto &step : recipe.methodSteps) {
+        for (const auto &step : recipe.methodSteps)
+        {
             cJSON_AddItemToArray(methodStepsArray, cJSON_CreateString(step.c_str()));
         }
     }
@@ -623,7 +642,7 @@ std::vector<Favorite> FavouriteService::getFavourites()
 /* =========================================================
  * PUBLIC API: Add favourite
  * ========================================================= */
-bool FavouriteService::addFavourite(const RecipeSuggestion &recipe)
+bool FavouriteService::addFavourite(const Favorite &recipe)
 {
     if (recipe.url.empty())
     {
@@ -631,8 +650,8 @@ bool FavouriteService::addFavourite(const RecipeSuggestion &recipe)
         return false;
     }
 
-    ESP_LOGI(TAG, "Adding favourite: url='%s', name='%s', imageUrl='%s', description='%s', difficulty='%s', totalTime='%s'",
-             recipe.url.c_str(), recipe.name.c_str(), recipe.imageUrl.c_str(), recipe.description.c_str(), recipe.difficulty.c_str(), recipe.totalTime.c_str());
+    ESP_LOGI(TAG, "Adding favourite: url='%s', name='%s', imageUrl='%s', imageUrlBig='%s', description='%s', difficulty='%s', totalTime='%s'",
+             recipe.url.c_str(), recipe.name.c_str(), recipe.imageUrl.c_str(), recipe.imageUrlBig.c_str(), recipe.description.c_str(), recipe.difficulty.c_str(), recipe.totalTime.c_str());
 
     // Check if already favourited
     if (isFavourite(recipe.url))

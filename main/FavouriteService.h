@@ -28,7 +28,7 @@ public:
     std::vector<Favorite> getFavourites(const std::vector<std::string> &queries, int &out);      // With query support and pagination
     std::vector<Favorite> getFavouritesRetry(const std::vector<std::string> &queries, int &out); // With retry logic
 
-    bool addFavourite(const RecipeSuggestion &recipe);
+    bool addFavourite(const Favorite &recipe);
     bool removeFavourite(const std::string &url);
     bool isFavourite(const std::string &url);
     std::string generateId(int length = 20);
@@ -46,7 +46,7 @@ private:
 
     // JSON helpers
     Favorite parseFavouriteFromJson(cJSON *item);
-    std::string buildFavouriteJson(const RecipeSuggestion &recipe);
+    std::string buildFavouriteJson(const Favorite &recipe);
 };
 
 extern FavouriteService favouriteService;

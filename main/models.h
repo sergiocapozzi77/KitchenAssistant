@@ -8,6 +8,7 @@ struct RecipeSuggestion
     std::string url;
     std::string description;
     std::string imageUrl;
+    std::string imageUrlBig; // only used for AI-generated recipes, larger header image
     std::string recipeSource;
     std::string author;
     std::string difficulty; // From "skillLevel"
@@ -44,9 +45,10 @@ struct Favorite
     std::string url;  // Recipe URL (unique identifier)
     std::string name; // Recipe name
     std::string description;
-    std::string imageUrl;   // Recipe image URL
-    std::string difficulty; // From "skillLevel"
-    std::string totalTime;  // From "time"
+    std::string imageUrl;     // Recipe image URL
+    std::string imageUrlBig;  // Larger header image URL for AI-generated recipes
+    std::string difficulty;   // From "skillLevel"
+    std::string totalTime;    // From "time"
     std::string recipeSource; // e.g., "ai-deepseek", "bbcgoodfood", etc.
     std::vector<std::string> ingredients;
     std::vector<std::string> methodSteps;

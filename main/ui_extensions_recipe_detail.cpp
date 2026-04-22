@@ -40,6 +40,7 @@ struct HeartButtonContext
     std::string url;
     std::string name;
     std::string imageUrl;
+    std::string imageUrlBig;
     std::string description;
     std::string difficulty;
     std::string totalTime;
@@ -140,25 +141,26 @@ static void heart_button_cb(lv_event_t *e)
             {
                 ctx->imageUrl = "generate:" + ctx->name + "|||" + ctx->description;
             }
-        }
 
-        // Create a minimal RecipeSuggestion with available data
-        RecipeSuggestion recipe;
-        recipe.url = url;
-        recipe.name = ctx->name;
-        recipe.imageUrl = ctx->imageUrl;
-        recipe.description = ctx->description;
-        recipe.difficulty = ctx->difficulty;
-        recipe.totalTime = ctx->totalTime;
-        recipe.recipeSource = ctx->recipeSource;
-        recipe.ingredients = ctx->ingredients;
-        recipe.methodSteps = ctx->methodSteps;
+            std::string cache_key_big = "generate:" + ctx->name + "|||" + ctx->description + "|800x280";
+            auto cache_it_big = s_leonardo_url_cache.find(cache_key_big);
+            if (cache_it_big != s_leonardo_url_cache.end())
+            {
+                ESP_LOGI("Favourite", "Leonardo URL cache hit for key: %s", cache_key_big.c_str());
+                ctx->imageUrlBig = cache_it_big->second;
+            }
+            else
+            {
+                ESP_LOGI("Favourite", "No Leonardo cache for big image.");
+            }
+        }
 
         // Create Favorite for local cache
         Favorite fav;
         fav.url = url;
         fav.name = ctx->name;
         fav.imageUrl = ctx->imageUrl;
+        fav.imageUrlBig = ctx->imageUrlBig;
         fav.description = ctx->description;
         fav.difficulty = ctx->difficulty;
         fav.totalTime = ctx->totalTime;
@@ -171,6 +173,7 @@ static void heart_button_cb(lv_event_t *e)
         ESP_LOGI("FAVORITE", "  url: %s", fav.url.c_str());
         ESP_LOGI("FAVORITE", "  name: %s", fav.name.c_str());
         ESP_LOGI("FAVORITE", "  imageUrl: %s", fav.imageUrl.c_str());
+        ESP_LOGI("FAVORITE", "  imageUrlBig: %s", fav.imageUrlBig.c_str());
         ESP_LOGI("FAVORITE", "  description: %s", fav.description.c_str());
         ESP_LOGI("FAVORITE", "  difficulty: %s", fav.difficulty.c_str());
         ESP_LOGI("FAVORITE", "  totalTime: %s", fav.totalTime.c_str());
@@ -212,10 +215,10 @@ static void heart_button_cb(lv_event_t *e)
         // Background task to sync with Appwrite
         xTaskCreate([](void *param)
                     {
-            RecipeSuggestion *recipe = static_cast<RecipeSuggestion *>(param);
-            favouriteService.addFavourite(*recipe);
-            delete recipe;
-            vTaskDelete(nullptr); }, "addFav", 8192, new RecipeSuggestion(recipe), 1, nullptr);
+            Favorite *favourite = static_cast<Favorite *>(param);
+            favouriteService.addFavourite(*favourite);
+            delete favourite;
+            vTaskDelete(nullptr); }, "addFav", 8192, new Favorite(fav), 1, nullptr);
     }
 }
 
@@ -308,7 +311,7 @@ static void fetch_recipe_detail_task(void *arg)
     // Update HeartButtonContext with fetched recipe details
     if (ok)
     {
-        HeartButtonContext* heartCtx = static_cast<HeartButtonContext*>(lv_obj_get_user_data(objects.recipe_favourite_add));
+        HeartButtonContext *heartCtx = static_cast<HeartButtonContext *>(lv_obj_get_user_data(objects.recipe_favourite_add));
         if (heartCtx)
         {
             // Update vectors
@@ -317,6 +320,8 @@ static void fetch_recipe_detail_task(void *arg)
             // Update scalar fields if they are empty in context but present in fetched recipe
             if (heartCtx->imageUrl.empty() && !ctx->recipe.imageUrl.empty())
                 heartCtx->imageUrl = ctx->recipe.imageUrl;
+            if (heartCtx->imageUrlBig.empty() && !ctx->recipe.imageUrlBig.empty())
+                heartCtx->imageUrlBig = ctx->recipe.imageUrlBig;
             if (heartCtx->description.empty() && !ctx->recipe.description.empty())
                 heartCtx->description = ctx->recipe.description;
             if (heartCtx->difficulty.empty() && !ctx->recipe.difficulty.empty())
@@ -470,7 +475,6 @@ static void fetch_recipe_detail_task(void *arg)
 }
 
 // === PUBLIC FUNCTION ===
-// === PUBLIC FUNCTION ===
 void showRecipeDetailScreen(const RecipeSuggestion &recipe)
 {
     lv_obj_t *prev_screen = lv_scr_act();
@@ -560,6 +564,7 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
         recipe.url,
         recipe.name,
         recipe.imageUrl,
+        recipe.imageUrlBig,
         recipe.description,
         recipe.difficulty,
         recipe.totalTime,
