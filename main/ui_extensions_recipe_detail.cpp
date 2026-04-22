@@ -61,6 +61,12 @@ static void free_heart_button_ctx_cb(lv_event_t *e)
     if (!ctx)
         return;
 
+    // Clear user data from both buttons to prevent dangling pointers
+    if (ctx->add && lv_obj_is_valid(ctx->add))
+        lv_obj_set_user_data(ctx->add, nullptr);
+    if (ctx->remove && lv_obj_is_valid(ctx->remove))
+        lv_obj_set_user_data(ctx->remove, nullptr);
+
     delete ctx;
 }
 
@@ -106,7 +112,7 @@ static void heart_button_cb(lv_event_t *e)
             std::string *url = static_cast<std::string *>(param);
             favouriteService.removeFavourite(*url);
             delete url;
-            vTaskDelete(nullptr); }, "removeFav", 4096, new std::string(ctx->url), 1, nullptr);
+            vTaskDelete(nullptr); }, "removeFav", 8192, new std::string(ctx->url), 1, nullptr);
     }
     else
     {
@@ -116,6 +122,24 @@ static void heart_button_cb(lv_event_t *e)
         {
             url = "ai://deepseek/" + favouriteService.generateId();
             ctx->url = url;
+        }
+
+        if (ctx->recipeSource == "ai-deepseek" && ctx->imageUrl.empty())
+        {
+            ESP_LOGI("Favourite", "Generating image for AI recipe: %s", ctx->name.c_str());
+
+            // Check cache first
+            std::string cache_key = "generate:" + ctx->name + "|||" + ctx->description + "|112x112";
+            auto cache_it = s_leonardo_url_cache.find(cache_key);
+            if (cache_it != s_leonardo_url_cache.end())
+            {
+                ESP_LOGI("Favourite", "Leonardo URL cache hit for key: %s", cache_key.c_str());
+                ctx->imageUrl = cache_it->second;
+            }
+            else
+            {
+                ctx->imageUrl = "generate:" + ctx->name + "|||" + ctx->description;
+            }
         }
 
         // Create a minimal RecipeSuggestion with available data
@@ -143,6 +167,41 @@ static void heart_button_cb(lv_event_t *e)
         fav.methodSteps = ctx->methodSteps;
         favouritesManager.addFavourite(fav);
 
+        ESP_LOGI("FAVORITE", "Adding favourite:");
+        ESP_LOGI("FAVORITE", "  url: %s", fav.url.c_str());
+        ESP_LOGI("FAVORITE", "  name: %s", fav.name.c_str());
+        ESP_LOGI("FAVORITE", "  imageUrl: %s", fav.imageUrl.c_str());
+        ESP_LOGI("FAVORITE", "  description: %s", fav.description.c_str());
+        ESP_LOGI("FAVORITE", "  difficulty: %s", fav.difficulty.c_str());
+        ESP_LOGI("FAVORITE", "  totalTime: %s", fav.totalTime.c_str());
+        ESP_LOGI("FAVORITE", "  recipeSource: %s", fav.recipeSource.c_str());
+
+        // Log ingredients
+        if (!fav.ingredients.empty())
+        {
+            for (size_t i = 0; i < fav.ingredients.size(); i++)
+            {
+                ESP_LOGI("FAVORITE", "  ingredient[%d]: %s", i, fav.ingredients[i].c_str());
+            }
+        }
+        else
+        {
+            ESP_LOGI("FAVORITE", "  ingredients: (none)");
+        }
+
+        // Log method steps
+        if (!fav.methodSteps.empty())
+        {
+            for (size_t i = 0; i < fav.methodSteps.size(); i++)
+            {
+                ESP_LOGI("FAVORITE", "  step[%d]: %s", i, fav.methodSteps[i].c_str());
+            }
+        }
+        else
+        {
+            ESP_LOGI("FAVORITE", "  methodSteps: (none)");
+        }
+
         lv_lock();
         // UI: Hide "Add" (empty heart), Show "Remove" (full heart)
         lv_obj_add_flag(ctx->add, LV_OBJ_FLAG_HIDDEN);
@@ -154,25 +213,9 @@ static void heart_button_cb(lv_event_t *e)
         xTaskCreate([](void *param)
                     {
             RecipeSuggestion *recipe = static_cast<RecipeSuggestion *>(param);
-
-            if (recipe->recipeSource == "ai-deepseek" && recipe->imageUrl.empty()) {
-                ESP_LOGI("Favourite", "Generating image for AI recipe: %s", recipe->name.c_str());
-
-                    // Check cache first
-                    std::string cache_key = "generate:" + recipe->name + "|||" + recipe->description + "|112x112";
-                    auto cache_it = s_leonardo_url_cache.find(cache_key);
-                    if (cache_it != s_leonardo_url_cache.end()) {
-                        ESP_LOGI("Favourite", "Leonardo URL cache hit for key: %s", cache_key.c_str());
-                        recipe->imageUrl = cache_it->second;
-                    } else {
-                        recipe->imageUrl = "generate:" + recipe->name + "|||" + recipe->description;
-                    }
-        
-            }
-
             favouriteService.addFavourite(*recipe);
             delete recipe;
-            vTaskDelete(nullptr); }, "addFav", 4096, new RecipeSuggestion(recipe), 1, nullptr);
+            vTaskDelete(nullptr); }, "addFav", 8192, new RecipeSuggestion(recipe), 1, nullptr);
     }
 }
 
@@ -249,6 +292,27 @@ static void fetch_recipe_detail_task(void *arg)
              (int)ctx->recipe.methodSteps.size());
 
     lv_lock();
+
+    // Update HeartButtonContext with fetched recipe details
+    if (ok)
+    {
+        HeartButtonContext* heartCtx = static_cast<HeartButtonContext*>(lv_obj_get_user_data(objects.recipe_favourite_add));
+        if (heartCtx)
+        {
+            // Update vectors
+            heartCtx->ingredients = ctx->recipe.ingredients;
+            heartCtx->methodSteps = ctx->recipe.methodSteps;
+            // Update scalar fields if they are empty in context but present in fetched recipe
+            if (heartCtx->imageUrl.empty() && !ctx->recipe.imageUrl.empty())
+                heartCtx->imageUrl = ctx->recipe.imageUrl;
+            if (heartCtx->description.empty() && !ctx->recipe.description.empty())
+                heartCtx->description = ctx->recipe.description;
+            if (heartCtx->difficulty.empty() && !ctx->recipe.difficulty.empty())
+                heartCtx->difficulty = ctx->recipe.difficulty;
+            if (heartCtx->totalTime.empty() && !ctx->recipe.totalTime.empty())
+                heartCtx->totalTime = ctx->recipe.totalTime;
+        }
+    }
 
     if (ctx->spinner && lv_obj_is_valid(ctx->spinner))
         lv_obj_add_flag(ctx->spinner, LV_OBJ_FLAG_HIDDEN);
@@ -492,6 +556,9 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
         recipe.methodSteps,
         objects.recipe_favourite_add,
         objects.recipe_favourite_remove};
+
+    lv_obj_set_user_data(objects.recipe_favourite_add, ctx);
+    lv_obj_set_user_data(objects.recipe_favourite_remove, ctx);
 
     lv_obj_add_event_cb(objects.recipe_favourite_add, heart_button_cb, LV_EVENT_CLICKED, ctx);
     lv_obj_add_event_cb(objects.recipe_favourite_add, free_heart_button_ctx_cb, LV_EVENT_DELETE, ctx);

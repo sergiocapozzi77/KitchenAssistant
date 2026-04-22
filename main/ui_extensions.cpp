@@ -10,6 +10,9 @@
 #include "esp_heap_caps.h"
 #include "esp_err.h"
 #include "esp_task_wdt.h"
+#ifdef CONFIG_ESP_LP_WDT_ENABLE
+#include "esp_lp_wdt.h"
+#endif
 #include "esp_http_client.h"
 #include "esp_crt_bundle.h"
 #include "ui_extensions.h"
@@ -165,7 +168,7 @@ void init_styles()
     // Create HTTP concurrency semaphore (max 2 concurrent requests)
     if (s_http_concurrency_sem == NULL)
     {
-        s_http_concurrency_sem = xSemaphoreCreateCounting(2, 2);
+        s_http_concurrency_sem = xSemaphoreCreateCounting(1, 1);
         if (s_http_concurrency_sem == NULL)
         {
             ESP_LOGE(TAG, "Failed to create HTTP concurrency semaphore");
@@ -534,6 +537,12 @@ lv_obj_t *createRecipeCard(lv_obj_t *parent, const Favorite &fav, std::vector<Th
 
 size_t tjpgd_in_cb(JDEC *jd, uint8_t *buf, size_t n)
 {
+    // Feed watchdogs to prevent reset during long JPEG decode
+    esp_task_wdt_reset();
+#ifdef CONFIG_ESP_LP_WDT_ENABLE
+    esp_lp_wdt_feed();
+#endif
+
     JpegIo *io = (JpegIo *)jd->device;
     size_t avail = io->src_len - io->src_pos;
     n = (n < avail) ? n : avail;
@@ -545,6 +554,20 @@ size_t tjpgd_in_cb(JDEC *jd, uint8_t *buf, size_t n)
 
 int tjpgd_out_cb(JDEC *jd, void *bitmap, JRECT *rect)
 {
+    // Feed watchdogs to prevent reset during long JPEG decode
+
+#ifdef CONFIG_ESP_LP_WDT_ENABLE
+    esp_lp_wdt_feed();
+#endif
+
+    // Yield every 8 rectangles to allow other tasks to run
+    static int s_rect_count = 0;
+    s_rect_count++;
+    if ((s_rect_count & 7) == 0)
+    {
+        taskYIELD();
+    }
+
     JpegIo *io = (JpegIo *)jd->device;
     const uint8_t *src = (const uint8_t *)bitmap;
     int cols = rect->right - rect->left + 1;
