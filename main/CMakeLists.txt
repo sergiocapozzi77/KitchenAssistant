@@ -39,6 +39,7 @@ idf_component_register(
         ui/ui_image_favourite_add.c
         ui/ui_image_favourite_remove.c
         ui/ui_image_favourite.c
+        ui/ui_image_settings.c
         ui/ui_image_baby.c
         ui/ui_image_meat.c
         ui/ui_image_produce.c

@@ -26,6 +26,7 @@
     "ui_image_other.c",
     "ui_image_produce.c",
     "ui_image_restaurant.c",
+    "ui_image_settings.c",
     "ui_image_shopping.c",
     "ui_image_snacks.c",
     "ui_image_snowflake.c",

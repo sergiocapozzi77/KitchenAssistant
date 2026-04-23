@@ -171,6 +171,29 @@ static int find_index(const char *value, filter_option_t options[], int count)
     return 0;
 }
 
+static void set_options_visibility(filter_panel_t *panel, int idx)
+{
+
+    if (idx == 0 || idx == 1 || idx == 4)
+    {
+        lv_obj_clear_flag(panel->calories_dropdown, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(panel->cuisine_dropdown, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(panel->diet_dropdown, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(panel->difficulty_dropdown, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(panel->meal_type_dropdown, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(panel->total_time_dropdown, LV_OBJ_FLAG_HIDDEN);
+    }
+    if (idx == 2 || idx == 3) // giallo zafferano
+    {
+        lv_obj_add_flag(panel->calories_dropdown, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(panel->cuisine_dropdown, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(panel->diet_dropdown, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(panel->difficulty_dropdown, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(panel->meal_type_dropdown, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(panel->total_time_dropdown, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
 static void sync_panel(filter_panel_t *panel)
 {
     if (is_syncing)
@@ -197,7 +220,7 @@ static void sync_panel(filter_panel_t *panel)
 
     int idx = find_index(current_filters.source, source_options, source_count);
     lv_dropdown_set_selected(panel->source_dropdown, idx >= 0 ? idx : 1);
-
+    set_options_visibility(panel, idx);
     is_syncing = false;
 }
 
@@ -300,6 +323,8 @@ static void dropdown_event_handler(lv_event_t *e)
         options = source_options;
         count = source_count;
         target = &current_filters.source;
+        int idx = find_index(current_filters.source, source_options, source_count);
+        set_options_visibility(panel, idx);
     }
 
     if (target)

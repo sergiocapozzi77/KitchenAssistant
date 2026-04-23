@@ -329,11 +329,13 @@ static void tabview_tab_changed_cb(lv_event_t *e)
         if (recipeSuggestionsManager.getSuggestionSize() > 0)
         {
             lv_obj_add_flag(objects.recipe_list_filter_container, LV_OBJ_FLAG_HIDDEN);
+            lv_label_set_text(objects.recipe_filter_toggle_text, "\uF078");
             recipeSuggestionsManager.showCurrentPageRecipes();
         }
         else
         {
             lv_obj_clear_flag(objects.recipe_list_filter_container, LV_OBJ_FLAG_HIDDEN);
+            lv_label_set_text(objects.recipe_filter_toggle_text, "\uF077");
         }
         // Hide keyboard when switching away from products tab
         lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
@@ -371,6 +373,7 @@ void action_screen_loading(lv_event_t *e)
     set_tab_icon(objects.tabview, 0, &img_shopping);
     set_tab_icon(objects.tabview, 1, &img_chef);
     set_tab_icon(objects.tabview, 2, &img_favourite);
+    set_tab_icon(objects.tabview, 3, &img_settings);
 
     lv_obj_set_parent(objects.snackbar, lv_layer_top());
     lv_obj_move_foreground(objects.snackbar); // Ensure it's the front-most child of the top layer
@@ -385,6 +388,7 @@ void action_screen_loading(lv_event_t *e)
     create_filter_panel(&recipes_panel);
 
     lv_obj_add_flag(objects.recipe_list_filter_container, LV_OBJ_FLAG_HIDDEN);
+    lv_label_set_text(objects.recipe_filter_toggle_text, "\uF078");
     lv_obj_add_event_cb(objects.tabview, tabview_tab_changed_cb, LV_EVENT_VALUE_CHANGED, nullptr);
 
     // Keyboard initialization
@@ -398,6 +402,8 @@ void action_screen_loading(lv_event_t *e)
     lv_obj_add_event_cb(objects.product_search_ta, keywords_textarea_focused_cb, LV_EVENT_FOCUSED, nullptr);
     lv_obj_add_event_cb(objects.product_search_ta, keywords_textarea_defocused_cb, LV_EVENT_DEFOCUSED, nullptr);
     lv_obj_add_event_cb(objects.product_search_ta, product_search_value_changed_cb, LV_EVENT_VALUE_CHANGED, nullptr);
+    lv_obj_add_event_cb(objects.product_edit__product_edit_name_ta, keywords_textarea_focused_cb, LV_EVENT_FOCUSED, nullptr);
+    lv_obj_add_event_cb(objects.product_edit__product_edit_name_ta, keywords_textarea_defocused_cb, LV_EVENT_DEFOCUSED, nullptr);
 
     lv_obj_add_event_cb(objects.recipe_back_btn, recipe_detail_back_cb, LV_EVENT_CLICKED, lv_scr_act());
     lv_obj_add_event_cb(objects.phase_back_btn, recipe_detail_back_cb, LV_EVENT_CLICKED, objects.recipe_detail);
@@ -415,6 +421,7 @@ void action_update_recipes_from_filter_panel(lv_event_t *e)
     lv_lock();
     lv_tabview_set_active(objects.tabview, 1, LV_ANIM_OFF);
     lv_obj_add_flag(objects.recipe_list_filter_container, LV_OBJ_FLAG_HIDDEN);
+    lv_label_set_text(objects.recipe_filter_toggle_text, "\uF078");
     lv_unlock();
 
     // Somewhere in initTasks() or after WiFi connects:
@@ -429,6 +436,7 @@ void action_generate_recipe_click(lv_event_t *e)
 
     lv_lock();
     lv_obj_add_flag(objects.recipe_list_filter_container, LV_OBJ_FLAG_HIDDEN);
+    lv_label_set_text(objects.recipe_filter_toggle_text, "\uF078");
     lv_tabview_set_active(objects.tabview, 1, LV_ANIM_OFF);
     lv_unlock();
 
@@ -677,10 +685,12 @@ void action_recipes_filter_panel_toggle(lv_event_t *e)
     if (lv_obj_has_flag(objects.recipe_list_filter_container, LV_OBJ_FLAG_HIDDEN))
     {
         lv_obj_clear_flag(objects.recipe_list_filter_container, LV_OBJ_FLAG_HIDDEN);
+        lv_label_set_text(objects.recipe_filter_toggle_text, "\uF077");
     }
     else
     {
         lv_obj_add_flag(objects.recipe_list_filter_container, LV_OBJ_FLAG_HIDDEN);
+        lv_label_set_text(objects.recipe_filter_toggle_text, "\uF078");
     }
 }
 
@@ -769,6 +779,7 @@ void action_generate_ai_recipes_click(lv_event_t *e)
 
     lv_lock();
     lv_obj_add_flag(objects.recipe_list_filter_container, LV_OBJ_FLAG_HIDDEN);
+    lv_label_set_text(objects.recipe_filter_toggle_text, "\uF078");
     lv_tabview_set_active(objects.tabview, 1, LV_ANIM_OFF);
     lv_dropdown_set_selected(objects.recipes_filters_panel__source_dropdown, find_index("ai-deepseek", source_options, source_count)); // Set source filter to AI DeepSeek
     lv_unlock();
@@ -780,4 +791,8 @@ void action_generate_ai_recipes_click(lv_event_t *e)
     // Somewhere in initTasks() or after WiFi connects:
     recipeSuggestionsManager.reset();
     recipeSuggestionsManager.loadCurrentPage();
+}
+
+void action_wi_fi_settings_click(lv_event_t *e)
+{
 }

@@ -313,10 +313,10 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
     scroll_y = 0;
 
     // Root setup: Light gray background, horizontal layout
-    lv_obj_set_style_bg_color(root, lv_color_hex(0xF8F9FA), 0);
-    lv_obj_set_style_pad_all(root, 15, 0);
-    lv_obj_set_flex_flow(root, LV_FLEX_FLOW_ROW);
-    lv_obj_set_style_pad_column(root, 15, 0);
+    // lv_obj_set_style_bg_color(root, lv_color_hex(0xF8F9FA), 0);
+    // lv_obj_set_style_pad_all(root, 15, 0);
+    // lv_obj_set_flex_flow(root, LV_FLEX_FLOW_ROW);
+    // lv_obj_set_style_pad_column(root, 15, 0);
 
     uint32_t filter_idx = 0;
     if (objects.product_filter_dropdown && lv_obj_is_valid(objects.product_filter_dropdown))
@@ -396,31 +396,31 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
     }
 
     // Step 3: Create left sidebar container
-    lv_obj_t *sidebar = lv_obj_create(root);
-    lv_obj_set_width(sidebar, lv_pct(30)); // 30% width
-    lv_obj_set_height(sidebar, lv_pct(100));
-    lv_obj_set_flex_flow(sidebar, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_row(sidebar, 10, 0);
-    lv_obj_set_style_pad_all(sidebar, 10, 0);
-    lv_obj_set_style_border_width(sidebar, 0, 0);
-    lv_obj_set_style_bg_color(sidebar, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_set_style_radius(sidebar, 8, 0);
-    lv_obj_set_style_shadow_width(sidebar, 10, 0);
-    lv_obj_set_style_shadow_color(sidebar, lv_color_hex(0x888888), 0);
-    // Make sidebar scrollable vertically if many categories
-    lv_obj_add_flag(sidebar, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_scrollbar_mode(sidebar, LV_SCROLLBAR_MODE_AUTO);
+    lv_obj_t *sidebar = objects.products_sidebar;
+    // lv_obj_set_width(sidebar, lv_pct(30)); // 30% width
+    // lv_obj_set_height(sidebar, lv_pct(100));
+    // lv_obj_set_flex_flow(sidebar, LV_FLEX_FLOW_COLUMN);
+    // lv_obj_set_style_pad_row(sidebar, 10, 0);
+    // lv_obj_set_style_pad_all(sidebar, 10, 0);
+    // lv_obj_set_style_border_width(sidebar, 0, 0);
+    // lv_obj_set_style_bg_color(sidebar, lv_color_hex(0xFFFFFF), 0);
+    // lv_obj_set_style_radius(sidebar, 8, 0);
+    // lv_obj_set_style_shadow_width(sidebar, 10, 0);
+    // lv_obj_set_style_shadow_color(sidebar, lv_color_hex(0x888888), 0);
+    // // Make sidebar scrollable vertically if many categories
+    // lv_obj_add_flag(sidebar, LV_OBJ_FLAG_SCROLLABLE);
+    // lv_obj_set_scrollbar_mode(sidebar, LV_SCROLLBAR_MODE_AUTO);
 
     // Step 4: Create right content container
-    lv_obj_t *content_container = lv_obj_create(root);
-    lv_obj_set_width(content_container, lv_pct(70));
-    lv_obj_set_height(content_container, lv_pct(100));
-    lv_obj_set_flex_flow(content_container, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_all(content_container, 10, 0);
-    lv_obj_set_style_border_width(content_container, 0, 0);
-    lv_obj_set_style_bg_color(content_container, lv_color_hex(0xF8F9FA), 0);
-    lv_obj_add_flag(content_container, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_scrollbar_mode(content_container, LV_SCROLLBAR_MODE_AUTO);
+    lv_obj_t *content_container = objects.products_container;
+    // lv_obj_set_width(content_container, lv_pct(70));
+    // lv_obj_set_height(content_container, lv_pct(100));
+    // lv_obj_set_flex_flow(content_container, LV_FLEX_FLOW_COLUMN);
+    // lv_obj_set_style_pad_all(content_container, 10, 0);
+    // lv_obj_set_style_border_width(content_container, 0, 0);
+    // lv_obj_set_style_bg_color(content_container, lv_color_hex(0xF8F9FA), 0);
+    // lv_obj_add_flag(content_container, LV_OBJ_FLAG_SCROLLABLE);
+    // lv_obj_set_scrollbar_mode(content_container, LV_SCROLLBAR_MODE_AUTO);
 
     // Step 5: Create category buttons in sidebar
     for (const std::string &category : uniqueCategories)
@@ -617,7 +617,8 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
     // Get selected products to restore selection state
     std::vector<Product> selectedProducts = productsManager.getSelectedProducts();
     std::set<std::string> selectedRowIds;
-    for (const auto& p : selectedProducts) {
+    for (const auto &p : selectedProducts)
+    {
         selectedRowIds.insert(p.rowId);
     }
 
@@ -639,7 +640,8 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
         lv_obj_clear_flag(img, LV_OBJ_FLAG_CLICKABLE); // Ensure clicks pass through to row
         lv_image_set_src(img, &img_restaurant);
         bool isSelected = selectedRowIds.find(p->rowId) != selectedRowIds.end();
-        if (!isSelected) {
+        if (!isSelected)
+        {
             lv_obj_add_flag(img, LV_OBJ_FLAG_HIDDEN);
         }
         lv_obj_set_style_translate_y(img, 5, 0);

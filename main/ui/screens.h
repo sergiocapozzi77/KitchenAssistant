@@ -28,6 +28,8 @@ typedef struct _objects_t {
     lv_obj_t *products_reload_btn;
     lv_obj_t *product_search_ta;
     lv_obj_t *products_list;
+    lv_obj_t *products_sidebar;
+    lv_obj_t *products_container;
     lv_obj_t *create_recipe_pnl;
     lv_obj_t *products_filters_panel;
     lv_obj_t *products_filters_panel__keywords_text;
@@ -62,6 +64,7 @@ typedef struct _objects_t {
     lv_obj_t *product_edit__product_edit_frozen_cb;
     lv_obj_t *product_edit__calendar_editproduct;
     lv_obj_t *recipes_header_pnl;
+    lv_obj_t *recipe_filter_toggle_text;
     lv_obj_t *recipe_suggestion_prev_btn;
     lv_obj_t *recipe_suggestion_next_btn;
     lv_obj_t *recipes_list;
@@ -84,6 +87,8 @@ typedef struct _objects_t {
     lv_obj_t *favourites_next_btn;
     lv_obj_t *favourites_reload_btn;
     lv_obj_t *favourites_list;
+    lv_obj_t *settings_wifi_btn;
+    lv_obj_t *current_wifi_lbl;
     lv_obj_t *keywords_keyboard;
     lv_obj_t *spinner;
     lv_obj_t *snackbar;
@@ -97,7 +102,6 @@ typedef struct _objects_t {
     lv_obj_t *recipe_title;
     lv_obj_t *recipe_favourite_add;
     lv_obj_t *recipe_favourite_remove;
-    lv_obj_t *create_steps_btn;
     lv_obj_t *recipe_header_img;
     lv_obj_t *meta_card;
     lv_obj_t *meta_item_time;
@@ -111,6 +115,8 @@ typedef struct _objects_t {
     lv_obj_t *detail_tabview;
     lv_obj_t *recipe_ing_cont;
     lv_obj_t *recipe_method_cont;
+    lv_obj_t *recipe_details_bottom_bar;
+    lv_obj_t *create_steps_btn_1;
     lv_obj_t *recipe_detail_spinner;
     lv_obj_t *root_container_phase;
     lv_obj_t *top_phase_bar;
