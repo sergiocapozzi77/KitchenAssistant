@@ -14,9 +14,11 @@ public:
     void waitForConnection();
 
     static bool isSntpSynced();
+    std::string getSSID() const;
 
 private:
     static volatile bool sntp_synced;
+    std::string current_ssid;
     static void sntpSyncCallback(struct timeval *tv);
     static void eventHandler(void *arg,
                              esp_event_base_t event_base,

@@ -132,6 +132,12 @@ void ProductsManager::fetchProductsTask(void *param)
     while (!wifiManager.isSntpSynced())
         vTaskDelay(pdMS_TO_TICKS(500));
 
+    lv_lock();
+    if (objects.current_wifi_lbl && lv_obj_is_valid(objects.current_wifi_lbl)) {
+        lv_label_set_text(objects.current_wifi_lbl, wifiManager.getSSID().c_str());
+    }
+    lv_unlock();
+
     ESP_LOGI(TAG, "WiFi connected. Fetching products...");
 
     // Fetch products

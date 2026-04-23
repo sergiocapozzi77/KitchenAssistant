@@ -85,7 +85,14 @@ void WiFiManager::init(const std::string &ssid,
     // Explicitly connect (like AppSettings does in wifiConnectTask)
     ESP_ERROR_CHECK(esp_wifi_connect());
 
+    current_ssid = ssid;
+
     ESP_LOGI(TAG, "WiFi initialization complete");
+}
+
+std::string WiFiManager::getSSID() const
+{
+    return current_ssid;
 }
 
 void WiFiManager::waitForConnection()
