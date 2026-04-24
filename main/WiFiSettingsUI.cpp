@@ -181,6 +181,8 @@ void WiFiSettingsUI::monitorConnectionTask(void *arg)
 
 void WiFiSettingsUI::doConnect(const std::string &ssid, const std::string &password)
 {
+    ESP_LOGI(TAG, "doConnect ssid=%s pwd_len=%zu", ssid.c_str(), password.length());
+
     if (!wifiManager.connectToNetwork(ssid, password))
     {
         showSnackbar("Failed to start connection", 5000);
@@ -218,9 +220,9 @@ void WiFiSettingsUI::onPasswordConnectClick(lv_event_t *e)
     if (!s_password_ta || !lv_obj_is_valid(s_password_ta))
         return;
 
-    const char *password = lv_textarea_get_text(s_password_ta);
-    if (!password)
-        password = "";
+    const char *password_chars = lv_textarea_get_text(s_password_ta);
+    std::string password = password_chars ? password_chars : "";
+    ESP_LOGI(TAG, "PWD after textarea copy (len=%zu): %s", password.length(), password.c_str());
 
     if (s_keyboard && lv_obj_is_valid(s_keyboard))
     {

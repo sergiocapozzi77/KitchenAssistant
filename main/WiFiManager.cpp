@@ -14,14 +14,10 @@ WiFiManager wifiManager;
 // Init
 // ─────────────────────────────────────────────
 
-void WiFiManager::init(const std::string &ssid, const std::string &password)
+void WiFiManager::init()
 {
-
-    m_ssid = ssid;
-    m_password = password;
-
     m_scanMutex = xSemaphoreCreateMutex();
-    m_cmdQueue = xQueueCreate(5, sizeof(Cmd *));
+    m_cmdQueue = xQueueCreate(5, sizeof(Cmd));
 
     esp_netif_init();
     esp_event_loop_create_default();
@@ -44,9 +40,6 @@ void WiFiManager::init(const std::string &ssid, const std::string &password)
 
     // Start worker task
     xTaskCreate(wifiTask, "wifi_task", 4096, this, 5, nullptr);
-
-    // Trigger initial connection via queue
-    connectToNetwork(ssid, password);
 }
 
 // ─────────────────────────────────────────────
@@ -55,24 +48,25 @@ void WiFiManager::init(const std::string &ssid, const std::string &password)
 
 bool WiFiManager::connectToNetwork(const std::string &ssid, const std::string &password)
 {
-    auto *cmd = new Cmd{CmdType::Connect, ssid, password};
-    if (xQueueSend(m_cmdQueue, &cmd, 0) != pdTRUE)
-    {
-        delete cmd;
-        return false;
-    }
-    return true;
+    Cmd cmd;
+    cmd.type = CmdType::Connect;
+    strncpy(cmd.ssid, ssid.c_str(), sizeof(cmd.ssid) - 1);
+    cmd.ssid[sizeof(cmd.ssid) - 1] = 0;
+    strncpy(cmd.password, password.c_str(), sizeof(cmd.password) - 1);
+    cmd.password[sizeof(cmd.password) - 1] = 0;
+
+    ESP_LOGI(TAG, "connectToNetwork: ssid=%s pwd_len_input=%zu pwd_cmd=%s",
+             ssid.c_str(), password.length(), cmd.password);
+
+    return xQueueSend(m_cmdQueue, &cmd, 0) == pdTRUE;
 }
 
 bool WiFiManager::startScan()
 {
-    auto *cmd = new Cmd{CmdType::StartScan, "", ""};
-    if (xQueueSend(m_cmdQueue, &cmd, 0) != pdTRUE)
-    {
-        delete cmd;
-        return false;
-    }
-    return true;
+    Cmd cmd;
+    cmd.type = CmdType::StartScan;
+
+    return xQueueSend(m_cmdQueue, &cmd, 0) == pdTRUE;
 }
 
 // ─────────────────────────────────────────────
@@ -82,20 +76,21 @@ bool WiFiManager::startScan()
 void WiFiManager::wifiTask(void *arg)
 {
     auto *self = static_cast<WiFiManager *>(arg);
+    Cmd cmd;
 
     while (true)
     {
-        Cmd *cmd = nullptr;
         if (xQueueReceive(self->m_cmdQueue, &cmd, portMAX_DELAY))
         {
-            switch (cmd->type)
+            switch (cmd.type)
             {
             case CmdType::Connect:
             {
-                ESP_LOGI(TAG, "Connecting to %s %s", cmd->ssid.c_str(), cmd->password.c_str());
+                ESP_LOGI(TAG, "Connecting to %s (pwd_from_queue=%s)", cmd.ssid, cmd.password);
 
-                self->m_ssid = cmd->ssid;
-                self->m_password = cmd->password;
+                self->m_ssid = cmd.ssid;
+                self->m_password = cmd.password;
+                ESP_LOGI(TAG, "pwd_member_set len=%zu", self->m_password.length());
                 self->m_sntpSynced = false;
                 self->m_retryDelayMs = 1000;
 
@@ -125,8 +120,6 @@ void WiFiManager::wifiTask(void *arg)
                 break;
             }
             }
-
-            delete cmd;
         }
     }
 }
@@ -148,7 +141,12 @@ void WiFiManager::applyConfig()
     cfg.sta.threshold.authmode =
         m_password.empty() ? WIFI_AUTH_OPEN : WIFI_AUTH_WPA2_PSK;
 
+    ESP_LOGI(TAG, "applyConfig: ssid=%s pwd=%s auth=%d",
+             cfg.sta.ssid, cfg.sta.password, cfg.sta.threshold.authmode);
+
     esp_wifi_set_config(WIFI_IF_STA, &cfg);
+
+    ESP_LOGI(TAG, "applyConfig: after esp_wifi_set_config pwd=%s", cfg.sta.password);
 }
 
 // ─────────────────────────────────────────────

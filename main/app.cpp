@@ -78,34 +78,44 @@ void Application::initHardware()
 {
     // Mount SPIFFS early so we can load saved WiFi credentials
     esp_err_t spiffs_ret = bsp_spiffs_mount();
-    if (spiffs_ret != ESP_OK) {
+    if (spiffs_ret != ESP_OK)
+    {
         ESP_LOGE(TAG, "Failed to mount SPIFFS (ret %d)", spiffs_ret);
-    } else {
+    }
+    else
+    {
         ESP_LOGI(TAG, "SPIFFS mounted");
     }
 
-    // Load saved WiFi credentials from SPIFFS (fall back to Kconfig defaults)
-    std::string wifi_ssid = CONFIG_WIFI_SSID;
-    std::string wifi_password = CONFIG_WIFI_PASSWORD;
+    // Load saved WiFi credentials from SPIFFS only (no Kconfig fallback)
+    m_wifiCredsFound = false;
+    std::string wifi_ssid, wifi_password;
 
-    if (spiffs_ret == ESP_OK) {
+    if (spiffs_ret == ESP_OK)
+    {
         FILE *f = fopen("/spiffs/wifi_creds.json", "r");
-        if (f) {
+        if (f)
+        {
             // Read file into buffer
             fseek(f, 0, SEEK_END);
             long fsize = ftell(f);
             fseek(f, 0, SEEK_SET);
 
-            if (fsize > 0 && fsize < 4096) {
+            if (fsize > 0 && fsize < 4096)
+            {
                 std::string buf(fsize, '\0');
-                if (fread(buf.data(), 1, fsize, f) == (size_t)fsize) {
+                if (fread(buf.data(), 1, fsize, f) == (size_t)fsize)
+                {
                     cJSON *json = cJSON_Parse(buf.c_str());
-                    if (json) {
+                    if (json)
+                    {
                         cJSON *ssid_item = cJSON_GetObjectItem(json, "ssid");
                         cJSON *pass_item = cJSON_GetObjectItem(json, "password");
-                        if (cJSON_IsString(ssid_item) && cJSON_IsString(pass_item)) {
+                        if (cJSON_IsString(ssid_item) && cJSON_IsString(pass_item))
+                        {
                             wifi_ssid = ssid_item->valuestring;
                             wifi_password = pass_item->valuestring;
+                            m_wifiCredsFound = true;
                             ESP_LOGI(TAG, "Loaded WiFi credentials for SSID: %s", wifi_ssid.c_str());
                         }
                         cJSON_Delete(json);
@@ -113,18 +123,27 @@ void Application::initHardware()
                 }
             }
             fclose(f);
-        } else {
-            ESP_LOGI(TAG, "No saved WiFi credentials found, using Kconfig defaults");
+        }
+        else
+        {
+            ESP_LOGI(TAG, "No saved WiFi credentials found — will prompt user in settings");
         }
 
         // Initialize thumbnail cache (after credentials loaded)
-        if (!thumbnail_cache::init()) {
+        if (!thumbnail_cache::init())
+        {
             ESP_LOGW(TAG, "Thumbnail cache init failed (continuing without cache)");
         }
     }
 
-    // WiFi (uses saved credentials or Kconfig defaults)
-    wifiManager.init(wifi_ssid, wifi_password);
+    // Initialize WiFi driver (always, regardless of saved credentials)
+    wifiManager.init();
+
+    // Connect only if we have saved credentials
+    if (m_wifiCredsFound)
+    {
+        wifiManager.connectToNetwork(wifi_ssid, wifi_password);
+    }
 
     bsp_display_cfg_t cfg = {
         .lvgl_port_cfg = ESP_LVGL_PORT_INIT_CONFIG(),
@@ -143,6 +162,17 @@ void Application::initHardware()
     bsp_display_lock(0);
     ui_init();
     bsp_display_unlock();
+
+    // If no saved WiFi credentials, navigate to the settings tab so the user
+    // can configure WiFi
+    if (!m_wifiCredsFound)
+    {
+        lv_async_call([](void *)
+                      {
+            if (objects.tabview && lv_obj_is_valid(objects.tabview)) {
+                lv_tabview_set_active(objects.tabview, 3, LV_ANIM_OFF);
+            } }, nullptr);
+    }
 
     ESP_LOGI(TAG, "Hardware initialized");
 }

@@ -16,6 +16,8 @@ private:
     void initTasks();
     void mainLoop();
 
+    bool m_wifiCredsFound = false;
+
 public:
     Application() = default;
     ~Application() = default; // Not strictly needed in embedded reset model

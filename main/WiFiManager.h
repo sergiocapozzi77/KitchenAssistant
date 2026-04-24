@@ -14,7 +14,7 @@
 class WiFiManager
 {
 public:
-    void init(const std::string &ssid, const std::string &password);
+    void init();
 
     bool connectToNetwork(const std::string &ssid, const std::string &password);
 
@@ -46,8 +46,8 @@ private:
     struct Cmd
     {
         CmdType type;
-        std::string ssid;
-        std::string password;
+        char ssid[32];
+        char password[64];
     };
 
     // Tasks
