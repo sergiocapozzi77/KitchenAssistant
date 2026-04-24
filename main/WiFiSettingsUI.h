@@ -6,17 +6,21 @@
 class WiFiSettingsUI
 {
 public:
-    /// Show the WiFi settings dialog, or destroy it if already shown
+    /// Show the WiFi settings screen, or close it if already shown
     static void toggleDialog();
 
 private:
-    // ── Dialog state ──
-    static lv_obj_t *s_dialog;
+    // ── Screen state ──
+    static lv_obj_t *s_screen;
+    static lv_obj_t *s_prev_screen;
     static lv_obj_t *s_status_lbl;
     static lv_obj_t *s_scanning_lbl;
     static lv_obj_t *s_list;
     static lv_obj_t *s_password_panel;
     static lv_obj_t *s_password_ta;
+    static lv_obj_t *s_keyboard;
+    static lv_timer_t *s_close_timer;
+    static bool s_is_active;
     static std::string s_pending_ssid;
 
     // ── Context structs for async tasks ──
@@ -45,10 +49,19 @@ private:
     static void scanTask(void *arg);
     static void scanCompleteCb(void *arg);
 
+    // ── Screen lifecycle ──
+    static void openScreen();
+    static void closeScreen();
+    static void closeAnimCb(lv_timer_t *t);
+    static void destroyScreen();
+
+    // ── Incremental network list population ──
+    static lv_timer_t *s_pop_timer;
+    static void populateTimerCb(lv_timer_t *t);
+
     // ── UI construction ──
     static void populateNetworkList();
     static void showPasswordDialog(const std::string &ssid);
-    static void destroyDialog();
 
     // ── LVGL event callbacks ──
     static void onCloseClick(lv_event_t *e);
@@ -56,4 +69,6 @@ private:
     static void onNetworkClick(lv_event_t *e);
     static void onPasswordConnectClick(lv_event_t *e);
     static void onPasswordCancelClick(lv_event_t *e);
+    static void onPasswordFocused(lv_event_t *e);
+    static void onPasswordDefocused(lv_event_t *e);
 };
