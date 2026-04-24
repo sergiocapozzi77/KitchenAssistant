@@ -975,10 +975,10 @@ void thumb_worker_task(void *)
 
     while (true)
     {
-        if (xQueueReceive(s_thumb_queue, &ctx, portMAX_DELAY) != pdTRUE)
-            continue;
 
         esp_task_wdt_reset();
+        if (xQueueReceive(s_thumb_queue, &ctx, pdMS_TO_TICKS(1000)) != pdTRUE)
+            continue;
 
         // Stale check
         if (ctx->generation != s_thumb_generation.load())
