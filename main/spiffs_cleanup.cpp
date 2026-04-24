@@ -56,13 +56,13 @@ bool spiffs_cleanup::delete_thumbnail_cache()
     int deleted = 0;
     while ((entry = readdir(dir)) != nullptr)
     {
-        // Only match hex-hash .jpg files (16 hex chars + ".jpg")
+        // Only match hex-hash .jpg files (8 hex chars + ".jpg")
         size_t len = strlen(entry->d_name);
-        if (len == 20 && strcmp(entry->d_name + 16, ".jpg") == 0)
+        if (len == 12 && strcmp(entry->d_name + 8, ".jpg") == 0)
         {
             // Verify it's all hex before the extension
             bool is_hex = true;
-            for (size_t i = 0; i < 16; i++)
+            for (size_t i = 0; i < 8; i++)
             {
                 if (!((entry->d_name[i] >= '0' && entry->d_name[i] <= '9') ||
                       (entry->d_name[i] >= 'a' && entry->d_name[i] <= 'f') ||

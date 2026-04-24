@@ -803,9 +803,24 @@ void action_clear_all_settings_click(lv_event_t *e)
 {
     ESP_LOGI("actions", "Clear All Settings clicked");
 
-    spiffs_cleanup::delete_wifi_creds();
     spiffs_cleanup::delete_thumbnail_cache();
     showSnackbar("All settings cleared. Restarting...", 5000);
-    vTaskDelay(pdMS_TO_TICKS(5000));
-    esp_restart();
+
+    // Create a timer to restart after the snackbar duration
+    TimerHandle_t restart_timer = xTimerCreate(
+        "restart_timer",
+        pdMS_TO_TICKS(5000),
+        pdFALSE, // one-shot
+        nullptr,
+        [](TimerHandle_t)
+        { esp_restart(); });
+    if (restart_timer)
+    {
+        xTimerStart(restart_timer, 0);
+    }
+    else
+    {
+        ESP_LOGE(TAG, "Failed to create restart timer");
+        esp_restart(); // fallback
+    }
 }
