@@ -18,6 +18,10 @@ volatile bool WiFiManager::wifi_connected = false;
 bool WiFiManager::sntp_initialized = false;
 volatile bool WiFiManager::sntp_synced = false;
 
+volatile bool WiFiManager::scan_complete = false;
+volatile bool WiFiManager::scanning = false;
+std::vector<wifi_ap_record_t> WiFiManager::scan_results;
+
 // ============================================================
 // Public API
 // ============================================================
@@ -127,6 +131,48 @@ void WiFiManager::eventHandler(void *arg,
             // esp_wifi_connect();
             break;
 
+        case WIFI_EVENT_SCAN_DONE:
+        {
+            ESP_LOGI(TAG, "WiFi scan completed");
+            scanning = false;
+
+            // Fetch scan results — use a reasonable buffer directly
+            uint16_t ap_count = 30;
+            wifi_ap_record_t *records = (wifi_ap_record_t *)heap_caps_malloc(
+                ap_count * sizeof(wifi_ap_record_t),
+                MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+            if (records)
+            {
+                esp_err_t err = esp_wifi_scan_get_ap_records(&ap_count, records);
+                if (err == ESP_OK)
+                {
+                    ESP_LOGI(TAG, "Found %d APs", ap_count);
+                    if (ap_count > 0)
+                        scan_results.assign(records, records + ap_count);
+                    else
+                        scan_results.clear();
+                }
+                else
+                {
+                    ESP_LOGE(TAG, "Failed to get scan results: %d", err);
+                    scan_results.clear();
+                }
+                heap_caps_free(records);
+            }
+
+            scan_complete = true;
+
+            // Reconnect after scan (the disconnecting for scan suppressed auto-reconnect)
+            WiFiManager *self = static_cast<WiFiManager *>(arg);
+            if (self && !self->current_ssid.empty())
+            {
+                esp_err_t ret = esp_wifi_connect();
+                if (ret != ESP_OK)
+                    ESP_LOGW(TAG, "Reconnect after scan: %d", ret);
+            }
+            break;
+        }
+
         case WIFI_EVENT_STA_DISCONNECTED:
         {
             wifi_event_sta_disconnected_t *event =
@@ -138,6 +184,13 @@ void WiFiManager::eventHandler(void *arg,
 
             wifi_connected = false;
             sntp_synced = false;
+
+            // Suppress auto-reconnect during active scan
+            if (scanning)
+            {
+                ESP_LOGI(TAG, "Scan in progress — suppressing reconnect");
+                break;
+            }
 
             // Small backoff before reconnect
             vTaskDelay(pdMS_TO_TICKS(1000));
@@ -197,4 +250,98 @@ void WiFiManager::sntpSyncCallback(struct timeval *tv)
 bool WiFiManager::isSntpSynced()
 {
     return sntp_synced;
+}
+
+// ============================================================
+// WiFi Scanning
+// ============================================================
+
+bool WiFiManager::startScan()
+{
+    ESP_LOGI(TAG, "Starting WiFi scan...");
+    scan_results.clear();
+    scan_complete = false;
+    scanning = true;
+
+    // Disconnect to stop auto-reconnect from interfering with scan
+    esp_wifi_disconnect();
+
+    wifi_scan_config_t scan_config = {};
+    scan_config.show_hidden = false;
+    scan_config.scan_type = WIFI_SCAN_TYPE_ACTIVE;
+
+    esp_err_t ret = esp_wifi_scan_start(&scan_config, false);
+    if (ret != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to start WiFi scan: %d", ret);
+        scanning = false;
+        return false;
+    }
+    return true;
+}
+
+bool WiFiManager::isScanComplete()
+{
+    return scan_complete;
+}
+
+int WiFiManager::getScanCount()
+{
+    return (int)scan_results.size();
+}
+
+bool WiFiManager::getScanResult(int index, std::string &ssid, uint8_t &rssi, wifi_auth_mode_t &authMode)
+{
+    if (index < 0 || index >= (int)scan_results.size())
+        return false;
+
+    const wifi_ap_record_t &record = scan_results[index];
+    ssid = std::string((const char *)record.ssid);
+    rssi = (uint8_t)(-record.rssi); // Store as positive dBm (e.g., -67dBm → 67)
+    authMode = record.authmode;
+    return true;
+}
+
+// ============================================================
+// Manual Connect
+// ============================================================
+
+bool WiFiManager::connectToNetwork(const std::string &ssid, const std::string &password)
+{
+    if (ssid.empty())
+        return false;
+
+    ESP_LOGI(TAG, "Connecting to network: %s", ssid.c_str());
+
+    wifi_config_t wifi_config = {};
+    strncpy((char *)wifi_config.sta.ssid, ssid.c_str(), sizeof(wifi_config.sta.ssid) - 1);
+    strncpy((char *)wifi_config.sta.password, password.c_str(), sizeof(wifi_config.sta.password) - 1);
+    wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA_WPA2_PSK;
+    wifi_config.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;
+    wifi_config.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
+    wifi_config.sta.pmf_cfg.capable = false;
+    wifi_config.sta.pmf_cfg.required = false;
+
+    esp_err_t ret = esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
+    if (ret != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to set WiFi config: %d", ret);
+        return false;
+    }
+
+    current_ssid = ssid;
+
+    // Reset connection state and trigger connection
+    wifi_connected = false;
+    sntp_synced = false;
+
+    ret = esp_wifi_connect();
+    if (ret != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to connect: %d", ret);
+        return false;
+    }
+
+    ESP_LOGI(TAG, "Connection initiated to %s", ssid.c_str());
+    return true;
 }

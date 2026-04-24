@@ -22,7 +22,7 @@
 #include "StepProgressBar.h"
 #include "ui_extensions_internal.h"
 #include "ui_extensions_recipe_steps.h"
-#include "filters_ui.h"
+#include "WiFiSettingsUI.h"
 
 filter_panel_t products_panel;
 filter_panel_t recipes_panel;
@@ -253,7 +253,7 @@ static void keyboard_cancel_cb(lv_event_t *e)
     }
 }
 
-static void keywords_textarea_focused_cb(lv_event_t *e)
+void keywords_textarea_focused_cb(lv_event_t *e)
 {
     // Get the textarea that was focused
     lv_obj_t *focused_textarea = (lv_obj_t *)lv_event_get_target(e);
@@ -270,7 +270,7 @@ static void keywords_textarea_focused_cb(lv_event_t *e)
     }
 }
 
-static void keywords_textarea_defocused_cb(lv_event_t *e)
+void keywords_textarea_defocused_cb(lv_event_t *e)
 {
     // Hide keyboard when textarea loses focus
     if (objects.keywords_keyboard && lv_obj_is_valid(objects.keywords_keyboard))
@@ -795,4 +795,5 @@ void action_generate_ai_recipes_click(lv_event_t *e)
 
 void action_wi_fi_settings_click(lv_event_t *e)
 {
+    WiFiSettingsUI::toggleDialog();
 }

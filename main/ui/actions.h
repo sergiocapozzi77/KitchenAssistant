@@ -36,6 +36,10 @@ extern void action_create_recipe_close_click(lv_event_t * e);
 extern void action_generate_ai_recipes_click(lv_event_t * e);
 extern void action_wi_fi_settings_click(lv_event_t * e);
 
+// Keyboard management callbacks (shared with WiFiSettingsUI)
+extern void keywords_textarea_focused_cb(lv_event_t * e);
+extern void keywords_textarea_defocused_cb(lv_event_t * e);
+
 #ifdef __cplusplus
 }
 #endif

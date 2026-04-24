@@ -19,6 +19,8 @@
 #include "ProductsManager.h"
 #include "FavouritesManager.h"
 #include "thumbnail_cache.h"
+#include "cJSON.h"
+#include <cstdio>
 
 static const char *TAG = "APP";
 
@@ -74,20 +76,55 @@ void Application::initTasks()
 
 void Application::initHardware()
 {
-    // WiFi
-    wifiManager.init(CONFIG_WIFI_SSID, CONFIG_WIFI_PASSWORD);
-
-    // Mount SPIFFS for thumbnail cache
+    // Mount SPIFFS early so we can load saved WiFi credentials
     esp_err_t spiffs_ret = bsp_spiffs_mount();
     if (spiffs_ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to mount SPIFFS (ret %d)", spiffs_ret);
     } else {
         ESP_LOGI(TAG, "SPIFFS mounted");
-        // Initialize thumbnail cache
+    }
+
+    // Load saved WiFi credentials from SPIFFS (fall back to Kconfig defaults)
+    std::string wifi_ssid = CONFIG_WIFI_SSID;
+    std::string wifi_password = CONFIG_WIFI_PASSWORD;
+
+    if (spiffs_ret == ESP_OK) {
+        FILE *f = fopen("/spiffs/wifi_creds.json", "r");
+        if (f) {
+            // Read file into buffer
+            fseek(f, 0, SEEK_END);
+            long fsize = ftell(f);
+            fseek(f, 0, SEEK_SET);
+
+            if (fsize > 0 && fsize < 4096) {
+                std::string buf(fsize, '\0');
+                if (fread(buf.data(), 1, fsize, f) == (size_t)fsize) {
+                    cJSON *json = cJSON_Parse(buf.c_str());
+                    if (json) {
+                        cJSON *ssid_item = cJSON_GetObjectItem(json, "ssid");
+                        cJSON *pass_item = cJSON_GetObjectItem(json, "password");
+                        if (cJSON_IsString(ssid_item) && cJSON_IsString(pass_item)) {
+                            wifi_ssid = ssid_item->valuestring;
+                            wifi_password = pass_item->valuestring;
+                            ESP_LOGI(TAG, "Loaded WiFi credentials for SSID: %s", wifi_ssid.c_str());
+                        }
+                        cJSON_Delete(json);
+                    }
+                }
+            }
+            fclose(f);
+        } else {
+            ESP_LOGI(TAG, "No saved WiFi credentials found, using Kconfig defaults");
+        }
+
+        // Initialize thumbnail cache (after credentials loaded)
         if (!thumbnail_cache::init()) {
             ESP_LOGW(TAG, "Thumbnail cache init failed (continuing without cache)");
         }
     }
+
+    // WiFi (uses saved credentials or Kconfig defaults)
+    wifiManager.init(wifi_ssid, wifi_password);
 
     bsp_display_cfg_t cfg = {
         .lvgl_port_cfg = ESP_LVGL_PORT_INIT_CONFIG(),

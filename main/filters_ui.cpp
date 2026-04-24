@@ -134,7 +134,6 @@ filter_option_t source_options[] = {
     {"BBC Good Food", "bbcgoodfood"},
     {"GialloZafferano.it", "giallozafferanoit"},
     {"AniaGotuje.pl", "aniagotuje"},
-    {"AllRecipes", "allrecipes"},
     {"AI (DeepSeek)", "ai-deepseek"},
     // {"Food52", "food52"},
     // {"Serious Eats", "seriouseats"},
@@ -174,7 +173,7 @@ static int find_index(const char *value, filter_option_t options[], int count)
 static void set_options_visibility(filter_panel_t *panel, int idx)
 {
 
-    if (idx == 0 || idx == 1 || idx == 4)
+    if (idx == 1 || idx == 4) // bbc good food or ai deepseek
     {
         lv_obj_clear_flag(panel->calories_dropdown, LV_OBJ_FLAG_HIDDEN);
         lv_obj_clear_flag(panel->cuisine_dropdown, LV_OBJ_FLAG_HIDDEN);
@@ -183,7 +182,7 @@ static void set_options_visibility(filter_panel_t *panel, int idx)
         lv_obj_clear_flag(panel->meal_type_dropdown, LV_OBJ_FLAG_HIDDEN);
         lv_obj_clear_flag(panel->total_time_dropdown, LV_OBJ_FLAG_HIDDEN);
     }
-    if (idx == 2 || idx == 3) // giallo zafferano
+    else if (idx == 2 || idx == 3) // giallo zafferano or ania gotuje
     {
         lv_obj_add_flag(panel->calories_dropdown, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(panel->cuisine_dropdown, LV_OBJ_FLAG_HIDDEN);
@@ -219,7 +218,7 @@ static void sync_panel(filter_panel_t *panel)
                              find_index(current_filters.calories, calories_options, calories_count));
 
     int idx = find_index(current_filters.source, source_options, source_count);
-    lv_dropdown_set_selected(panel->source_dropdown, idx >= 0 ? idx : 1);
+    lv_dropdown_set_selected(panel->source_dropdown, idx > 0 ? idx : 1);
     set_options_visibility(panel, idx);
     is_syncing = false;
 }

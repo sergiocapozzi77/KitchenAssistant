@@ -15,6 +15,7 @@ idf_component_register(
         FavouritesManager.cpp
         HttpClientHelper.cpp
         AppwriteClientInstance.cpp
+        WiFiSettingsUI.cpp
         WifiManager.cpp
         ui_extensions.cpp
         ui_extensions_products.cpp
