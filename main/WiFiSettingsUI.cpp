@@ -342,7 +342,6 @@ void WiFiSettingsUI::showPasswordDialog(const std::string &ssid)
     lv_obj_set_style_border_color(s_password_ta, lv_color_hex(0xCCCCCC), 0);
     lv_obj_set_style_radius(s_password_ta, 6, 0);
     lv_obj_set_style_pad_all(s_password_ta, 10, 0);
-    lv_textarea_set_text(s_password_ta, "z5paxbfx23salxs3"); // TESTING ONLY - REMOVE
 
     // Register with our local keyboard
     lv_obj_add_event_cb(s_password_ta, onPasswordFocused, LV_EVENT_FOCUSED, nullptr);
