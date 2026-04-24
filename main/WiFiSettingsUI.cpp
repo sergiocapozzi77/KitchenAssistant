@@ -309,6 +309,7 @@ void WiFiSettingsUI::showPasswordDialog(const std::string &ssid)
     }
     lv_obj_t *scr = s_screen ? s_screen : lv_scr_act();
     s_password_panel = lv_obj_create(scr);
+    lv_obj_add_flag(s_password_panel, LV_OBJ_FLAG_FLOATING);
     lv_obj_set_size(s_password_panel, 460, 280);
     lv_obj_align(s_password_panel, LV_ALIGN_TOP_MID, 0, 350);
     lv_obj_set_style_bg_color(s_password_panel, lv_color_hex(0xFFFFFF), 0);
@@ -769,8 +770,9 @@ void WiFiSettingsUI::openScreen()
     // ── Keyboard (hidden by default, shown when password is needed) ──
     s_keyboard = lv_keyboard_create(s_screen);
     lv_obj_add_flag(s_keyboard, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(s_keyboard, LV_OBJ_FLAG_FLOATING);
     lv_obj_set_size(s_keyboard, lv_pct(100), 299);
-    lv_obj_set_pos(s_keyboard, 0, 1280 - 299);
+    lv_obj_align(s_keyboard, LV_ALIGN_BOTTOM_LEFT, 0, 0);
     updateStatusLabel();
     startScanAsync();
 }

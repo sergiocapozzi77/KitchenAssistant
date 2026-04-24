@@ -726,7 +726,7 @@ void create_screen_main() {
                                                     lv_obj_set_size(obj, LV_PCT(80), LV_SIZE_CONTENT);
                                                     lv_label_set_long_mode(obj, LV_LABEL_LONG_DOT);
                                                     lv_obj_set_style_text_font(obj, &lv_font_montserrat_22, LV_PART_MAIN | LV_STATE_DEFAULT);
-                                                    lv_label_set_text_static(obj, "current wifi");
+                                                    lv_label_set_text_static(obj, "No WiFi selected. Click the button to select one");
                                                 }
                                             }
                                         }

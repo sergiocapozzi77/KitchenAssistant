@@ -3003,7 +3003,7 @@
                                   },
                                   "group": "",
                                   "groupIndex": 0,
-                                  "text": "current wifi",
+                                  "text": "No WiFi selected. Click the button to select one",
                                   "textType": "literal",
                                   "longMode": "DOT",
                                   "recolor": false

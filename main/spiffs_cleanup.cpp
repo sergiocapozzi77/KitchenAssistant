@@ -14,14 +14,14 @@ bool spiffs_cleanup::delete_wifi_creds()
 {
     const char *path = BASE_DIR "/wifi_creds.json";
     ESP_LOGI(TAG, "Attempting to delete WiFi credentials at %s", path);
-    if (access(path, F_OK) != 0)
-    {
-        ESP_LOGI(TAG, "No wifi_creds.json to delete");
-        return true;
-    }
     if (unlink(path) == 0)
     {
         ESP_LOGI(TAG, "Deleted wifi_creds.json");
+        return true;
+    }
+    if (errno == ENOENT)
+    {
+        ESP_LOGI(TAG, "No wifi_creds.json to delete");
         return true;
     }
     ESP_LOGE(TAG, "Failed to delete wifi_creds.json (errno=%d)", errno);
