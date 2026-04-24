@@ -44,6 +44,10 @@ private:
     // Scan state
     static volatile bool scan_complete;
     static volatile bool scanning;
+
+    // Suppress auto-reconnect (used during manual connect to avoid racing)
+    static volatile bool suppress_reconnect;
+
     static std::vector<wifi_ap_record_t> scan_results;
 };
 

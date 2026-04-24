@@ -20,6 +20,7 @@ volatile bool WiFiManager::sntp_synced = false;
 
 volatile bool WiFiManager::scan_complete = false;
 volatile bool WiFiManager::scanning = false;
+volatile bool WiFiManager::suppress_reconnect = false;
 std::vector<wifi_ap_record_t> WiFiManager::scan_results;
 
 // ============================================================
@@ -185,10 +186,23 @@ void WiFiManager::eventHandler(void *arg,
             wifi_connected = false;
             sntp_synced = false;
 
-            // Suppress auto-reconnect during active scan
-            if (scanning)
+            // Suppress auto-reconnect during active scan or manual connect
+            if (scanning || suppress_reconnect)
             {
-                ESP_LOGI(TAG, "Scan in progress — suppressing reconnect");
+                ESP_LOGI(TAG, "Auto-reconnect suppressed");
+                suppress_reconnect = false;  // clear for next real disconnect
+                break;
+            }
+
+            // Don't auto-reconnect on auth/permanent failures (wrong credentials,
+            // AP rejection, etc.) — only retry for transient signal losses.
+            if (event->reason == WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT ||
+                event->reason == WIFI_REASON_AUTH_FAIL ||
+                event->reason == WIFI_REASON_ASSOC_FAIL ||
+                event->reason == WIFI_REASON_HANDSHAKE_TIMEOUT ||
+                event->reason == WIFI_REASON_CONNECTION_FAIL)
+            {
+                ESP_LOGW(TAG, "Auth/permanent failure (reason %d) — not reconnecting", event->reason);
                 break;
             }
 
@@ -330,6 +344,9 @@ bool WiFiManager::connectToNetwork(const std::string &ssid, const std::string &p
     }
 
     current_ssid = ssid;
+
+    // Suppress auto-reconnect so the event handler doesn't race our connect
+    suppress_reconnect = true;
 
     // Disconnect from any previous network so the new config takes effect cleanly
     esp_wifi_disconnect();
