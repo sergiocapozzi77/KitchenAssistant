@@ -1001,7 +1001,9 @@ void thumb_worker_task(void *)
         vTaskDelay(1);
         lv_image_dsc_t *dsc = nullptr;
         uint8_t *px = nullptr;
-        bool ok = fetch_and_decode_jpeg(ctx->url, s_thumb_max_w, s_thumb_max_h,
+        uint16_t w = ctx->maxW ? ctx->maxW : s_thumb_max_w;
+        uint16_t h = ctx->maxH ? ctx->maxH : s_thumb_max_h;
+        bool ok = fetch_and_decode_jpeg(ctx->url, w, h,
                                         &dsc, &px, s_thumb_cache);
 
         lv_lock();

@@ -137,6 +137,11 @@ bool RecipeDetailService::parseResponse(const std::string &raw, RecipeSuggestion
         if (const char *v = str(r, "difficulty"))
             recipe.difficulty = v;
 
+    // Image from detail scrape — typically the full-size hero image, store as imageUrlBig for the header
+    if (recipe.imageUrlBig.empty())
+        if (const char *v = str(r, "imageUrl"))
+            recipe.imageUrlBig = v;
+
     // ingredients array
     if (recipe.ingredients.empty())
     {
