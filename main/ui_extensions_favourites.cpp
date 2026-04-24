@@ -51,7 +51,6 @@ static void favourite_card_click_cb(lv_event_t *e)
 
 // === HELPER FUNCTIONS (reused from recipes) ===
 
-
 // === MAIN POPULATE FUNCTION ===
 
 void populateFavouritesList(lv_obj_t *root, const std::vector<Favorite> &favourites)
@@ -75,12 +74,10 @@ void populateFavouritesList(lv_obj_t *root, const std::vector<Favorite> &favouri
     lv_obj_set_flex_flow(root, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_row(root, 16, 0);
 
-    std::vector<ThumbContext *> pending_thumbs;
-
     for (const auto &fav : favourites)
     {
         // === CARD ===
-        lv_obj_t *card = createRecipeCard(root, fav, pending_thumbs);
+        lv_obj_t *card = createRecipeCard(root, fav);
 
         // Click handler — open detail screen
         FavouriteClickCtx *fctx = new FavouriteClickCtx{fav};
@@ -88,25 +85,9 @@ void populateFavouritesList(lv_obj_t *root, const std::vector<Favorite> &favouri
         make_children_bubble(card);
         lv_obj_add_event_cb(card, favourite_card_click_cb, LV_EVENT_CLICKED, fctx);
         lv_obj_add_event_cb(card, free_favourite_click_ctx_cb, LV_EVENT_DELETE, fctx);
-
     }
     // Restore scroll position
     lv_obj_scroll_to_y(root, scroll_y, LV_ANIM_OFF);
 
     lv_unlock();
-
-    if (!pending_thumbs.empty())
-    {
-        ThumbWorkerCtx *wctx = new ThumbWorkerCtx{pending_thumbs, 112, 112, true, s_thumb_generation};
-        BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
-            thumb_worker_task, "thumb_worker", 8192, wctx, 2, NULL, 1,
-            MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-        if (ret != pdPASS)
-        {
-            ESP_LOGE(TAG, "Failed to create thumb worker task");
-            for (auto *tctx : pending_thumbs)
-                delete tctx;
-            delete wctx;
-        }
-    }
 }

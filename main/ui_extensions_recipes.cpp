@@ -56,7 +56,6 @@ static void recipe_card_click_cb(lv_event_t *e)
 
 // === HELPER FUNCTIONS ===
 
-
 // === MAIN POPULATE FUNCTION ===
 
 void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &recipes)
@@ -87,7 +86,7 @@ void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &rec
     {
         esp_task_wdt_reset();
         // === CARD ===
-        lv_obj_t *card = createRecipeCard(root, r, pending_thumbs);
+        lv_obj_t *card = createRecipeCard(root, r);
 
         // Click handler — open detail screen
         RecipeClickCtx *rctx = new RecipeClickCtx{r};
@@ -100,19 +99,4 @@ void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &rec
     lv_obj_scroll_to_y(root, scroll_y, LV_ANIM_OFF);
 
     lv_unlock();
-
-    if (!pending_thumbs.empty())
-    {
-        ThumbWorkerCtx *wctx = new ThumbWorkerCtx{pending_thumbs, 112, 112, true, s_thumb_generation};
-        BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
-            thumb_worker_task, "thumb_worker", 8192, wctx, 2, NULL, 1,
-            MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-        if (ret != pdPASS)
-        {
-            ESP_LOGE(TAG, "Failed to create thumb worker task");
-            for (auto *tctx : pending_thumbs)
-                delete tctx;
-            delete wctx;
-        }
-    }
 }

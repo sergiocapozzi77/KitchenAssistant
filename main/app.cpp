@@ -57,6 +57,7 @@ void Application::initQueues()
     //     abort();
     // }
     // ESP_LOGI(TAG, "Queues created");
+    ui_extensions_init(112, 112, true);
 }
 
 void Application::initTasks()

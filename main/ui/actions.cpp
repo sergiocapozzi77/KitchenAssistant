@@ -25,6 +25,8 @@
 #include "WiFiSettingsUI.h"
 #include "spiffs_cleanup.h"
 
+static const char *TAG = "ACTIONS";
+
 filter_panel_t products_panel;
 filter_panel_t recipes_panel;
 

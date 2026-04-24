@@ -19,15 +19,17 @@ void init_styles();
 void stop_shimmer_animation(lv_obj_t *shimmer_bar);
 void start_shimmer_animation(lv_obj_t *shimmer_bar, lv_obj_t *parent);
 lv_obj_t *create_shimmer_overlay(lv_obj_t *parent);
+void stop_and_delete_shimmer(lv_obj_t *shimmer);
 
-// Thumbnail fetch/decode
 struct ThumbContext
 {
-    lv_obj_t *thumb;   // nulled under lv_lock if object deleted before task finishes
-    lv_obj_t *shimmer; // shimmer overlay object, null if not present
+    lv_obj_t *thumb;
+    lv_obj_t *shimmer;
     std::string url;
     uint32_t generation;
     std::atomic<bool> cancelled{false};
+    uint16_t maxW = 0; // 0 = use global default set at ui_extensions_init
+    uint16_t maxH = 0;
 };
 
 struct ThumbWorkerCtx
@@ -83,11 +85,12 @@ void populateIngredientsUI(lv_obj_t *container, const std::vector<std::string> &
 
 // Recipe card helpers
 void make_children_bubble(lv_obj_t *obj);
-lv_obj_t *createRecipeCard(lv_obj_t *parent, const RecipeSuggestion &recipe, std::vector<ThumbContext *> &pending_thumbs);
-lv_obj_t *createRecipeCard(lv_obj_t *parent, const Favorite &fav, std::vector<ThumbContext *> &pending_thumbs);
+lv_obj_t *createRecipeCard(lv_obj_t *parent, const RecipeSuggestion &recipe);
+lv_obj_t *createRecipeCard(lv_obj_t *parent, const Favorite &fav);
+void thumb_queue_push(ThumbContext *ctx);
 
 // Global variables (declared extern, defined in ui_extensions.cpp)
-extern uint32_t s_thumb_generation;
+extern std::atomic<uint32_t> s_thumb_generation;
 extern lv_style_t style_card;
 extern lv_style_t style_header;
 extern lv_style_t style_row;

@@ -129,25 +129,25 @@ static void heart_button_cb(lv_event_t *e)
         {
             ESP_LOGI("Favourite", "Generating image for AI recipe: %s", ctx->name.c_str());
 
-            // Check cache first
-            std::string cache_key = "generate:" + ctx->name + "|||" + ctx->description + "|112x112";
-            auto cache_it = s_leonardo_url_cache.find(cache_key);
-            if (cache_it != s_leonardo_url_cache.end())
+            std::string cached = get_leonardo_cached_url(
+                "generate:" + ctx->name + "|||" + ctx->description, 112, 112);
+
+            if (!cached.empty())
             {
-                ESP_LOGI("Favourite", "Leonardo URL cache hit for key: %s", cache_key.c_str());
-                ctx->imageUrl = cache_it->second;
+                ESP_LOGI("Favourite", "Leonardo URL cache hit for: %s", ctx->name.c_str());
+                ctx->imageUrl = cached;
             }
             else
             {
                 ctx->imageUrl = "generate:" + ctx->name + "|||" + ctx->description;
             }
+            std::string cachedBig = get_leonardo_cached_url(
+                "generate:" + ctx->name + "|||" + ctx->description, 800, 280);
 
-            std::string cache_key_big = "generate:" + ctx->name + "|||" + ctx->description + "|800x280";
-            auto cache_it_big = s_leonardo_url_cache.find(cache_key_big);
-            if (cache_it_big != s_leonardo_url_cache.end())
+            if (!cachedBig.empty())
             {
-                ESP_LOGI("Favourite", "Leonardo URL cache hit for key: %s", cache_key_big.c_str());
-                ctx->imageUrlBig = cache_it_big->second;
+                ESP_LOGI("Favourite", "Leonardo URL cache hit for big image: %s", ctx->name.c_str());
+                ctx->imageUrlBig = cachedBig;
             }
             else
             {
@@ -425,8 +425,16 @@ static void fetch_recipe_detail_task(void *arg)
     lv_unlock();
 
     // Kick off header image fetch at larger size if we have a URL or need to generate for AI recipe
-    std::string thumbUrl = ctx->recipe.imageUrl;
-    if (ctx->recipe.imageUrl.empty() && ctx->recipe.recipeSource == "ai-deepseek")
+    std::string thumbUrl;
+    if (!ctx->recipe.imageUrlBig.empty())
+    {
+        thumbUrl = ctx->recipe.imageUrlBig;
+    }
+    else if (!ctx->recipe.imageUrl.empty())
+    {
+        thumbUrl = ctx->recipe.imageUrl;
+    }
+    else if (ctx->recipe.recipeSource == "ai-deepseek")
     {
         // Generate a placeholder URL that will trigger AI image generation
         thumbUrl = "generate:" + ctx->recipe.name + "|||" + ctx->recipe.description;
@@ -436,38 +444,14 @@ static void fetch_recipe_detail_task(void *arg)
     if (!thumbUrl.empty() && ctx->header_img)
     {
         lv_lock();
-        // Create shimmer overlay for loading indicator
         lv_obj_t *shimmer = create_shimmer_overlay(ctx->header_img);
         start_shimmer_animation(shimmer, ctx->header_img);
-        // Create thumb context for header image
-        ThumbContext *tctx = new ThumbContext{ctx->header_img, shimmer, thumbUrl, ctx->generation};
-        // Add delete callback to nullify thumb pointer if header_img is deleted before fetch completes
+
+        ThumbContext *tctx = new ThumbContext{ctx->header_img, shimmer, thumbUrl, 0, {}, 800, 280};
         lv_obj_add_event_cb(ctx->header_img, thumb_obj_deleted_cb, LV_EVENT_DELETE, tctx);
         lv_unlock();
 
-        std::vector<ThumbContext *> pending_thumbs;
-        pending_thumbs.push_back(tctx);
-
-        // Create worker context with larger dimensions for header image
-        ThumbWorkerCtx *wctx = new ThumbWorkerCtx{pending_thumbs, 800, 280, true, ctx->generation};
-
-        BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
-            thumb_worker_task, "header_img_worker", 8192, wctx, 2, NULL, 1,
-            MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-        if (ret != pdPASS)
-        {
-            ESP_LOGE(TAG, "Failed to create header image worker task");
-            lv_lock();
-            if (shimmer && lv_obj_is_valid(shimmer))
-            {
-                stop_shimmer_animation(shimmer);
-                lv_obj_del(shimmer);
-            }
-            lv_obj_remove_event_cb_with_user_data(ctx->header_img, thumb_obj_deleted_cb, tctx);
-            lv_unlock();
-            delete tctx;
-            delete wctx;
-        }
+        thumb_queue_push(tctx);
     }
 
     delete ctx;

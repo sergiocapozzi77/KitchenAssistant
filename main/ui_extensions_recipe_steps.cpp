@@ -272,10 +272,6 @@ void UIExtensionsRecipeSteps::populatePhaseImages(const Recipe &recipe, int phas
     // lv_obj_set_style_pad_column(objects.recipe_phase_imgs, 8, 0);
     // lv_obj_set_style_pad_row(objects.recipe_phase_imgs, 8, 0);
 
-    std::vector<ThumbContext *> pending_thumbs;
-    int thumbWidth = 300;
-    int thumbHeight = 200;
-
     if (!recipe.aggregatedSteps.empty())
     {
         const auto &phase = recipe.aggregatedSteps[phaseIndex];
@@ -283,21 +279,20 @@ void UIExtensionsRecipeSteps::populatePhaseImages(const Recipe &recipe, int phas
         {
             for (const auto &imgRef : phase.imageRefs)
             {
-                // Create placeholder image
                 lv_obj_t *thumb = lv_image_create(objects.recipe_phase_imgs);
-                lv_obj_set_size(thumb, thumbWidth, thumbHeight);             // thumbnail size
-                lv_obj_set_style_bg_color(thumb, lv_color_hex(0xDEE2E6), 0); // grey until loaded
+                lv_obj_set_size(thumb, 300, 200);
+                lv_obj_set_style_bg_color(thumb, lv_color_hex(0xDEE2E6), 0);
                 lv_obj_set_style_bg_opa(thumb, LV_OPA_COVER, 0);
                 lv_obj_set_style_radius(thumb, 8, 0);
-                lv_obj_set_style_clip_corner(thumb, true, 0); // clip image to rounded corners
+                lv_obj_set_style_clip_corner(thumb, true, 0);
                 lv_obj_set_style_border_width(thumb, 0, 0);
-                // lv_image_set_inner_align(thumb, LV_IMAGE_ALIGN_COVER);
 
-                ESP_LOGI("UIExtensionsRecipeSteps", "Scheduling image fetch: %s", imgRef.url.c_str());
                 lv_obj_t *shimmer = create_shimmer_overlay(thumb);
                 start_shimmer_animation(shimmer, thumb);
-                ThumbContext *tctx = new ThumbContext{thumb, shimmer, imgRef.url, s_thumb_generation};
-                pending_thumbs.push_back(tctx);
+
+                ThumbContext *tctx = new ThumbContext{thumb, shimmer, imgRef.url, 0, {}, 300, 200};
+                lv_obj_add_event_cb(thumb, thumb_obj_deleted_cb, LV_EVENT_DELETE, tctx);
+                thumb_queue_push(tctx);
             }
         }
         else
@@ -308,25 +303,6 @@ void UIExtensionsRecipeSteps::populatePhaseImages(const Recipe &recipe, int phas
     else
     {
         lv_obj_add_flag(objects.recipe_phase_imgs, LV_OBJ_FLAG_HIDDEN);
-    }
-
-    // Spawn thumbnail worker task if there are images to fetch
-    if (!pending_thumbs.empty())
-    {
-        ThumbWorkerCtx *wctx = new ThumbWorkerCtx{pending_thumbs, 112, 112, true, s_thumb_generation};
-        wctx->maxWidth = 0;
-        wctx->maxHeight = thumbHeight;
-
-        BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
-            thumb_worker_task, "phase_img_worker", 8192, wctx, 2, NULL, 1,
-            MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-        if (ret != pdPASS)
-        {
-            ESP_LOGE("UIExtensionsRecipeSteps", "Failed to create thumb worker task");
-            for (auto *tctx : pending_thumbs)
-                delete tctx;
-            delete wctx;
-        }
     }
 }
 

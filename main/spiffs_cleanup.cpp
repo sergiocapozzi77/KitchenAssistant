@@ -32,16 +32,20 @@ bool spiffs_cleanup::delete_thumbnail_cache()
 {
     bool all_ok = true;
 
-    // Delete index file first (silently ignore if absent)
+    // Delete index file first
     const char *index = BASE_DIR "/thumb_index.json";
-    if (access(index, F_OK) == 0 && unlink(index) != 0)
+    if (unlink(index) == 0)
     {
-        ESP_LOGE(TAG, "Failed to delete thumb_index.json (errno=%d)", errno);
-        all_ok = false;
+        ESP_LOGI(TAG, "Deleted thumb_index.json");
+    }
+    else if (errno == ENOENT)
+    {
+        ESP_LOGI(TAG, "No thumb_index.json to delete");
     }
     else
     {
-        ESP_LOGI(TAG, "Deleted thumb_index.json");
+        ESP_LOGE(TAG, "Failed to delete thumb_index.json (errno=%d)", errno);
+        all_ok = false;
     }
 
     // Delete all .jpg files in the SPIFFS root
