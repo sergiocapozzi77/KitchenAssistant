@@ -877,9 +877,15 @@ bool fetch_and_decode_jpeg(const std::string &url,
         image_url_to_fetch = url;
     }
 
-    // 4. Fetch + base64 decode
+    esp_task_wdt_delete(NULL);
     std::string b64Str;
-    if (!fetch_resized_base64(image_url_to_fetch, W, H, b64Str))
+    bool fetchOk = fetch_resized_base64(image_url_to_fetch, W, H, b64Str);
+
+    // Re-register immediately after
+    esp_task_wdt_add(NULL);
+    esp_task_wdt_reset();
+
+    if (!fetchOk)
         return false;
 
     const uint8_t *b64 = reinterpret_cast<const uint8_t *>(b64Str.c_str());
