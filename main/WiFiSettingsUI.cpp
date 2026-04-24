@@ -224,12 +224,6 @@ void WiFiSettingsUI::onPasswordConnectClick(lv_event_t *e)
     std::string password = password_chars ? password_chars : "";
     ESP_LOGI(TAG, "PWD after textarea copy (len=%zu): %s", password.length(), password.c_str());
 
-    if (s_keyboard && lv_obj_is_valid(s_keyboard))
-    {
-        lv_keyboard_set_textarea(s_keyboard, nullptr);
-        lv_obj_add_flag(s_keyboard, LV_OBJ_FLAG_HIDDEN);
-    }
-
     if (s_password_panel)
     {
         lv_obj_del(s_password_panel);
@@ -244,12 +238,6 @@ void WiFiSettingsUI::onPasswordCancelClick(lv_event_t *e)
 {
     if (!s_is_active)
         return;
-
-    if (s_keyboard && lv_obj_is_valid(s_keyboard))
-    {
-        lv_keyboard_set_textarea(s_keyboard, nullptr);
-        lv_obj_add_flag(s_keyboard, LV_OBJ_FLAG_HIDDEN);
-    }
 
     if (s_password_panel)
     {
@@ -277,15 +265,6 @@ void WiFiSettingsUI::onPasswordFocused(lv_event_t *e)
     if (s_keyboard && lv_obj_is_valid(s_keyboard))
     {
         lv_keyboard_set_textarea(s_keyboard, ta);
-        lv_obj_clear_flag(s_keyboard, LV_OBJ_FLAG_HIDDEN);
-    }
-}
-
-void WiFiSettingsUI::onPasswordDefocused(lv_event_t *e)
-{
-    if (s_keyboard && lv_obj_is_valid(s_keyboard))
-    {
-        lv_obj_add_flag(s_keyboard, LV_OBJ_FLAG_HIDDEN);
     }
 }
 
@@ -314,7 +293,7 @@ void WiFiSettingsUI::showPasswordDialog(const std::string &ssid)
     lv_obj_t *scr = s_screen ? s_screen : lv_scr_act();
     s_password_panel = lv_obj_create(scr);
     lv_obj_set_size(s_password_panel, 460, 280);
-    lv_obj_center(s_password_panel);
+    lv_obj_align(s_password_panel, LV_ALIGN_TOP_MID, 0, 350);
     lv_obj_set_style_bg_color(s_password_panel, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_radius(s_password_panel, 12, 0);
     lv_obj_set_style_shadow_width(s_password_panel, 16, 0);
@@ -325,11 +304,13 @@ void WiFiSettingsUI::showPasswordDialog(const std::string &ssid)
     lv_obj_set_flex_flow(s_password_panel, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_all(s_password_panel, 20, 0);
     lv_obj_set_style_pad_row(s_password_panel, 16, 0);
+    lv_obj_clear_flag(s_password_panel, LV_OBJ_FLAG_SCROLLABLE);
 
     // Title
     lv_obj_t *title = lv_label_create(s_password_panel);
     lv_label_set_text(title, ("Password for\n" + ssid).c_str());
     lv_label_set_long_mode(title, LV_LABEL_LONG_WRAP);
+    lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
     lv_obj_set_width(title, lv_pct(100));
 
     // Password textarea
@@ -342,10 +323,10 @@ void WiFiSettingsUI::showPasswordDialog(const std::string &ssid)
     lv_obj_set_style_border_color(s_password_ta, lv_color_hex(0xCCCCCC), 0);
     lv_obj_set_style_radius(s_password_ta, 6, 0);
     lv_obj_set_style_pad_all(s_password_ta, 10, 0);
+    lv_obj_set_style_text_font(s_password_ta, &lv_font_montserrat_20, 0);
 
     // Register with our local keyboard
     lv_obj_add_event_cb(s_password_ta, onPasswordFocused, LV_EVENT_FOCUSED, nullptr);
-    lv_obj_add_event_cb(s_password_ta, onPasswordDefocused, LV_EVENT_DEFOCUSED, nullptr);
 
     // Button row
     lv_obj_t *btn_row = lv_obj_create(s_password_panel);
@@ -360,9 +341,7 @@ void WiFiSettingsUI::showPasswordDialog(const std::string &ssid)
     lv_obj_t *cancel_btn = lv_btn_create(btn_row);
     lv_obj_set_height(cancel_btn, 44);
     lv_obj_set_flex_grow(cancel_btn, 1);
-    lv_obj_set_style_bg_color(cancel_btn, lv_color_hex(0x95A5A6), 0);
-    lv_obj_set_style_radius(cancel_btn, 6, 0);
-    lv_obj_set_style_border_width(cancel_btn, 0, 0);
+    add_style_main_button(cancel_btn);
     lv_obj_add_event_cb(cancel_btn, onPasswordCancelClick, LV_EVENT_CLICKED, nullptr);
     lv_obj_t *cancel_lbl = lv_label_create(cancel_btn);
     lv_label_set_text(cancel_lbl, "Cancel");
@@ -378,9 +357,7 @@ void WiFiSettingsUI::showPasswordDialog(const std::string &ssid)
     lv_obj_t *connect_btn = lv_btn_create(btn_row);
     lv_obj_set_height(connect_btn, 44);
     lv_obj_set_flex_grow(connect_btn, 1);
-    lv_obj_set_style_bg_color(connect_btn, lv_color_hex(0x27AE60), 0);
-    lv_obj_set_style_radius(connect_btn, 6, 0);
-    lv_obj_set_style_border_width(connect_btn, 0, 0);
+    add_style_main_button(connect_btn);
     lv_obj_add_event_cb(connect_btn, onPasswordConnectClick, LV_EVENT_CLICKED, nullptr);
     lv_obj_t *connect_lbl = lv_label_create(connect_btn);
     lv_label_set_text(connect_lbl, "Connect");
@@ -393,7 +370,6 @@ void WiFiSettingsUI::showPasswordDialog(const std::string &ssid)
     if (s_keyboard)
     {
         lv_keyboard_set_textarea(s_keyboard, s_password_ta);
-        lv_obj_clear_flag(s_keyboard, LV_OBJ_FLAG_HIDDEN);
     }
 }
 
@@ -716,6 +692,7 @@ void WiFiSettingsUI::openScreen()
     lv_label_set_text(title_lbl, "WiFi Settings");
     lv_obj_set_style_text_color(title_lbl, lv_color_hex(0x000000), 0);
     lv_obj_align(title_lbl, LV_ALIGN_LEFT_MID, 16, 0);
+    lv_obj_set_style_text_font(title_lbl, &lv_font_montserrat_26, 0);
 
     lv_obj_t *close_btn = lv_btn_create(header);
     lv_obj_set_size(close_btn, 38, 38);
@@ -733,6 +710,7 @@ void WiFiSettingsUI::openScreen()
     lv_obj_set_width(s_status_lbl, lv_pct(100));
     lv_obj_set_style_pad_all(s_status_lbl, 14, 0);
     lv_obj_set_style_pad_left(s_status_lbl, 20, 0);
+    lv_obj_set_style_text_font(s_status_lbl, &lv_font_montserrat_24, 0);
 
     // ── Scanning indicator ──
     s_scanning_lbl = lv_label_create(s_screen);
@@ -765,14 +743,10 @@ void WiFiSettingsUI::openScreen()
     lv_obj_center(rescan_lbl);
     lv_obj_set_style_text_color(rescan_lbl, lv_color_hex(0x000000), 0);
 
-    // ── Keyboard (hidden by default, shown when password textarea focused) ──
+    // ── Keyboard (always visible at the bottom) ──
     s_keyboard = lv_keyboard_create(s_screen);
-    lv_obj_add_flag(s_keyboard, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_event_cb(s_keyboard, [](lv_event_t *e)
-                        { if (s_keyboard) lv_obj_add_flag(s_keyboard, LV_OBJ_FLAG_HIDDEN); }, LV_EVENT_READY, nullptr);
-    lv_obj_add_event_cb(s_keyboard, [](lv_event_t *e)
-                        { if (s_keyboard) lv_obj_add_flag(s_keyboard, LV_OBJ_FLAG_HIDDEN); }, LV_EVENT_CANCEL, nullptr);
-
+    lv_obj_set_size(s_keyboard, lv_pct(100), 299);
+    lv_obj_set_pos(s_keyboard, 0, 1280 - 299);
     updateStatusLabel();
     startScanAsync();
 }

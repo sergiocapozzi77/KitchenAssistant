@@ -70,5 +70,4 @@ private:
     static void onPasswordConnectClick(lv_event_t *e);
     static void onPasswordCancelClick(lv_event_t *e);
     static void onPasswordFocused(lv_event_t *e);
-    static void onPasswordDefocused(lv_event_t *e);
 };
