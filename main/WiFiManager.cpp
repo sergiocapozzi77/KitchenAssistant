@@ -1,367 +1,311 @@
 #include "WiFiManager.h"
-
-#include "esp_wifi.h"
-#include "esp_event.h"
 #include "esp_log.h"
 #include "esp_netif.h"
 #include "esp_sntp.h"
-#include "nvs_flash.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
+#include "esp_heap_caps.h"
+
 #include <cstring>
-#include "esp_task_wdt.h"
-WiFiManager wifiManager;
+#include <algorithm>
 
 static const char *TAG = "WiFiManager";
+WiFiManager wifiManager;
 
-volatile bool WiFiManager::wifi_connected = false;
-bool WiFiManager::sntp_initialized = false;
-volatile bool WiFiManager::sntp_synced = false;
+// ─────────────────────────────────────────────
+// Init
+// ─────────────────────────────────────────────
 
-volatile bool WiFiManager::scan_complete = false;
-volatile bool WiFiManager::scanning = false;
-volatile bool WiFiManager::suppress_reconnect = false;
-std::vector<wifi_ap_record_t> WiFiManager::scan_results;
-
-// ============================================================
-// Public API
-// ============================================================
-
-void WiFiManager::init(const std::string &ssid,
-                       const std::string &password)
+void WiFiManager::init(const std::string &ssid, const std::string &password)
 {
-    ESP_LOGI(TAG, "Initializing WiFi... SSID: %s Password: %s", ssid.c_str(), password.c_str());
-    // --- Network stack ---
-    ESP_ERROR_CHECK(esp_netif_init());
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
-    esp_netif_t *sta_netif = esp_netif_create_default_wifi_sta();
-    assert(sta_netif); // Add this assertion like AppSettings does
 
-    // --- WiFi init ---
+    m_ssid = ssid;
+    m_password = password;
+
+    m_scanMutex = xSemaphoreCreateMutex();
+    m_cmdQueue = xQueueCreate(5, sizeof(Cmd *));
+
+    esp_netif_init();
+    esp_event_loop_create_default();
+    esp_netif_create_default_wifi_sta();
+
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    esp_wifi_init(&cfg);
 
-    ESP_LOGI(TAG, "Initializing WiFi, init");
-    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+    esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &WiFiManager::eventHandler, this);
+    esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &WiFiManager::eventHandler, this);
 
-    // Set UK country (channels 1–13)
-    wifi_country_t country = {
-        .cc = "GB",
-        .schan = 1,
-        .nchan = 13,
-        .policy = WIFI_COUNTRY_POLICY_AUTO};
-    ESP_ERROR_CHECK(esp_wifi_set_country(&country));
+    esp_timer_create_args_t t = {
+        .callback = reconnectTimerCb,
+        .arg = this,
+        .name = "wifi_retry"};
+    esp_timer_create(&t, &m_timer);
 
-    ESP_LOGI(TAG, "Initializing WiFi, events");
-    // Register events
-    ESP_ERROR_CHECK(esp_event_handler_register(
-        WIFI_EVENT,
-        ESP_EVENT_ANY_ID,
-        &WiFiManager::eventHandler,
-        this));
+    esp_wifi_set_mode(WIFI_MODE_STA);
+    esp_wifi_start();
 
-    ESP_ERROR_CHECK(esp_event_handler_register(
-        IP_EVENT,
-        IP_EVENT_STA_GOT_IP,
-        &WiFiManager::eventHandler,
-        this));
+    // Start worker task
+    xTaskCreate(wifiTask, "wifi_task", 4096, this, 5, nullptr);
 
-    ESP_LOGI(TAG, "Initializing WiFi, setmode");
-    // --- Set mode and START first (like AppSettings) ---
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    ESP_LOGI(TAG, "Initializing WiFi, start");
-    ESP_ERROR_CHECK(esp_wifi_start());
-
-    // --- THEN set configuration (matches AppSettings pattern) ---
-    wifi_config_t wifi_config = {};
-    strncpy((char *)wifi_config.sta.ssid, ssid.c_str(), sizeof(wifi_config.sta.ssid) - 1);
-    strncpy((char *)wifi_config.sta.password, password.c_str(), sizeof(wifi_config.sta.password) - 1);
-    wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA_WPA2_PSK;
-    wifi_config.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;
-    wifi_config.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
-
-    // wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA_WPA2_PSK;
-    wifi_config.sta.pmf_cfg.capable = false;
-    wifi_config.sta.pmf_cfg.required = false;
-
-    ESP_LOGI(TAG, "Initializing WiFi, setconfig");
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
-
-    ESP_LOGI(TAG, "Initializing WiFi, connect");
-    // Explicitly connect (like AppSettings does in wifiConnectTask)
-    ESP_ERROR_CHECK(esp_wifi_connect());
-
-    current_ssid = ssid;
-
-    ESP_LOGI(TAG, "WiFi initialization complete");
+    // Trigger initial connection via queue
+    connectToNetwork(ssid, password);
 }
 
-std::string WiFiManager::getSSID() const
-{
-    return current_ssid;
-}
+// ─────────────────────────────────────────────
+// Public API (SAFE now)
+// ─────────────────────────────────────────────
 
-void WiFiManager::waitForConnection()
+bool WiFiManager::connectToNetwork(const std::string &ssid, const std::string &password)
 {
-    while (!isConnected())
+    auto *cmd = new Cmd{CmdType::Connect, ssid, password};
+    if (xQueueSend(m_cmdQueue, &cmd, 0) != pdTRUE)
     {
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        delete cmd;
+        return false;
     }
+    return true;
 }
 
-bool WiFiManager::isConnected()
+bool WiFiManager::startScan()
 {
-    return wifi_connected;
-}
-
-// ============================================================
-// Event Handler
-// ============================================================
-
-void WiFiManager::eventHandler(void *arg,
-                               esp_event_base_t event_base,
-                               int32_t event_id,
-                               void *event_data)
-{
-    if (event_base == WIFI_EVENT)
+    auto *cmd = new Cmd{CmdType::StartScan, "", ""};
+    if (xQueueSend(m_cmdQueue, &cmd, 0) != pdTRUE)
     {
-        switch (event_id)
+        delete cmd;
+        return false;
+    }
+    return true;
+}
+
+// ─────────────────────────────────────────────
+// Worker task (ONLY place using esp_wifi_*)
+// ─────────────────────────────────────────────
+
+void WiFiManager::wifiTask(void *arg)
+{
+    auto *self = static_cast<WiFiManager *>(arg);
+
+    while (true)
+    {
+        Cmd *cmd = nullptr;
+        if (xQueueReceive(self->m_cmdQueue, &cmd, portMAX_DELAY))
         {
-        case WIFI_EVENT_STA_START:
-            // REMOVE THIS CASE - we call esp_wifi_connect() explicitly in init()
-            // ESP_LOGI(TAG, "Connecting to WiFi...");
-            // esp_wifi_connect();
-            break;
-
-        case WIFI_EVENT_SCAN_DONE:
-        {
-            ESP_LOGI(TAG, "WiFi scan completed");
-            scanning = false;
-
-            // Fetch scan results — use a reasonable buffer directly
-            uint16_t ap_count = 30;
-            wifi_ap_record_t *records = (wifi_ap_record_t *)heap_caps_malloc(
-                ap_count * sizeof(wifi_ap_record_t),
-                MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-            if (records)
+            switch (cmd->type)
             {
-                esp_err_t err = esp_wifi_scan_get_ap_records(&ap_count, records);
-                if (err == ESP_OK)
-                {
-                    ESP_LOGI(TAG, "Found %d APs", ap_count);
-                    if (ap_count > 0)
-                        scan_results.assign(records, records + ap_count);
-                    else
-                        scan_results.clear();
-                }
-                else
-                {
-                    ESP_LOGE(TAG, "Failed to get scan results: %d", err);
-                    scan_results.clear();
-                }
-                heap_caps_free(records);
-            }
-
-            scan_complete = true;
-
-            // Reconnect after scan (the disconnecting for scan suppressed auto-reconnect)
-            WiFiManager *self = static_cast<WiFiManager *>(arg);
-            if (self && !self->current_ssid.empty())
+            case CmdType::Connect:
             {
-                esp_err_t ret = esp_wifi_connect();
-                if (ret != ESP_OK)
-                    ESP_LOGW(TAG, "Reconnect after scan: %d", ret);
-            }
-            break;
-        }
+                ESP_LOGI(TAG, "Connecting to %s %s", cmd->ssid.c_str(), cmd->password.c_str());
 
-        case WIFI_EVENT_STA_DISCONNECTED:
-        {
-            wifi_event_sta_disconnected_t *event =
-                (wifi_event_sta_disconnected_t *)event_data;
+                self->m_ssid = cmd->ssid;
+                self->m_password = cmd->password;
+                self->m_sntpSynced = false;
+                self->m_retryDelayMs = 1000;
 
-            ESP_LOGW(TAG,
-                     "Disconnected, reason: %d",
-                     event->reason);
+                self->applyConfig();
 
-            wifi_connected = false;
-            sntp_synced = false;
+                esp_wifi_disconnect();
+                esp_wifi_connect();
 
-            // Suppress auto-reconnect during active scan or manual connect
-            if (scanning || suppress_reconnect)
-            {
-                ESP_LOGI(TAG, "Auto-reconnect suppressed");
-                suppress_reconnect = false;  // clear for next real disconnect
+                self->m_state = State::Connecting;
                 break;
             }
 
-            // Don't auto-reconnect on auth/permanent failures (wrong credentials,
-            // AP rejection, etc.) — only retry for transient signal losses.
-            if (event->reason == WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT ||
-                event->reason == WIFI_REASON_AUTH_FAIL ||
-                event->reason == WIFI_REASON_ASSOC_FAIL ||
-                event->reason == WIFI_REASON_HANDSHAKE_TIMEOUT ||
-                event->reason == WIFI_REASON_CONNECTION_FAIL)
+            case CmdType::StartScan:
             {
-                ESP_LOGW(TAG, "Auth/permanent failure (reason %d) — not reconnecting", event->reason);
+                if (self->m_state == State::Scanning)
+                    break;
+
+                ESP_LOGI(TAG, "Starting scan");
+
+                self->m_state = State::Scanning;
+                self->m_scanComplete = false;
+
+                esp_wifi_disconnect();
+
+                wifi_scan_config_t cfg = {};
+                esp_wifi_scan_start(&cfg, false);
                 break;
             }
+            }
 
-            // Small backoff before reconnect
-            vTaskDelay(pdMS_TO_TICKS(1000));
-            esp_wifi_connect();
-            break;
-        }
-
-        default:
-            break;
-        }
-    }
-    else if (event_base == IP_EVENT &&
-             event_id == IP_EVENT_STA_GOT_IP)
-    {
-        ip_event_got_ip_t *event =
-            (ip_event_got_ip_t *)event_data;
-
-        ESP_LOGI(TAG,
-                 "Got IP: " IPSTR,
-                 IP2STR(&event->ip_info.ip));
-
-        wifi_connected = true;
-
-        if (!sntp_initialized)
-        {
-            startSNTP();
-            sntp_initialized = true;
+            delete cmd;
         }
     }
 }
-// ============================================================
+
+// ─────────────────────────────────────────────
+// Config
+// ─────────────────────────────────────────────
+
+void WiFiManager::applyConfig()
+{
+    wifi_config_t cfg = {};
+
+    strncpy((char *)cfg.sta.ssid, m_ssid.c_str(), sizeof(cfg.sta.ssid) - 1);
+    cfg.sta.ssid[sizeof(cfg.sta.ssid) - 1] = 0;
+
+    strncpy((char *)cfg.sta.password, m_password.c_str(), sizeof(cfg.sta.password) - 1);
+    cfg.sta.password[sizeof(cfg.sta.password) - 1] = 0;
+
+    cfg.sta.threshold.authmode =
+        m_password.empty() ? WIFI_AUTH_OPEN : WIFI_AUTH_WPA2_PSK;
+
+    esp_wifi_set_config(WIFI_IF_STA, &cfg);
+}
+
+// ─────────────────────────────────────────────
+// Events (LIGHTWEIGHT only)
+// ─────────────────────────────────────────────
+
+void WiFiManager::eventHandler(void *arg, esp_event_base_t base, int32_t id, void *data)
+{
+    auto *self = static_cast<WiFiManager *>(arg);
+
+    if (base == WIFI_EVENT)
+    {
+        if (id == WIFI_EVENT_STA_DISCONNECTED)
+        {
+            self->m_sntpSynced = false;
+
+            if (self->m_state != State::Scanning)
+            {
+                self->scheduleReconnect();
+            }
+        }
+        else if (id == WIFI_EVENT_SCAN_DONE)
+        {
+            uint16_t count = 20;
+
+            auto *recs = (wifi_ap_record_t *)heap_caps_malloc(
+                sizeof(wifi_ap_record_t) * count,
+                MALLOC_CAP_8BIT);
+
+            if (recs)
+            {
+                if (esp_wifi_scan_get_ap_records(&count, recs) == ESP_OK)
+                {
+                    if (xSemaphoreTake(self->m_scanMutex, pdMS_TO_TICKS(1000)))
+                    {
+                        self->m_scanResults.assign(recs, recs + count);
+                        xSemaphoreGive(self->m_scanMutex);
+                    }
+                }
+                free(recs);
+            }
+
+            self->m_scanComplete = true;
+        }
+    }
+    else if (base == IP_EVENT && id == IP_EVENT_STA_GOT_IP)
+    {
+        self->m_state = State::Connected;
+        self->m_retryDelayMs = 1000;
+
+        if (!self->m_sntpStarted)
+        {
+            self->startSNTP();
+            self->m_sntpStarted = true;
+        }
+    }
+}
+
+// ─────────────────────────────────────────────
+// Reconnect
+// ─────────────────────────────────────────────
+
+void WiFiManager::scheduleReconnect()
+{
+    esp_timer_stop(m_timer);
+    esp_timer_start_once(m_timer, m_retryDelayMs * 1000ULL);
+
+    m_retryDelayMs = std::min(m_retryDelayMs * 2, kMaxRetryMs);
+}
+
+void WiFiManager::reconnectTimerCb(void *arg)
+{
+    auto *self = static_cast<WiFiManager *>(arg);
+
+    if (self->m_state == State::Scanning)
+        return;
+
+    esp_wifi_connect();
+}
+
+// ─────────────────────────────────────────────
 // SNTP
-// ============================================================
+// ─────────────────────────────────────────────
 
 void WiFiManager::startSNTP()
 {
-    ESP_LOGI(TAG, "Initializing SNTP...");
-
-    // UK timezone
     setenv("TZ", "GMT0BST,M3.5.0/1,M10.5.0", 1);
     tzset();
 
     esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
     esp_sntp_setservername(0, "pool.ntp.org");
-    esp_sntp_set_time_sync_notification_cb(sntpSyncCallback);
+    esp_sntp_set_time_sync_notification_cb(sntpCallback);
     esp_sntp_init();
-
-    ESP_LOGI(TAG, "SNTP started");
 }
 
-void WiFiManager::sntpSyncCallback(struct timeval *tv)
+void WiFiManager::sntpCallback(struct timeval *)
 {
-    ESP_LOGI(TAG, "SNTP synced, time: %lld", (long long)tv->tv_sec);
-    sntp_synced = true;
+    wifiManager.m_sntpSynced = true;
 }
 
-bool WiFiManager::isSntpSynced()
+// ─────────────────────────────────────────────
+// Getters
+// ─────────────────────────────────────────────
+
+bool WiFiManager::isConnected() const
 {
-    return sntp_synced;
+    return m_state == State::Connected;
 }
 
-// ============================================================
-// WiFi Scanning
-// ============================================================
-
-bool WiFiManager::startScan()
+bool WiFiManager::isSntpSynced() const
 {
-    ESP_LOGI(TAG, "Starting WiFi scan...");
-    scan_results.clear();
-    scan_complete = false;
-    scanning = true;
-
-    // Disconnect to stop auto-reconnect from interfering with scan
-    esp_wifi_disconnect();
-
-    wifi_scan_config_t scan_config = {};
-    scan_config.show_hidden = false;
-    scan_config.scan_type = WIFI_SCAN_TYPE_ACTIVE;
-
-    esp_err_t ret = esp_wifi_scan_start(&scan_config, false);
-    if (ret != ESP_OK)
-    {
-        ESP_LOGE(TAG, "Failed to start WiFi scan: %d", ret);
-        scanning = false;
-        return false;
-    }
-    return true;
+    return m_sntpSynced;
 }
 
-bool WiFiManager::isScanComplete()
+std::string WiFiManager::getSSID() const
 {
-    return scan_complete;
+    wifi_ap_record_t ap{};
+    if (esp_wifi_sta_get_ap_info(&ap) == ESP_OK)
+        return std::string((char *)ap.ssid);
+
+    return "";
+}
+
+bool WiFiManager::isScanComplete() const
+{
+    return m_scanComplete;
 }
 
 int WiFiManager::getScanCount()
 {
-    return (int)scan_results.size();
-}
-
-bool WiFiManager::getScanResult(int index, std::string &ssid, uint8_t &rssi, wifi_auth_mode_t &authMode)
-{
-    if (index < 0 || index >= (int)scan_results.size())
-        return false;
-
-    const wifi_ap_record_t &record = scan_results[index];
-    ssid = std::string((const char *)record.ssid);
-    rssi = (uint8_t)(-record.rssi); // Store as positive dBm (e.g., -67dBm → 67)
-    authMode = record.authmode;
-    return true;
-}
-
-// ============================================================
-// Manual Connect
-// ============================================================
-
-bool WiFiManager::connectToNetwork(const std::string &ssid, const std::string &password)
-{
-    if (ssid.empty())
-        return false;
-
-    ESP_LOGI(TAG, "Connecting to network: %s", ssid.c_str());
-
-    wifi_config_t wifi_config = {};
-    strncpy((char *)wifi_config.sta.ssid, ssid.c_str(), sizeof(wifi_config.sta.ssid) - 1);
-    strncpy((char *)wifi_config.sta.password, password.c_str(), sizeof(wifi_config.sta.password) - 1);
-    wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA_WPA2_PSK;
-    wifi_config.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;
-    wifi_config.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
-    wifi_config.sta.pmf_cfg.capable = false;
-    wifi_config.sta.pmf_cfg.required = false;
-
-    esp_err_t ret = esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
-    if (ret != ESP_OK)
+    if (xSemaphoreTake(m_scanMutex, pdMS_TO_TICKS(100)))
     {
-        ESP_LOGE(TAG, "Failed to set WiFi config: %d", ret);
-        return false;
+        int count = static_cast<int>(m_scanResults.size());
+        xSemaphoreGive(m_scanMutex);
+        return count;
     }
 
-    current_ssid = ssid;
+    return 0;
+}
 
-    // Suppress auto-reconnect so the event handler doesn't race our connect
-    suppress_reconnect = true;
+// Scan getters unchanged from before...
 
-    // Disconnect from any previous network so the new config takes effect cleanly
-    esp_wifi_disconnect();
-
-    // Reset connection state and trigger connection
-    wifi_connected = false;
-    sntp_synced = false;
-
-    ret = esp_wifi_connect();
-    if (ret != ESP_OK)
+bool WiFiManager::getScanResult(int i, std::string &ssid, int8_t &rssi, wifi_auth_mode_t &auth)
+{
+    if (xSemaphoreTake(m_scanMutex, pdMS_TO_TICKS(200)))
     {
-        ESP_LOGE(TAG, "Failed to connect: %d", ret);
-        return false;
-    }
+        if (i >= 0 && i < (int)m_scanResults.size())
+        {
+            auto &r = m_scanResults[i];
+            ssid = (char *)r.ssid;
+            rssi = r.rssi;
+            auth = r.authmode;
 
-    ESP_LOGI(TAG, "Connection initiated to %s", ssid.c_str());
-    return true;
+            xSemaphoreGive(m_scanMutex);
+            return true;
+        }
+        xSemaphoreGive(m_scanMutex);
+    }
+    return false;
 }

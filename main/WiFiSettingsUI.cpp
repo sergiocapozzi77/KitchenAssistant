@@ -450,7 +450,7 @@ void WiFiSettingsUI::populateTimerCb(lv_timer_t *t)
     for (; batch < 3 && *idx < count; (*idx)++, batch++)
     {
         std::string ssid;
-        uint8_t rssi;
+        int8_t rssi;
         wifi_auth_mode_t auth;
 
         if (!wifiManager.getScanResult(*idx, ssid, rssi, auth))
@@ -582,7 +582,7 @@ void WiFiSettingsUI::onNetworkClick(lv_event_t *e)
         return;
 
     std::string ssid;
-    uint8_t rssi;
+    int8_t rssi;
     wifi_auth_mode_t auth;
 
     if (!wifiManager.getScanResult(*idx, ssid, rssi, auth))
