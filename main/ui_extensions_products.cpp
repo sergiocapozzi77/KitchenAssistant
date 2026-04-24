@@ -308,7 +308,7 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
 
     // Capture scroll position before cleaning
     lv_coord_t scroll_y = lv_obj_get_scroll_y(root);
-    lv_obj_clean(root);
+    // lv_obj_clean(root);
     // Reset scroll position because layout changed to horizontal
     scroll_y = 0;
 
@@ -397,6 +397,16 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
 
     // Step 3: Create left sidebar container
     lv_obj_t *sidebar = objects.products_sidebar;
+    if (!sidebar || !lv_obj_is_valid(sidebar))
+    {
+        ESP_LOGE(TAG, "products_sidebar is NULL or invalid");
+        s_populating = false;
+        lv_unlock();
+        return;
+    }
+
+    lv_obj_clean(sidebar);
+
     // lv_obj_set_width(sidebar, lv_pct(30)); // 30% width
     // lv_obj_set_height(sidebar, lv_pct(100));
     // lv_obj_set_flex_flow(sidebar, LV_FLEX_FLOW_COLUMN);
@@ -421,7 +431,7 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
     // lv_obj_set_style_bg_color(content_container, lv_color_hex(0xF8F9FA), 0);
     // lv_obj_add_flag(content_container, LV_OBJ_FLAG_SCROLLABLE);
     // lv_obj_set_scrollbar_mode(content_container, LV_SCROLLBAR_MODE_AUTO);
-
+    lv_obj_clean(content_container); // Clear previous content
     // Step 5: Create category buttons in sidebar
     for (const std::string &category : uniqueCategories)
     {

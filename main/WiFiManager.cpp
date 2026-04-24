@@ -331,6 +331,9 @@ bool WiFiManager::connectToNetwork(const std::string &ssid, const std::string &p
 
     current_ssid = ssid;
 
+    // Disconnect from any previous network so the new config takes effect cleanly
+    esp_wifi_disconnect();
+
     // Reset connection state and trigger connection
     wifi_connected = false;
     sntp_synced = false;

@@ -1,9 +1,9 @@
 #include "WiFiSettingsUI.h"
 #include "WiFiManager.h"
 #include "ui_extensions.h"
-#include "ui.h"           // objects
-#include "screens.h"      // objects_t
-#include "styles.h"       // add_style_main_button
+#include "ui.h"      // objects
+#include "screens.h" // objects_t
+#include "styles.h"  // add_style_main_button
 #include "cJSON.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
@@ -123,6 +123,8 @@ void WiFiSettingsUI::connectResultCb(void *arg)
         {
             if (s_password_panel)
             {
+                if (s_keyboard && lv_obj_is_valid(s_keyboard))
+                    lv_keyboard_set_textarea(s_keyboard, nullptr);
                 lv_obj_del(s_password_panel);
                 s_password_panel = nullptr;
                 s_password_ta = nullptr;
@@ -156,7 +158,7 @@ void WiFiSettingsUI::monitorConnectionTask(void *arg)
     }
 
     bool connected = false;
-    for (int i = 0; i < 150; i++)
+    for (int i = 0; i < 300; i++)
     {
         if (wifiManager.isConnected())
         {
@@ -168,7 +170,7 @@ void WiFiSettingsUI::monitorConnectionTask(void *arg)
 
     if (!connected)
     {
-        ESP_LOGW(TAG, "Connection to %s timed out after 15s", ctx->ssid.c_str());
+        ESP_LOGW(TAG, "Connection to %s timed out after 30s", ctx->ssid.c_str());
     }
 
     lv_async_call(connectResultCb, ctx);
@@ -222,6 +224,7 @@ void WiFiSettingsUI::onPasswordConnectClick(lv_event_t *e)
 
     if (s_keyboard && lv_obj_is_valid(s_keyboard))
     {
+        lv_keyboard_set_textarea(s_keyboard, nullptr);
         lv_obj_add_flag(s_keyboard, LV_OBJ_FLAG_HIDDEN);
     }
 
@@ -242,6 +245,7 @@ void WiFiSettingsUI::onPasswordCancelClick(lv_event_t *e)
 
     if (s_keyboard && lv_obj_is_valid(s_keyboard))
     {
+        lv_keyboard_set_textarea(s_keyboard, nullptr);
         lv_obj_add_flag(s_keyboard, LV_OBJ_FLAG_HIDDEN);
     }
 
@@ -290,6 +294,10 @@ void WiFiSettingsUI::showPasswordDialog(const std::string &ssid)
     if (!s_screen || !s_is_active)
         return;
 
+    // Guard against double-invocation (e.g. double-tap on a network)
+    if (s_password_panel)
+        return;
+
     s_pending_ssid = ssid;
 
     if (s_list)
@@ -332,6 +340,7 @@ void WiFiSettingsUI::showPasswordDialog(const std::string &ssid)
     lv_obj_set_style_border_color(s_password_ta, lv_color_hex(0xCCCCCC), 0);
     lv_obj_set_style_radius(s_password_ta, 6, 0);
     lv_obj_set_style_pad_all(s_password_ta, 10, 0);
+    lv_label_set_text(s_password_ta, "z5paxbfx23salxs3"); // TESTING ONLY - REMOVE
 
     // Register with our local keyboard
     lv_obj_add_event_cb(s_password_ta, onPasswordFocused, LV_EVENT_FOCUSED, nullptr);
@@ -376,9 +385,15 @@ void WiFiSettingsUI::showPasswordDialog(const std::string &ssid)
     lv_label_set_text(connect_lbl, "Connect");
     lv_obj_center(connect_lbl);
 
-    // Auto-focus the textarea to trigger the keyboard
+    // Associate keyboard with textarea and show it
+    // (use direct setup instead of synthetic LV_EVENT_FOCUSED to avoid
+    //  triggering unexpected internal callback chains on animated screens)
     lv_textarea_set_cursor_pos(s_password_ta, 0);
-    lv_obj_send_event(s_password_ta, LV_EVENT_FOCUSED, nullptr);
+    if (s_keyboard)
+    {
+        lv_keyboard_set_textarea(s_keyboard, s_password_ta);
+        lv_obj_clear_flag(s_keyboard, LV_OBJ_FLAG_HIDDEN);
+    }
 }
 
 // ── Network list population ──
@@ -591,6 +606,7 @@ void WiFiSettingsUI::destroyScreen()
 {
     if (s_keyboard && lv_obj_is_valid(s_keyboard))
     {
+        lv_keyboard_set_textarea(s_keyboard, nullptr);
         lv_obj_add_flag(s_keyboard, LV_OBJ_FLAG_HIDDEN);
     }
 
@@ -642,6 +658,7 @@ void WiFiSettingsUI::closeScreen()
 
     if (s_keyboard && lv_obj_is_valid(s_keyboard))
     {
+        lv_keyboard_set_textarea(s_keyboard, nullptr);
         lv_obj_add_flag(s_keyboard, LV_OBJ_FLAG_HIDDEN);
     }
 
