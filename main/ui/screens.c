@@ -730,6 +730,33 @@ void create_screen_main() {
                                                 }
                                             }
                                         }
+                                        {
+                                            lv_obj_t *obj = lv_obj_create(parent_obj);
+                                            lv_obj_set_pos(obj, 0, 0);
+                                            lv_obj_set_size(obj, LV_PCT(100), 103);
+                                            {
+                                                lv_obj_t *parent_obj = obj;
+                                                {
+                                                    // settings_wifi_btn_1
+                                                    lv_obj_t *obj = lv_button_create(parent_obj);
+                                                    objects.settings_wifi_btn_1 = obj;
+                                                    lv_obj_set_pos(obj, 85, 5);
+                                                    lv_obj_set_size(obj, 557, 50);
+                                                    lv_obj_add_event_cb(obj, action_clear_all_settings_click, LV_EVENT_CLICKED, (void *)0);
+                                                    add_style_main_button(obj);
+                                                    {
+                                                        lv_obj_t *parent_obj = obj;
+                                                        {
+                                                            lv_obj_t *obj = lv_label_create(parent_obj);
+                                                            lv_obj_set_pos(obj, 0, 0);
+                                                            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+                                                            lv_obj_set_style_align(obj, LV_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+                                                            lv_label_set_text_static(obj, "CLEAR ALL SETTINGS");
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -1367,7 +1394,7 @@ void create_screen_recipe_phase() {
                     lv_obj_set_style_pad_bottom(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-                    create_user_widget_step_progress_bar(obj, 106);
+                    create_user_widget_step_progress_bar(obj, 107);
                     lv_obj_set_style_grid_cell_row_pos(obj, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
                 }
                 {
@@ -1590,7 +1617,7 @@ void create_screen_recipe_phase() {
 }
 
 void tick_screen_recipe_phase() {
-    tick_user_widget_step_progress_bar(106);
+    tick_user_widget_step_progress_bar(107);
 }
 
 void create_user_widget_product_edit(lv_obj_t *parent_obj, int startWidgetIndex) {

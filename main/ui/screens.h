@@ -89,6 +89,7 @@ typedef struct _objects_t {
     lv_obj_t *favourites_list;
     lv_obj_t *settings_wifi_btn;
     lv_obj_t *current_wifi_lbl;
+    lv_obj_t *settings_wifi_btn_1;
     lv_obj_t *keywords_keyboard;
     lv_obj_t *spinner;
     lv_obj_t *snackbar;

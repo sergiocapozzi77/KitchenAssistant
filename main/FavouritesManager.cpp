@@ -125,6 +125,8 @@ void FavouritesManager::fetchFavouritesTask(void *param)
         vTaskDelay(pdMS_TO_TICKS(500));
     }
 
+    vTaskDelay(pdMS_TO_TICKS(1000));
+
     // Fetch favourites
     manager->fetchFavourites();
 

@@ -23,6 +23,7 @@
 #include "ui_extensions_internal.h"
 #include "ui_extensions_recipe_steps.h"
 #include "WiFiSettingsUI.h"
+#include "spiffs_cleanup.h"
 
 filter_panel_t products_panel;
 filter_panel_t recipes_panel;
@@ -796,4 +797,15 @@ void action_generate_ai_recipes_click(lv_event_t *e)
 void action_wi_fi_settings_click(lv_event_t *e)
 {
     WiFiSettingsUI::toggleDialog();
+}
+
+void action_clear_all_settings_click(lv_event_t *e)
+{
+    ESP_LOGI("actions", "Clear All Settings clicked");
+
+    spiffs_cleanup::delete_wifi_creds();
+    spiffs_cleanup::delete_thumbnail_cache();
+    showSnackbar("All settings cleared. Restarting...", 5000);
+    vTaskDelay(pdMS_TO_TICKS(5000));
+    esp_restart();
 }
