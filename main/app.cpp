@@ -24,6 +24,8 @@
 
 static const char *TAG = "APP";
 
+#define BASE_DIR CONFIG_BSP_SPIFFS_MOUNT_POINT
+
 // // Configuration
 // #define SLEEP_TIMEOUT_MS 60000
 // #define QUEUE_SIZE 8
@@ -93,7 +95,9 @@ void Application::initHardware()
 
     if (spiffs_ret == ESP_OK)
     {
-        FILE *f = fopen("/spiffs/wifi_creds.json", "r");
+        const char *path = BASE_DIR "/wifi_creds.json";
+
+        FILE *f = fopen(path, "r");
         if (f)
         {
             // Read file into buffer

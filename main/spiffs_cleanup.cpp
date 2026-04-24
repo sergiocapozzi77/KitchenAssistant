@@ -13,6 +13,7 @@ static const char *TAG = "SPIFFS_CLEANUP";
 bool spiffs_cleanup::delete_wifi_creds()
 {
     const char *path = BASE_DIR "/wifi_creds.json";
+    ESP_LOGI(TAG, "Attempting to delete WiFi credentials at %s", path);
     if (access(path, F_OK) != 0)
     {
         ESP_LOGI(TAG, "No wifi_creds.json to delete");

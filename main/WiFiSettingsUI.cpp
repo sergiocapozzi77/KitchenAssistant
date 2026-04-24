@@ -12,6 +12,8 @@
 #include "esp_wifi.h"
 #include <cstdio>
 
+#define BASE_DIR CONFIG_BSP_SPIFFS_MOUNT_POINT
+
 static const char *TAG = "wifi_ui";
 
 // ── Static member definitions ──
@@ -77,7 +79,9 @@ void WiFiSettingsUI::saveCredentials(const std::string &ssid, const std::string 
     char *json_str = cJSON_Print(json);
     if (json_str)
     {
-        FILE *f = fopen("/spiffs/wifi_creds.json", "w");
+        const char *path = BASE_DIR "/wifi_creds.json";
+
+        FILE *f = fopen(path, "w");
         if (f)
         {
             fprintf(f, "%s", json_str);
@@ -86,7 +90,7 @@ void WiFiSettingsUI::saveCredentials(const std::string &ssid, const std::string 
         }
         else
         {
-            ESP_LOGE(TAG, "Failed to open wifi_creds.json for writing");
+            ESP_LOGE(TAG, "Failed to open %s for writing", path);
         }
         free(json_str);
     }
@@ -224,6 +228,12 @@ void WiFiSettingsUI::onPasswordConnectClick(lv_event_t *e)
     std::string password = password_chars ? password_chars : "";
     ESP_LOGI(TAG, "PWD after textarea copy (len=%zu): %s", password.length(), password.c_str());
 
+    if (s_keyboard && lv_obj_is_valid(s_keyboard))
+    {
+        lv_keyboard_set_textarea(s_keyboard, nullptr);
+        lv_obj_add_flag(s_keyboard, LV_OBJ_FLAG_HIDDEN);
+    }
+
     if (s_password_panel)
     {
         lv_obj_del(s_password_panel);
@@ -238,6 +248,12 @@ void WiFiSettingsUI::onPasswordCancelClick(lv_event_t *e)
 {
     if (!s_is_active)
         return;
+
+    if (s_keyboard && lv_obj_is_valid(s_keyboard))
+    {
+        lv_keyboard_set_textarea(s_keyboard, nullptr);
+        lv_obj_add_flag(s_keyboard, LV_OBJ_FLAG_HIDDEN);
+    }
 
     if (s_password_panel)
     {
@@ -265,6 +281,7 @@ void WiFiSettingsUI::onPasswordFocused(lv_event_t *e)
     if (s_keyboard && lv_obj_is_valid(s_keyboard))
     {
         lv_keyboard_set_textarea(s_keyboard, ta);
+        lv_obj_clear_flag(s_keyboard, LV_OBJ_FLAG_HIDDEN);
     }
 }
 
@@ -370,6 +387,7 @@ void WiFiSettingsUI::showPasswordDialog(const std::string &ssid)
     if (s_keyboard)
     {
         lv_keyboard_set_textarea(s_keyboard, s_password_ta);
+        lv_obj_clear_flag(s_keyboard, LV_OBJ_FLAG_HIDDEN);
     }
 }
 
@@ -459,6 +477,7 @@ void WiFiSettingsUI::populateTimerCb(lv_timer_t *t)
         lv_label_set_long_mode(ssid_lbl, LV_LABEL_LONG_DOT);
         lv_obj_set_flex_grow(ssid_lbl, 1);
         lv_obj_set_style_text_color(ssid_lbl, lv_color_hex(0x888888), 0);
+        lv_obj_set_style_text_font(ssid_lbl, &lv_font_montserrat_20, 0);
 
         // Signal + auth label
         std::string info = std::string(signalStr(rssi)) + " | " + authStr(auth);
@@ -466,6 +485,7 @@ void WiFiSettingsUI::populateTimerCb(lv_timer_t *t)
         lv_label_set_text(info_lbl, info.c_str());
         lv_obj_align(info_lbl, LV_ALIGN_RIGHT_MID, -16, 0);
         lv_obj_set_style_text_color(info_lbl, lv_color_hex(0x888888), 0);
+        lv_obj_set_style_text_font(info_lbl, &lv_font_montserrat_20, 0);
     }
 
     if (*idx < count)
@@ -719,6 +739,7 @@ void WiFiSettingsUI::openScreen()
     lv_obj_set_style_pad_left(s_scanning_lbl, 20, 0);
     lv_obj_set_style_text_color(s_scanning_lbl, lv_color_hex(0x888888), 0);
     lv_label_set_text(s_scanning_lbl, "Scanning for networks...");
+    lv_obj_set_style_text_font(s_scanning_lbl, &lv_font_montserrat_22, 0);
 
     // ── Scrollable network list ──
     s_list = lv_obj_create(s_screen);
@@ -733,18 +754,21 @@ void WiFiSettingsUI::openScreen()
 
     // ── Rescan button ──
     lv_obj_t *rescan_btn = lv_btn_create(s_screen);
-    lv_obj_set_width(rescan_btn, lv_pct(100));
+    lv_obj_set_width(rescan_btn, lv_pct(80));
+    lv_obj_set_x(rescan_btn, 80); // center horizontally (800 - 80*2 = 640 content width)
     lv_obj_set_height(rescan_btn, 48);
     lv_obj_add_event_cb(rescan_btn, onRescanClick, LV_EVENT_CLICKED, nullptr);
     add_style_main_button(rescan_btn);
+    lv_obj_set_style_margin_bottom(rescan_btn, 20, 0);
 
     lv_obj_t *rescan_lbl = lv_label_create(rescan_btn);
     lv_label_set_text(rescan_lbl, "Rescan");
     lv_obj_center(rescan_lbl);
     lv_obj_set_style_text_color(rescan_lbl, lv_color_hex(0x000000), 0);
 
-    // ── Keyboard (always visible at the bottom) ──
+    // ── Keyboard (hidden by default, shown when password is needed) ──
     s_keyboard = lv_keyboard_create(s_screen);
+    lv_obj_add_flag(s_keyboard, LV_OBJ_FLAG_HIDDEN);
     lv_obj_set_size(s_keyboard, lv_pct(100), 299);
     lv_obj_set_pos(s_keyboard, 0, 1280 - 299);
     updateStatusLabel();
