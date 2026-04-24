@@ -970,6 +970,7 @@ bool fetch_and_decode_jpeg(const std::string &url,
 
 void thumb_worker_task(void *)
 {
+    esp_task_wdt_add(NULL);
     ThumbContext *ctx = nullptr;
 
     while (true)
@@ -1042,6 +1043,9 @@ void thumb_worker_task(void *)
 
         vTaskDelay(pdMS_TO_TICKS(50));
     }
+
+    esp_task_wdt_delete(NULL);
+    vTaskDelete(NULL);
 }
 
 // ── Snackbar / Spinner ────────────────────────────────────────────────────────
