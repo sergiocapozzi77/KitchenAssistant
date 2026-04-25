@@ -62,7 +62,8 @@ static void free_heart_button_ctx_cb(lv_event_t *e)
     if (!ctx)
         return;
 
-    // Clear user data from both buttons to prevent dangling pointers
+    // Clear user data from both buttons to prevent dangling pointers.
+    // Use lv_obj_is_valid() to guard against the sibling already being deleted.
     if (ctx->add && lv_obj_is_valid(ctx->add))
         lv_obj_set_user_data(ctx->add, nullptr);
     if (ctx->remove && lv_obj_is_valid(ctx->remove))
@@ -91,6 +92,8 @@ static void detail_widget_deleted_cb(lv_event_t *e)
 
 static void heart_button_cb(lv_event_t *e)
 {
+    // NOTE: this callback fires from within the LVGL dispatch path, so the
+    // LVGL mutex is already held. Do NOT call lv_lock/lv_unlock here.
     HeartButtonContext *ctx = static_cast<HeartButtonContext *>(lv_event_get_user_data(e));
     if (!ctx || !ctx->add || !ctx->remove)
         return;
@@ -101,23 +104,32 @@ static void heart_button_cb(lv_event_t *e)
     {
         // Remove from favourites
         favouritesManager.removeFavourite(ctx->url);
-        lv_lock();
+
+        // Already inside LVGL lock — call directly, no lv_lock/unlock.
         lv_obj_clear_flag(ctx->add, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(ctx->remove, LV_OBJ_FLAG_HIDDEN);
-        lv_unlock();
+
         showSnackbar("Removed from favourites", 3000);
 
-        // Background task to sync with Appwrite
-        xTaskCreate([](void *param)
-                    {
-            std::string *url = static_cast<std::string *>(param);
-            favouriteService.removeFavourite(*url);
-            delete url;
-            vTaskDelete(nullptr); }, "removeFav", 8192, new std::string(ctx->url), 1, nullptr);
+        // Background task to sync with Appwrite.
+        // Heap-allocate the URL so it survives past this callback.
+        std::string *urlParam = new std::string(ctx->url);
+        BaseType_t ret = xTaskCreate([](void *param)
+                                     {
+                        std::string *url = static_cast<std::string *>(param);
+                        favouriteService.removeFavourite(*url);
+                        delete url;
+                        vTaskDelete(nullptr); }, "removeFav", 8192, urlParam, 1, nullptr);
+
+        if (ret != pdPASS)
+        {
+            ESP_LOGE(TAG, "Failed to create removeFav task — freeing param");
+            delete urlParam;
+        }
     }
     else
     {
-        // For AI recipes with empty URL, generate a synthetic URL
+        // For AI recipes with empty URL, generate a synthetic URL.
         std::string url = ctx->url;
         if (url.empty() && ctx->recipeSource == "ai-deepseek")
         {
@@ -141,6 +153,7 @@ static void heart_button_cb(lv_event_t *e)
             {
                 ctx->imageUrl = "generate:" + ctx->name + "|||" + ctx->description;
             }
+
             std::string cachedBig = get_leonardo_cached_url(
                 "generate:" + ctx->name + "|||" + ctx->description, 800, 280);
 
@@ -155,7 +168,7 @@ static void heart_button_cb(lv_event_t *e)
             }
         }
 
-        // Create Favorite for local cache
+        // Build local Favourite for immediate cache.
         Favorite fav;
         fav.url = url;
         fav.name = ctx->name;
@@ -179,46 +192,36 @@ static void heart_button_cb(lv_event_t *e)
         ESP_LOGI("FAVORITE", "  totalTime: %s", fav.totalTime.c_str());
         ESP_LOGI("FAVORITE", "  recipeSource: %s", fav.recipeSource.c_str());
 
-        // Log ingredients
-        if (!fav.ingredients.empty())
-        {
-            for (size_t i = 0; i < fav.ingredients.size(); i++)
-            {
-                ESP_LOGI("FAVORITE", "  ingredient[%d]: %s", i, fav.ingredients[i].c_str());
-            }
-        }
-        else
-        {
+        for (size_t i = 0; i < fav.ingredients.size(); i++)
+            ESP_LOGI("FAVORITE", "  ingredient[%d]: %s", (int)i, fav.ingredients[i].c_str());
+        if (fav.ingredients.empty())
             ESP_LOGI("FAVORITE", "  ingredients: (none)");
-        }
 
-        // Log method steps
-        if (!fav.methodSteps.empty())
-        {
-            for (size_t i = 0; i < fav.methodSteps.size(); i++)
-            {
-                ESP_LOGI("FAVORITE", "  step[%d]: %s", i, fav.methodSteps[i].c_str());
-            }
-        }
-        else
-        {
+        for (size_t i = 0; i < fav.methodSteps.size(); i++)
+            ESP_LOGI("FAVORITE", "  step[%d]: %s", (int)i, fav.methodSteps[i].c_str());
+        if (fav.methodSteps.empty())
             ESP_LOGI("FAVORITE", "  methodSteps: (none)");
-        }
 
-        lv_lock();
-        // UI: Hide "Add" (empty heart), Show "Remove" (full heart)
+        // Already inside LVGL lock — call directly, no lv_lock/unlock.
         lv_obj_add_flag(ctx->add, LV_OBJ_FLAG_HIDDEN);
         lv_obj_clear_flag(ctx->remove, LV_OBJ_FLAG_HIDDEN);
-        lv_unlock();
+
         showSnackbar("Added to favourites", 3000);
 
-        // Background task to sync with Appwrite
-        xTaskCreate([](void *param)
-                    {
-            Favorite *favourite = static_cast<Favorite *>(param);
-            favouriteService.addFavourite(*favourite);
-            delete favourite;
-            vTaskDelete(nullptr); }, "addFav", 8192, new Favorite(fav), 1, nullptr);
+        // Background task to sync with Appwrite.
+        Favorite *favParam = new Favorite(fav);
+        BaseType_t ret = xTaskCreate([](void *param)
+                                     {
+                        Favorite *favourite = static_cast<Favorite *>(param);
+                        favouriteService.addFavourite(*favourite);
+                        delete favourite;
+                        vTaskDelete(nullptr); }, "addFav", 8192, favParam, 1, nullptr);
+
+        if (ret != pdPASS)
+        {
+            ESP_LOGE(TAG, "Failed to create addFav task — freeing param");
+            delete favParam;
+        }
     }
 }
 
@@ -250,12 +253,12 @@ static void scroll_end_show_img_cb(lv_event_t *e)
         lv_obj_set_style_opa(img, LV_OPA_COVER, 0);
 }
 
-// FreeRTOS task: fetch details, then populate ingredients & method widgets
+// FreeRTOS task: fetch details, then populate ingredients & method widgets.
 static void fetch_recipe_detail_task(void *arg)
 {
     DetailFetchCtx *ctx = (DetailFetchCtx *)arg;
 
-    // Check if this task is for the current generation (not stale)
+    // Check if this task is for the current generation (not stale).
     if (ctx->generation != s_current_generation)
     {
         ESP_LOGI(TAG, "Skipping stale recipe detail task (generation %lu != %lu)",
@@ -279,20 +282,22 @@ static void fetch_recipe_detail_task(void *arg)
     {
         if (ctx->recipe.recipeSource == "ai-deepseek")
         {
-            // Build ingredients list from selected products (if checkbox checked)
-            std::vector<std::string> ingredients;
+            // Read the checkbox state under lock, then release before the
+            // network call to avoid holding lv_lock during I/O.
+            bool useSelected = false;
             lv_lock();
-            bool useSelected = lv_obj_has_state(objects.products_filters_panel__poducts_selected_cb, LV_STATE_CHECKED);
+            useSelected = lv_obj_has_state(
+                objects.products_filters_panel__poducts_selected_cb, LV_STATE_CHECKED);
             lv_unlock();
+
+            std::vector<std::string> ingredients;
             if (useSelected)
             {
                 std::vector<Product> selectedProducts = productsManager.getSelectedProducts();
                 for (const auto &p : selectedProducts)
-                {
                     ingredients.push_back(p.name);
-                }
             }
-            // Get filter state
+
             filter_state_t *filterState = get_filter_state();
             ok = recipeAIDetailService.fetchDetails(ctx->recipe, ingredients, filterState);
         }
@@ -301,23 +306,26 @@ static void fetch_recipe_detail_task(void *arg)
             ok = recipeDetailService.fetchDetails(ctx->recipe);
         }
     }
+
     ESP_LOGI("RecipeDetail", "fetchDetails: %s, ings=%d steps=%d",
              ok ? "ok" : "fail",
              (int)ctx->recipe.ingredients.size(),
              (int)ctx->recipe.methodSteps.size());
 
+    // ── Populate ingredients ──────────────────────────────────────────────
+    // Acquire/release a dedicated lock for the ingredient block so we don't
+    // hold the mutex across the entire method-steps loop too.
     lv_lock();
 
-    // Update HeartButtonContext with fetched recipe details
+    // Update HeartButtonContext with fetched recipe details.
     if (ok)
     {
-        HeartButtonContext *heartCtx = static_cast<HeartButtonContext *>(lv_obj_get_user_data(objects.recipe_favourite_add));
+        HeartButtonContext *heartCtx = static_cast<HeartButtonContext *>(
+            lv_obj_get_user_data(objects.recipe_favourite_add));
         if (heartCtx)
         {
-            // Update vectors
             heartCtx->ingredients = ctx->recipe.ingredients;
             heartCtx->methodSteps = ctx->recipe.methodSteps;
-            // Update scalar fields if they are empty in context but present in fetched recipe
             if (heartCtx->imageUrl.empty() && !ctx->recipe.imageUrl.empty())
                 heartCtx->imageUrl = ctx->recipe.imageUrl;
             if (heartCtx->imageUrlBig.empty() && !ctx->recipe.imageUrlBig.empty())
@@ -334,24 +342,16 @@ static void fetch_recipe_detail_task(void *arg)
     if (ctx->spinner && lv_obj_is_valid(ctx->spinner))
         lv_obj_add_flag(ctx->spinner, LV_OBJ_FLAG_HIDDEN);
 
-    // Header image
-    if (!ok && ctx->header_img && lv_obj_is_valid(ctx->header_img))
-    {
-        // nothing extra — already has thumbnail or grey placeholder
-    }
-
-    // Ingredients
     if (ctx->ingredients_cont && lv_obj_is_valid(ctx->ingredients_cont))
     {
-        // Set up container for two-column layout
         lv_obj_set_flex_flow(ctx->ingredients_cont, LV_FLEX_FLOW_ROW_WRAP);
-        lv_obj_set_flex_align(ctx->ingredients_cont, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+        lv_obj_set_flex_align(ctx->ingredients_cont,
+                              LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
         lv_obj_set_style_pad_column(ctx->ingredients_cont, 12, 0);
         lv_obj_set_style_pad_row(ctx->ingredients_cont, 12, 0);
 
         if (ok && !ctx->recipe.ingredients.empty())
         {
-            // Use shared function to populate UI
             populateIngredientsUI(ctx->ingredients_cont, ctx->recipe.ingredients);
         }
         else
@@ -363,25 +363,42 @@ static void fetch_recipe_detail_task(void *arg)
         }
     }
 
-    // Method steps
-    if (ctx->method_cont && lv_obj_is_valid(ctx->method_cont))
+    lv_unlock();
+    // ── End ingredients lock ──────────────────────────────────────────────
+
+    // ── Populate method steps ─────────────────────────────────────────────
+    // Each step gets its own lock/unlock pair so the LVGL task is never
+    // frozen for the full duration of a long recipe, and there is no
+    // vTaskDelay() inside a held lock.
+    if (ctx->method_cont)
     {
         if (ok && !ctx->recipe.methodSteps.empty())
         {
             int step_num = 1;
             for (const auto &step : ctx->recipe.methodSteps)
             {
+                lv_lock();
+
+                // Re-check validity after each yield — the screen could have
+                // been navigated away from while we were unlocked.
+                if (!ctx->method_cont || !lv_obj_is_valid(ctx->method_cont))
+                {
+                    lv_unlock();
+                    break;
+                }
+
                 lv_obj_t *step_card = lv_obj_create(ctx->method_cont);
                 lv_obj_set_width(step_card, lv_pct(100));
                 lv_obj_set_height(step_card, LV_SIZE_CONTENT);
                 lv_obj_clear_flag(step_card, LV_OBJ_FLAG_SCROLLABLE);
                 lv_obj_set_flex_flow(step_card, LV_FLEX_FLOW_ROW);
-                lv_obj_set_flex_align(step_card, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+                lv_obj_set_flex_align(step_card,
+                                      LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
                 lv_obj_set_style_pad_all(step_card, 12, 0);
                 lv_obj_set_style_pad_column(step_card, 12, 0);
                 lv_obj_set_style_border_width(step_card, 1, 0);
                 lv_obj_set_style_border_color(step_card, lv_color_hex(0xE9ECEF), 0);
-                lv_obj_set_style_radius(step_card, 0, 0); // No rounded corners
+                lv_obj_set_style_radius(step_card, 0, 0);
                 lv_obj_set_style_bg_color(step_card, lv_color_hex(0xFFFFFF), 0);
                 lv_obj_set_style_bg_opa(step_card, LV_OPA_COVER, 0);
 
@@ -390,12 +407,14 @@ static void fetch_recipe_detail_task(void *arg)
                 lv_obj_set_size(num_cont, 32, 32);
                 lv_obj_clear_flag(num_cont, LV_OBJ_FLAG_SCROLLABLE);
                 lv_obj_set_style_radius(num_cont, LV_RADIUS_CIRCLE, 0);
-                lv_obj_set_style_bg_color(num_cont, lv_color_hex(theme_colors[active_theme_index][0]), 0);
+                lv_obj_set_style_bg_color(num_cont,
+                                          lv_color_hex(theme_colors[active_theme_index][0]), 0);
                 lv_obj_set_style_bg_opa(num_cont, LV_OPA_COVER, 0);
                 lv_obj_set_style_border_width(num_cont, 0, 0);
                 lv_obj_set_style_pad_all(num_cont, 0, 0);
                 lv_obj_set_flex_flow(num_cont, LV_FLEX_FLOW_ROW);
-                lv_obj_set_flex_align(num_cont, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+                lv_obj_set_flex_align(num_cont,
+                                      LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
                 lv_obj_t *num_lbl = lv_label_create(num_cont);
                 char nbuf[8];
@@ -408,35 +427,38 @@ static void fetch_recipe_detail_task(void *arg)
                 lv_label_set_text(text_lbl, step.c_str());
                 lv_label_set_long_mode(text_lbl, LV_LABEL_LONG_WRAP);
                 lv_obj_set_flex_grow(text_lbl, 1);
-                lv_obj_set_style_text_font(text_lbl, &ui_font_ext_font_montserrat_18, 0); // Increased from 16 to 18
+                lv_obj_set_style_text_font(text_lbl, &ui_font_ext_font_montserrat_18, 0);
                 lv_obj_set_style_text_color(text_lbl, lv_color_hex(0x212529), 0);
+
+                lv_unlock();
+                // Yield to the scheduler between steps without holding the lock,
+                // so the LVGL render task and WDT stay healthy.
                 vTaskDelay(pdMS_TO_TICKS(10));
             }
         }
         else if (!ok)
         {
-            lv_obj_t *lbl = lv_label_create(ctx->method_cont);
-            lv_label_set_text(lbl, "Could not load method steps.");
-            lv_obj_set_style_text_color(lbl, lv_color_hex(0x6C757D), 0);
-            lv_obj_set_style_text_font(lbl, &lv_font_montserrat_16, 0);
+            lv_lock();
+            if (ctx->method_cont && lv_obj_is_valid(ctx->method_cont))
+            {
+                lv_obj_t *lbl = lv_label_create(ctx->method_cont);
+                lv_label_set_text(lbl, "Could not load method steps.");
+                lv_obj_set_style_text_color(lbl, lv_color_hex(0x6C757D), 0);
+                lv_obj_set_style_text_font(lbl, &lv_font_montserrat_16, 0);
+            }
+            lv_unlock();
         }
     }
+    // ── End method steps ──────────────────────────────────────────────────
 
-    lv_unlock();
-
-    // Kick off header image fetch at larger size if we have a URL or need to generate for AI recipe
+    // Kick off header image fetch at larger size.
     std::string thumbUrl;
     if (!ctx->recipe.imageUrlBig.empty())
-    {
         thumbUrl = ctx->recipe.imageUrlBig;
-    }
     else if (!ctx->recipe.imageUrl.empty())
-    {
         thumbUrl = ctx->recipe.imageUrl;
-    }
     else if (ctx->recipe.recipeSource == "ai-deepseek")
     {
-        // Generate a placeholder URL that will trigger AI image generation
         thumbUrl = "generate:" + ctx->recipe.name + "|||" + ctx->recipe.description;
         ESP_LOGI(TAG, "AI recipe with no image, will generate header: %s", ctx->recipe.name.c_str());
     }
@@ -444,14 +466,21 @@ static void fetch_recipe_detail_task(void *arg)
     if (!thumbUrl.empty() && ctx->header_img)
     {
         lv_lock();
-        lv_obj_t *shimmer = create_shimmer_overlay(ctx->header_img);
-        start_shimmer_animation(shimmer, ctx->header_img);
+        if (ctx->header_img && lv_obj_is_valid(ctx->header_img))
+        {
+            lv_obj_t *shimmer = create_shimmer_overlay(ctx->header_img);
+            start_shimmer_animation(shimmer, ctx->header_img);
 
-        ThumbContext *tctx = new ThumbContext{ctx->header_img, shimmer, thumbUrl, 0, {}, 800, 280};
-        lv_obj_add_event_cb(ctx->header_img, thumb_obj_deleted_cb, LV_EVENT_DELETE, tctx);
-        lv_unlock();
+            ThumbContext *tctx = new ThumbContext{ctx->header_img, shimmer, thumbUrl, 0, {}, 800, 280};
+            lv_obj_add_event_cb(ctx->header_img, thumb_obj_deleted_cb, LV_EVENT_DELETE, tctx);
+            lv_unlock();
 
-        thumb_queue_push(tctx);
+            thumb_queue_push(tctx);
+        }
+        else
+        {
+            lv_unlock();
+        }
     }
 
     delete ctx;
@@ -463,10 +492,8 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
 {
     lv_obj_t *prev_screen = lv_scr_act();
 
-    // Load screen from EEZ Studio UI manager
     lv_scr_load_anim(objects.recipe_detail, LV_SCR_LOAD_ANIM_MOVE_LEFT, 300, 0, false);
 
-    // Get UI components by identifier
     lv_obj_t *bar_title = objects.recipe_title;
     lv_obj_t *back_btn = objects.recipe_back_btn;
     lv_obj_t *header_img = objects.recipe_header_img;
@@ -476,59 +503,53 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
     lv_obj_t *total_time_val = objects.recipe_total_time_val;
     lv_obj_t *difficulty_val = objects.recipe_difficulty_val;
 
-    // Clear any previous content and reset UI state
+    // Clear any previous content.
     if (ing_cont && lv_obj_is_valid(ing_cont))
-    {
         lv_obj_clean(ing_cont);
-    }
     if (method_cont && lv_obj_is_valid(method_cont))
-    {
         lv_obj_clean(method_cont);
-    }
     if (header_img && lv_obj_is_valid(header_img))
     {
         lv_image_set_src(header_img, NULL);
         lv_obj_set_size(header_img, lv_pct(100), 280);
-        lv_obj_set_style_radius(header_img, 12, 0);        // rounded corners
-        lv_obj_set_style_clip_corner(header_img, true, 0); // clip image to rounded corners
-                                                           //  lv_image_set_inner_align(header_img, LV_IMAGE_ALIGN_COVER); // cover align
+        lv_obj_set_style_radius(header_img, 12, 0);
+        lv_obj_set_style_clip_corner(header_img, true, 0);
     }
-    // Clear meta fields
     if (total_time_val && lv_obj_is_valid(total_time_val))
-    {
         lv_label_set_text(total_time_val, "");
-    }
     if (difficulty_val && lv_obj_is_valid(difficulty_val))
-    {
         lv_label_set_text(difficulty_val, "");
-    }
 
-    // Store the selected recipe so downstream consumers (e.g. recipe steps)
-    // can access it even when detail fetch is skipped
     recipeDetailService.setSelectedRecipe(recipe);
 
-    // Increment generation to invalidate any previous task
     s_current_generation++;
 
-    // Set recipe title
     lv_label_set_text(bar_title, recipe.name.c_str());
 
-    // Set meta information
     if (!recipe.totalTime.empty())
-    {
         lv_label_set_text(total_time_val, recipe.totalTime.c_str());
-    }
-
     if (!recipe.difficulty.empty())
-    {
         lv_label_set_text(difficulty_val, recipe.difficulty.c_str());
-    }
 
     lv_obj_clear_flag(detail_spinner, LV_OBJ_FLAG_HIDDEN);
 
-    // Set up back button callback
+    // ── Heart button setup ────────────────────────────────────────────────
+    // FIX: retrieve and free the old HeartButtonContext *before* removing the
+    // callbacks — otherwise the old allocation is leaked on every re-entry.
+    HeartButtonContext *oldCtx = static_cast<HeartButtonContext *>(
+        lv_obj_get_user_data(objects.recipe_favourite_add));
 
-    // Set initial color based on favourite status
+    // Remove all previous callbacks first so free_heart_button_ctx_cb won't
+    // fire a second time when we delete oldCtx manually below.
+    lv_obj_remove_event_cb(objects.recipe_favourite_add, heart_button_cb);
+    lv_obj_remove_event_cb(objects.recipe_favourite_remove, heart_button_cb);
+    lv_obj_remove_event_cb(objects.recipe_favourite_add, free_heart_button_ctx_cb);
+    lv_obj_remove_event_cb(objects.recipe_favourite_remove, free_heart_button_ctx_cb);
+
+    // Now safe to delete: callbacks are gone, no double-free risk.
+    delete oldCtx;
+
+    // Set initial heart icon state.
     bool isFav = favouritesManager.isFavouriteUrl(recipe.url);
     if (isFav)
     {
@@ -541,13 +562,6 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
         lv_obj_add_flag(objects.recipe_favourite_remove, LV_OBJ_FLAG_HIDDEN);
     }
 
-    // 1. CLEANUP: Remove any existing callbacks to prevent duplicates
-    lv_obj_remove_event_cb(objects.recipe_favourite_add, heart_button_cb);
-    lv_obj_remove_event_cb(objects.recipe_favourite_remove, heart_button_cb);
-    lv_obj_remove_event_cb(objects.recipe_favourite_add, free_heart_button_ctx_cb);
-    lv_obj_remove_event_cb(objects.recipe_favourite_remove, free_heart_button_ctx_cb);
-
-    // Create context with recipe data
     HeartButtonContext *ctx = new HeartButtonContext{
         recipe.url,
         recipe.name,
@@ -566,10 +580,16 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
     lv_obj_set_user_data(objects.recipe_favourite_remove, ctx);
 
     lv_obj_add_event_cb(objects.recipe_favourite_add, heart_button_cb, LV_EVENT_CLICKED, ctx);
-    lv_obj_add_event_cb(objects.recipe_favourite_add, free_heart_button_ctx_cb, LV_EVENT_DELETE, ctx);
     lv_obj_add_event_cb(objects.recipe_favourite_remove, heart_button_cb, LV_EVENT_CLICKED, ctx);
 
-    // Kick off detail fetch task
+    // Register free callback on BOTH buttons so whichever is deleted first
+    // owns the cleanup; the sibling's user_data is nulled inside the callback
+    // so the second deletion is a safe no-op.
+    lv_obj_add_event_cb(objects.recipe_favourite_add, free_heart_button_ctx_cb, LV_EVENT_DELETE, ctx);
+    lv_obj_add_event_cb(objects.recipe_favourite_remove, free_heart_button_ctx_cb, LV_EVENT_DELETE, ctx);
+    // ── End heart button setup ────────────────────────────────────────────
+
+    // ── Detail fetch task ─────────────────────────────────────────────────
     DetailFetchCtx *fctx = new DetailFetchCtx{
         recipe,
         detail_spinner,
@@ -578,7 +598,6 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
         header_img,
         s_current_generation};
 
-    // Register delete guard callbacks
     lv_obj_add_event_cb(detail_spinner, detail_widget_deleted_cb, LV_EVENT_DELETE, fctx);
     lv_obj_add_event_cb(ing_cont, detail_widget_deleted_cb, LV_EVENT_DELETE, fctx);
     lv_obj_add_event_cb(method_cont, detail_widget_deleted_cb, LV_EVENT_DELETE, fctx);
@@ -593,6 +612,15 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
     {
         ESP_LOGE(TAG, "Failed to create RecipeDetail task");
         lv_obj_add_flag(detail_spinner, LV_OBJ_FLAG_HIDDEN);
-        // fctx will be cleaned up by widget delete events
+
+        // FIX: the delete-guard callbacks only null the widget pointers inside
+        // fctx — they never free fctx itself. That only happens at the end of
+        // fetch_recipe_detail_task, which never runs here. Clean up explicitly.
+        lv_obj_remove_event_cb(detail_spinner, detail_widget_deleted_cb);
+        lv_obj_remove_event_cb(ing_cont, detail_widget_deleted_cb);
+        lv_obj_remove_event_cb(method_cont, detail_widget_deleted_cb);
+        lv_obj_remove_event_cb(header_img, detail_widget_deleted_cb);
+        delete fctx;
     }
+    // ── End detail fetch task ─────────────────────────────────────────────
 }
