@@ -33,14 +33,6 @@
       "Bash(*export.sh* && idf.py build *)"
     ]
   },
-  "maxTokens": 8192,
-  "contextManagement": {
-    "autoTruncate": true,
-    "maxContextTokens": 90000,
-    "truncationStrategy": "keepRecent",
-    "truncationMessage": "[Context truncated due to length limits]",
-    "preserveSystemPrompt": true
-  },
   "session": {
     "autoSave": true,
     "maxSessions": 5
