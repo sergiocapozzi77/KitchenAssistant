@@ -5537,7 +5537,7 @@
                   "left": 0,
                   "top": 0,
                   "width": 100,
-                  "height": 70,
+                  "height": 72,
                   "customInputs": [],
                   "customOutputs": [],
                   "style": {
@@ -5552,7 +5552,7 @@
                   "leftUnit": "px",
                   "topUnit": "px",
                   "widthUnit": "%",
-                  "heightUnit": "px",
+                  "heightUnit": "content",
                   "children": [
                     {
                       "objID": "9b02c0c2-c2a7-4d43-c48e-8dc1db65e64d",
@@ -5624,7 +5624,8 @@
                           "grid_cell_row_pos": 2,
                           "text_font": "MONTSERRAT_36",
                           "pad_left": 20,
-                          "pad_right": 20
+                          "pad_right": 20,
+                          "pad_bottom": 15
                         }
                       }
                     }
