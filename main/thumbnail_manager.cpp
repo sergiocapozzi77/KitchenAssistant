@@ -92,7 +92,7 @@ void thumbnail_manager_init(uint16_t thumbMaxWidth, uint16_t thumbMaxHeight,
     xTaskCreatePinnedToCoreWithCaps(
         thumb_worker_task, "thumb_worker",
         8192, nullptr,
-        4, // below LVGL, above idle
+        1, // lowest non-idle — below draw workers (prio 2) to avoid priority inversion
         nullptr,
         1, // core 1 keeps HTTP off the LVGL core
         MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);

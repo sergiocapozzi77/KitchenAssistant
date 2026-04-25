@@ -503,6 +503,10 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
         lv_label_set_text(difficulty_val, "");
     }
 
+    // Store the selected recipe so downstream consumers (e.g. recipe steps)
+    // can access it even when detail fetch is skipped
+    recipeDetailService.setSelectedRecipe(recipe);
+
     // Increment generation to invalidate any previous task
     s_current_generation++;
 

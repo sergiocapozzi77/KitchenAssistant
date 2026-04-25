@@ -184,6 +184,10 @@ void UIExtensionsRecipeSteps::createRecipeStepsTask()
                     }
                 }
 
+                // spb_init may clamp numSteps to a minimum of 2; pad labels to match
+                while (labels.size() < 2)
+                    labels.push_back("");
+
                 setCurrentRecipe(recipe);
 
                 lv_lock();

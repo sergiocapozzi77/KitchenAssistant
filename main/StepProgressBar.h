@@ -53,17 +53,21 @@ static void spb_init(lv_obj_t *spb, int numSteps, const char *labels[])
 
     // --- track background (always full centre-to-centre width) ---
     lv_obj_t *bg = spb_track_bg(spb);
-    lv_obj_clear_flag(bg, LV_OBJ_FLAG_LAYOUT_1);
-    ESP_LOGI("StepProgressBar", "track background pos: trackX=%d, trackY=%d, trackW=%d", trackX, trackY, trackW);
-    lv_obj_set_pos(bg, trackX, trackY);
-    lv_obj_set_size(bg, trackW, SPB_TRACK_H);
+    if (bg) {
+        lv_obj_clear_flag(bg, LV_OBJ_FLAG_LAYOUT_1);
+        ESP_LOGI("StepProgressBar", "track background pos: trackX=%d, trackY=%d, trackW=%d", trackX, trackY, trackW);
+        lv_obj_set_pos(bg, trackX, trackY);
+        lv_obj_set_size(bg, trackW, SPB_TRACK_H);
+    }
 
     // --- track fill (starts at 0, spb_set_step will resize) ---
     lv_obj_t *fill = spb_track_fill(spb);
-    lv_obj_clear_flag(fill, LV_OBJ_FLAG_LAYOUT_1);
-    ESP_LOGI("StepProgressBar", "track fill pos: trackX=%d, trackY=%d", trackX, trackY);
-    lv_obj_set_pos(fill, trackX, trackY);
-    lv_obj_set_size(fill, 0, SPB_TRACK_H);
+    if (fill) {
+        lv_obj_clear_flag(fill, LV_OBJ_FLAG_LAYOUT_1);
+        ESP_LOGI("StepProgressBar", "track fill pos: trackX=%d, trackY=%d", trackX, trackY);
+        lv_obj_set_pos(fill, trackX, trackY);
+        lv_obj_set_size(fill, 0, SPB_TRACK_H);
+    }
 
     // --- per-step objects ---
     // Log all children for debugging (minimal to avoid crashes)
@@ -83,6 +87,10 @@ static void spb_init(lv_obj_t *spb, int numSteps, const char *labels[])
         lv_obj_t *c = spb_circle(spb, i);
         lv_obj_t *n = spb_num(spb, i);
         lv_obj_t *l = spb_label(spb, i);
+        if (!c || !n || !l) {
+            ESP_LOGW("StepProgressBar", "  step %d: missing child object(s) \xe2\x80\x94 skipping", i);
+            continue;
+        }
         ESP_LOGI("StepProgressBar", "  step %d: child indices %d,%d,%d -> ptrs %p,%p,%p", i,
                  2 + i * 3, 2 + i * 3 + 1, 2 + i * 3 + 2, c, n, l);
 
@@ -205,6 +213,7 @@ static void spb_set_step(lv_obj_t *spb, int numSteps, int currentStep)
     {
         lv_obj_t *c = spb_circle(spb, i);
         lv_obj_t *n = spb_num(spb, i);
+        if (!c || !n) continue;
 
         const bool done = (i + 1 < currentStep);
         const bool active = (i + 1 == currentStep);
@@ -232,5 +241,6 @@ static void spb_set_step(lv_obj_t *spb, int numSteps, int currentStep)
     const int centerMargin = edgeMargin + SPB_RADIUS;                         // distance from container edge to circle center
     const int trackW = W - 2 * centerMargin;                                  // track spans centre-to-centre (first to last circle center)
     const int fillW = (currentStep > 1) ? ((currentStep - 1) * trackW / (numSteps - 1)) : 0;
-    lv_obj_set_width(spb_track_fill(spb), fillW);
+    lv_obj_t *tf = spb_track_fill(spb);
+    if (tf) lv_obj_set_width(tf, fillW);
 }

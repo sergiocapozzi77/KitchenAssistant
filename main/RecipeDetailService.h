@@ -18,6 +18,7 @@ public:
     bool fetchDetails(RecipeSuggestion &recipe);
 
     RecipeSuggestion getSelectedRecipe() const { return selectedRecipe; }
+    void setSelectedRecipe(const RecipeSuggestion &recipe) { selectedRecipe = recipe; }
 
 private:
     RecipeSuggestion selectedRecipe;
