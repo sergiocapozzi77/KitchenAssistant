@@ -82,6 +82,8 @@ static void free_rowid_cb(lv_event_t *e)
 void setProductSearchFilter(const std::string &filter)
 {
     s_productSearchFilter = filter;
+    if (filter.length() >= 3)
+        ESP_LOGI(TAG, "Search filter set: '%.80s' (%zu chars)", filter.c_str(), filter.length());
 }
 
 // === EVENT CALLBACKS ===
@@ -213,6 +215,8 @@ static void edit_btn_cb(lv_event_t *e)
     }
     const Product &product = *it;
 
+    ESP_LOGI(TAG, "Opening edit modal for '%s' (rowId=%s)", product.name.c_str(), product.rowId.c_str());
+
     lv_obj_t *name_ta = objects.product_edit__product_edit_name_ta;
     lv_obj_t *expiry_ta = objects.product_edit__product_edit_expiry_ta;
     lv_obj_t *category_dd = objects.product_edit__product_edit_category_dd;
@@ -256,7 +260,11 @@ static void category_button_cb(lv_event_t *e)
     // user_data is a heap-allocated std::string* owned by the event itself
     const std::string *category = static_cast<const std::string *>(lv_event_get_user_data(e));
     if (!category)
+    {
+        ESP_LOGW(TAG, "category_button_cb: no category data");
         return;
+    }
+    ESP_LOGI(TAG, "Category button clicked: '%s'", category->c_str());
     s_selectedCategory = *category;
     productsManager.populateProductList();
 }
@@ -381,8 +389,26 @@ static void build_sidebar(lv_obj_t *sidebar,
 {
     lv_obj_clean(sidebar);
 
+    ESP_LOGI(TAG, "Building sidebar (%zu categories)", uniqueCategories.size());
+    int yield_count = 0;
+    int cat_idx = 0;
     for (const std::string &category : uniqueCategories)
     {
+        // Yield periodically so the LP core doesn't stall
+        if (cat_idx > 0 && (cat_idx % 5) == 0)
+        {
+            lv_unlock();
+            taskYIELD();
+            lv_lock();
+
+            if (!lv_obj_is_valid(sidebar))
+            {
+                ESP_LOGW(TAG, "sidebar invalidated during population, aborting");
+                return;
+            }
+            yield_count++;
+        }
+        cat_idx++;
         lv_obj_t *btn = lv_btn_create(sidebar);
         lv_obj_set_width(btn, lv_pct(100));
         lv_obj_set_height(btn, 120);
@@ -455,6 +481,9 @@ static void build_sidebar(lv_obj_t *sidebar,
         // NOTE: lv_obj_set_user_data is intentionally NOT used here so that
         //       nothing else can clobber cat_str before DELETE fires.
     }
+
+    if (yield_count > 0)
+        ESP_LOGI(TAG, "Sidebar yields: %d", yield_count);
 }
 
 // ---------------------------------------------------------------------------
@@ -469,6 +498,8 @@ static void build_content_rows(lv_obj_t *content_container,
 {
     lv_obj_clean(content_container);
 
+    ESP_LOGI(TAG, "Building content rows: %d products", (int)category_filtered.size());
+    int yield_count = 0;
     int row_index = 0;
     for (const Product *p : category_filtered)
     {
@@ -485,6 +516,7 @@ static void build_content_rows(lv_obj_t *content_container,
                 ESP_LOGW(TAG, "content_container invalidated during population, aborting");
                 return;
             }
+            yield_count++;
         }
         row_index++;
 
@@ -568,6 +600,9 @@ static void build_content_rows(lv_obj_t *content_container,
         lv_obj_add_event_cb(btn_edit, edit_btn_cb, LV_EVENT_CLICKED, edit_id);
         lv_obj_add_event_cb(btn_edit, free_rowid_cb, LV_EVENT_DELETE, edit_id);
     }
+
+    if (yield_count > 0)
+        ESP_LOGI(TAG, "Content-row yields: %d", yield_count);
 }
 
 // === MAIN POPULATE FUNCTION ===
@@ -696,6 +731,8 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
     // ------------------------------------------------------------------
     // Phase 2: commit state and check for re-entrancy under the lock.
     // ------------------------------------------------------------------
+    ESP_LOGI(TAG, "Populate start: %d products, filter_idx=%lu, sort_idx=%lu",
+             (int)category_filtered.size(), (unsigned long)filter_idx, (unsigned long)sort_idx);
     lv_lock();
 
     if (!lv_obj_is_valid(root))
@@ -735,6 +772,7 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
 
     lv_unlock();
     taskYIELD(); // let LVGL render the sidebar before we build rows
+    ESP_LOGI(TAG, "Sidebar built (%d categories)", (int)uniqueCategories.size());
 
     // ------------------------------------------------------------------
     // Phase 4: build content rows (yields internally every N rows).
@@ -761,6 +799,9 @@ void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
         lv_obj_scroll_to_y(content_container, 0, LV_ANIM_OFF);
 
     update_selection_ui();
+
+    ESP_LOGI(TAG, "Populate done: %d rows in category '%s'",
+             (int)category_filtered.size(), selectedCategory.c_str());
 
     s_populating = false;
     lv_unlock();

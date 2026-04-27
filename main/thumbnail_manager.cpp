@@ -10,9 +10,6 @@
 #include "esp_heap_caps.h"
 #include "esp_err.h"
 #include "esp_task_wdt.h"
-#ifdef CONFIG_ESP_LP_WDT_ENABLE
-#include "esp_lp_wdt.h"
-#endif
 #include "tjpgd.h"
 #include "secrets.h"
 #include "LeonardoImageGenerator.h"
@@ -212,11 +209,6 @@ void free_thumb_data_cb(lv_event_t *e)
 
 static size_t tjpgd_in_cb(JDEC *jd, uint8_t *buf, size_t n)
 {
-    // ESP_LOGI("WDT", "WDT reset 1");
-    //  esp_task_wdt_reset();
-#ifdef CONFIG_ESP_LP_WDT_ENABLE
-    esp_lp_wdt_feed();
-#endif
     JpegIo *io = (JpegIo *)jd->device;
     size_t avail = io->src_len - io->src_pos;
     n = (n < avail) ? n : avail;
@@ -230,9 +222,6 @@ static int tjpgd_out_cb(JDEC *jd, void *bitmap, JRECT *rect)
 {
     // ESP_LOGI("WDT", "WDT reset 2");
     //  esp_task_wdt_reset();
-#ifdef CONFIG_ESP_LP_WDT_ENABLE
-    esp_lp_wdt_feed();
-#endif
     static int s_rect_count = 0;
     if ((++s_rect_count & 7) == 0)
         taskYIELD();
@@ -572,6 +561,7 @@ void thumb_worker_task(void *)
 
     while (true)
     {
+
         // esp_task_wdt_reset();
         if (xQueueReceive(s_thumb_queue, &ctx, pdMS_TO_TICKS(1000)) != pdTRUE)
             continue;
