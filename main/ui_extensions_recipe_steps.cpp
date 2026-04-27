@@ -8,6 +8,7 @@
 #include "RecipeDetailService.h"
 #include "StepProgressBar.h"
 #include "ui_extensions_internal.h"
+#include "thumbnail_manager.h"
 #include "styles.h"
 #include "secrets.h"
 #include <cmath>
@@ -267,6 +268,10 @@ void UIExtensionsRecipeSteps::populatePhaseImages(const Recipe &recipe, int phas
                  (int)recipe.aggregatedSteps[phaseIndex].imageRefs.size());
     }
 
+    // Stop shimmer animations before cleaning — active animations on children
+    // being deleted can cause use-after-free in the LVGL animation system.
+    stop_all_shimmer_animations();
+
     // Clear container and prepare layout
     lv_obj_clean(objects.recipe_phase_imgs);
     lv_obj_clear_flag(objects.recipe_phase_imgs, LV_OBJ_FLAG_HIDDEN);
@@ -488,6 +493,11 @@ void UIExtensionsRecipeSteps::clearCurrentRecipe()
     s_currentPhaseIndex = 0;
     s_hasRecipe = false;
     s_scalingFactor = 1.0f;
+
+    // Stop all shimmer animations before cleaning containers, otherwise
+    // active animations on thumbnail children may access freed objects during
+    // recursive deletion inside lv_obj_clean.
+    stop_all_shimmer_animations();
 
     // Clear UI containers
     if (objects.recipe_phase_title_txt && lv_obj_is_valid(objects.recipe_phase_title_txt))
