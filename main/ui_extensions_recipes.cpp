@@ -12,22 +12,6 @@
 
 static const char *TAG = "UIEXTENSIONS";
 
-// === SHIMMER EFFECT FOR LOADING THUMBNAILS ===
-
-struct ShimmerAnimCtx
-{
-    lv_obj_t *shimmer_bar;
-    lv_obj_t *parent;
-};
-
-void shimmer_anim_cb(void *var, int32_t v)
-{
-    lv_obj_t *shimmer_bar = (lv_obj_t *)var;
-    if (!shimmer_bar || !lv_obj_is_valid(shimmer_bar))
-        return;
-    lv_obj_set_x(shimmer_bar, v);
-}
-
 // === RECIPE LIST SPECIFIC STRUCTS ===
 
 struct RecipeClickCtx
@@ -47,10 +31,10 @@ static void free_recipe_click_ctx_cb(lv_event_t *e)
 static void recipe_card_click_cb(lv_event_t *e)
 {
     RecipeClickCtx *ctx = (RecipeClickCtx *)lv_event_get_user_data(e);
-    ESP_LOGI(TAG, "Recipe clicked");
-
     if (!ctx)
         return;
+
+    ESP_LOGI(TAG, "Recipe clicked");
     showRecipeDetailScreen(ctx->recipe);
 }
 
@@ -66,7 +50,7 @@ void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &rec
         return;
     }
 
-    esp_task_wdt_reset();
+    // esp_task_wdt_reset();
     s_thumb_generation++;
 
     lv_lock();
@@ -84,8 +68,8 @@ void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &rec
 
     for (const auto &r : recipes)
     {
-        esp_task_wdt_reset();
-        // === CARD ===
+        // esp_task_wdt_reset();
+        //  === CARD ===
         lv_obj_t *card = createRecipeCard(root, r);
 
         // Click handler — open detail screen

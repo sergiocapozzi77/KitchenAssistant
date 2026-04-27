@@ -1,6 +1,6 @@
 {
   "navigation": {
-    "selectedUserPageObject": "[KitchenHelp.eez-project]:/userPages/1",
+    "selectedUserPageObject": "[KitchenHelp.eez-project]:/userPages/2",
     "selectedUserWidgetObject": "[KitchenHelp.eez-project]:/userWidgets/1",
     "selectedActionObject": "[KitchenHelp.eez-project]:/actions/4",
     "selectedStyleObject": "[KitchenHelp.eez-project]:/lvglStyles/styles/2",
@@ -200,10 +200,10 @@
                 {
                   "type": "tab",
                   "id": "#d87ad084-60a3-4802-81ee-5afa040eb605",
-                  "name": "RecipeDetail",
+                  "name": "Recipe Phase",
                   "component": "editor",
                   "config": {
-                    "objectPath": "[KitchenHelp.eez-project]:/userPages/1",
+                    "objectPath": "[KitchenHelp.eez-project]:/userPages/2",
                     "permanent": false
                   },
                   "icon": "svg:page"
@@ -1259,14 +1259,13 @@
           "0": {
             "1": {},
             "2": {
-              "0": {}
+              "0": {},
+              "$selected": true
             },
             "3": {},
             "4": {},
             "6": {
-              "2": {
-                "$selected": true
-              }
+              "2": {}
             }
           }
         }
@@ -1321,8 +1320,9 @@
   "lvglState": "DEFAULT",
   "lvglExpandedPropertiesGroup": [
     "LAYOUT",
-    "POSITION AND SIZE",
-    "TEXT"
+    "TEXT",
+    "PADDING",
+    "MARGIN"
   ],
   "showInactiveFlowsInDebugger": true,
   "globalFlowZoom": true,

@@ -61,6 +61,9 @@ void start_shimmer_animation(lv_obj_t *shimmer_bar, lv_obj_t *parent);
 void stop_shimmer_animation(lv_obj_t *shimmer_bar);
 void stop_and_delete_shimmer(lv_obj_t *shimmer);
 
+// Stop ALL shimmer animations globally (safe to call during screen transitions)
+void stop_all_shimmer_animations();
+
 // ── Event callbacks (for use with lv_event_t) ───────────────────────────────
 void thumb_obj_deleted_cb(lv_event_t *e);
 void free_thumb_data_cb(lv_event_t *e);

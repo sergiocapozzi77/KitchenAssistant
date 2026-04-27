@@ -73,7 +73,7 @@ std::atomic<uint32_t> s_thumb_generation{0};
 // ── Init ────────────────────────────────────────────────────────────────────
 
 void thumbnail_manager_init(uint16_t thumbMaxWidth, uint16_t thumbMaxHeight,
-                             bool thumbEnableCache)
+                            bool thumbEnableCache)
 {
     s_thumb_max_w = thumbMaxWidth;
     s_thumb_max_h = thumbMaxHeight;
@@ -174,6 +174,14 @@ void stop_and_delete_shimmer(lv_obj_t *shimmer)
     lv_obj_del(shimmer);
 }
 
+void stop_all_shimmer_animations()
+{
+    // Delete ALL animations whose exec_cb is shimmer_anim_cb,
+    // regardless of the animated object (var == NULL matches all).
+    // This prevents invalidation-walk crashes during screen transitions.
+    lv_anim_delete(NULL, shimmer_anim_cb);
+}
+
 // ── Thumb lifecycle callbacks ───────────────────────────────────────────────
 
 void thumb_obj_deleted_cb(lv_event_t *e)
@@ -204,7 +212,8 @@ void free_thumb_data_cb(lv_event_t *e)
 
 static size_t tjpgd_in_cb(JDEC *jd, uint8_t *buf, size_t n)
 {
-    esp_task_wdt_reset();
+    // ESP_LOGI("WDT", "WDT reset 1");
+    //  esp_task_wdt_reset();
 #ifdef CONFIG_ESP_LP_WDT_ENABLE
     esp_lp_wdt_feed();
 #endif
@@ -219,7 +228,8 @@ static size_t tjpgd_in_cb(JDEC *jd, uint8_t *buf, size_t n)
 
 static int tjpgd_out_cb(JDEC *jd, void *bitmap, JRECT *rect)
 {
-    esp_task_wdt_reset();
+    // ESP_LOGI("WDT", "WDT reset 2");
+    //  esp_task_wdt_reset();
 #ifdef CONFIG_ESP_LP_WDT_ENABLE
     esp_lp_wdt_feed();
 #endif
@@ -245,8 +255,8 @@ static int tjpgd_out_cb(JDEC *jd, void *bitmap, JRECT *rect)
 }
 
 static bool decode_jpeg_buffer(uint8_t *jpeg_buf, size_t jpeg_len,
-                                uint8_t **out_px,
-                                uint16_t *out_width, uint16_t *out_height)
+                               uint8_t **out_px,
+                               uint16_t *out_width, uint16_t *out_height)
 {
     uint8_t *work = (uint8_t *)heap_caps_malloc(3100, MALLOC_CAP_INTERNAL);
     if (!work)
@@ -258,7 +268,8 @@ static bool decode_jpeg_buffer(uint8_t *jpeg_buf, size_t jpeg_len,
     JpegIo io = {jpeg_buf, jpeg_len, 0, nullptr, 0};
     JDEC jd;
     JRESULT res = jd_prepare(&jd, tjpgd_in_cb, work, 3100, &io);
-    esp_task_wdt_reset();
+    // ESP_LOGI("WDT", "WDT reset 3");
+    //  esp_task_wdt_reset();
 
     uint8_t *px = nullptr;
     if (res == JDR_OK)
@@ -268,7 +279,7 @@ static bool decode_jpeg_buffer(uint8_t *jpeg_buf, size_t jpeg_len,
         uint16_t decoded_h = jd.height >> jd.scale;
 
         px = (uint8_t *)heap_caps_malloc(decoded_w * decoded_h * 3,
-                                          MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+                                         MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
         if (!px)
         {
             heap_caps_free(work);
@@ -281,7 +292,8 @@ static bool decode_jpeg_buffer(uint8_t *jpeg_buf, size_t jpeg_len,
         *out_height = decoded_h;
 
         res = jd_decomp(&jd, tjpgd_out_cb, jd.scale);
-        esp_task_wdt_reset();
+        // ESP_LOGI("WDT", "WDT reset 4");
+        //  esp_task_wdt_reset();
     }
 
     heap_caps_free(work);
@@ -299,8 +311,8 @@ static bool decode_jpeg_buffer(uint8_t *jpeg_buf, size_t jpeg_len,
 // ── Appwrite image-resize helper ────────────────────────────────────────────
 
 static bool fetch_resized_base64(const std::string &image_url,
-                                  uint16_t W, uint16_t H,
-                                  std::string &out_b64)
+                                 uint16_t W, uint16_t H,
+                                 std::string &out_b64)
 {
     cJSON *bodyJson = cJSON_CreateObject();
     if (!bodyJson)
@@ -368,10 +380,10 @@ std::string get_leonardo_cached_url(const std::string &url, uint16_t w, uint16_t
 // ── Main fetch-and-decode ──────────────────────────────────────────────────
 
 bool fetch_and_decode_jpeg(const std::string &url,
-                            uint16_t W, uint16_t H,
-                            lv_image_dsc_t **out_dsc,
-                            uint8_t **out_px,
-                            bool useCache)
+                           uint16_t W, uint16_t H,
+                           lv_image_dsc_t **out_dsc,
+                           uint8_t **out_px,
+                           bool useCache)
 {
     uint16_t reqW = W, reqH = H;
 
@@ -380,7 +392,7 @@ bool fetch_and_decode_jpeg(const std::string &url,
     if (useCache && thumbnail_cache::get(url, W, H, cached_jpeg))
     {
         uint8_t *buf = (uint8_t *)heap_caps_malloc(cached_jpeg.size(),
-                                                    MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+                                                   MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
         if (!buf)
             return false;
         memcpy(buf, cached_jpeg.data(), cached_jpeg.size());
@@ -461,13 +473,8 @@ bool fetch_and_decode_jpeg(const std::string &url,
         image_url_to_fetch = url;
     }
 
-    esp_task_wdt_delete(NULL);
     std::string b64Str;
     bool fetchOk = fetch_resized_base64(image_url_to_fetch, W, H, b64Str);
-
-    // Re-register immediately after
-    esp_task_wdt_add(NULL);
-    esp_task_wdt_reset();
 
     if (!fetchOk)
         return false;
@@ -515,7 +522,7 @@ bool fetch_and_decode_jpeg(const std::string &url,
         decoded_h = jd.height >> jd.scale;
 
         px = (uint8_t *)heap_caps_malloc(decoded_w * decoded_h * 3,
-                                          MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+                                         MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
         if (px)
         {
             io.dst = px;
@@ -523,7 +530,8 @@ bool fetch_and_decode_jpeg(const std::string &url,
             W = decoded_w;
             H = decoded_h;
             res = jd_decomp(&jd, tjpgd_out_cb, jd.scale);
-            esp_task_wdt_reset();
+            // ESP_LOGI("WDT", "WDT reset 5");
+            //  esp_task_wdt_reset();
         }
         else
             res = JDR_MEM1;
@@ -560,12 +568,11 @@ bool fetch_and_decode_jpeg(const std::string &url,
 
 void thumb_worker_task(void *)
 {
-    esp_task_wdt_add(NULL);
     ThumbContext *ctx = nullptr;
 
     while (true)
     {
-        esp_task_wdt_reset();
+        // esp_task_wdt_reset();
         if (xQueueReceive(s_thumb_queue, &ctx, pdMS_TO_TICKS(1000)) != pdTRUE)
             continue;
 

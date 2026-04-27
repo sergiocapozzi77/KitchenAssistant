@@ -194,7 +194,7 @@ void Application::mainLoop()
         ui_tick();
         bsp_display_unlock();
 
-        //   esp_task_wdt_reset();
+        //   //esp_task_wdt_reset();
         vTaskDelay(pdMS_TO_TICKS(10)); // ~100Hz update rate
     }
 }

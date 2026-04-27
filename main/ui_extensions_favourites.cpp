@@ -30,10 +30,10 @@ static void free_favourite_click_ctx_cb(lv_event_t *e)
 static void favourite_card_click_cb(lv_event_t *e)
 {
     FavouriteClickCtx *ctx = (FavouriteClickCtx *)lv_event_get_user_data(e);
-    ESP_LOGI(TAG, "Favourite clicked: %s", ctx->favourite.name.c_str());
-
     if (!ctx)
         return;
+
+    ESP_LOGI(TAG, "Favourite clicked: %s", ctx->favourite.name.c_str());
 
     // Convert Favorite to minimal RecipeSuggestion
     RecipeSuggestion recipe;

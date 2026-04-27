@@ -490,6 +490,13 @@ static void fetch_recipe_detail_task(void *arg)
 // === PUBLIC FUNCTION ===
 void showRecipeDetailScreen(const RecipeSuggestion &recipe)
 {
+    // Stop all shimmer animations before screen transition.
+    // lv_scr_load_anim only stops animations on screen objects themselves,
+    // not on their children — so shimmer bars on cards would keep running
+    // and can trigger invalidation-walk crashes (blur_walk_cb accessing
+    // freed styles memory) during the transition.
+    stop_all_shimmer_animations();
+
     lv_obj_t *prev_screen = lv_scr_act();
 
     lv_scr_load_anim(objects.recipe_detail, LV_SCR_LOAD_ANIM_MOVE_LEFT, 300, 0, false);
