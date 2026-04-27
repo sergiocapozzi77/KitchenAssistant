@@ -17,6 +17,7 @@ struct ThumbContext
     std::atomic<bool> cancelled{false};
     uint16_t maxW = 0; // 0 = use global default set at thumbnail_manager_init
     uint16_t maxH = 0;
+    bool cacheAllowed = false; // only cache images belonging to favourite recipes
 };
 
 struct ThumbDataCtx

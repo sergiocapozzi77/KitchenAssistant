@@ -31,7 +31,7 @@ bool styles_initialized = false;
 // ── Public init ──────────────────────────────────────────────────────────────
 
 void ui_extensions_init(uint16_t thumbMaxWidth, uint16_t thumbMaxHeight,
-                         bool thumbEnableCache)
+                        bool thumbEnableCache)
 {
     thumbnail_manager_init(thumbMaxWidth, thumbMaxHeight, thumbEnableCache);
     init_styles();
@@ -291,7 +291,8 @@ static lv_obj_t *createRecipeCardInternal(lv_obj_t *parent,
                                           const std::string &imageUrl,
                                           const std::string &difficulty,
                                           const std::string &totalTime,
-                                          const std::string &recipeSource)
+                                          const std::string &recipeSource,
+                                          bool useCache)
 {
     // Card
     lv_obj_t *card = lv_obj_create(parent);
@@ -327,6 +328,7 @@ static lv_obj_t *createRecipeCardInternal(lv_obj_t *parent,
         start_shimmer_animation(shimmer, thumb);
 
         ThumbContext *tctx = new ThumbContext{thumb, shimmer, thumbUrl, 0 /*set by push*/, {}};
+        tctx->cacheAllowed = useCache;
         lv_obj_add_event_cb(thumb, thumb_obj_deleted_cb, LV_EVENT_DELETE, tctx);
 
         // Push-and-forget; worker owns tctx from here
@@ -417,14 +419,14 @@ lv_obj_t *createRecipeCard(lv_obj_t *parent, const RecipeSuggestion &recipe)
 {
     return createRecipeCardInternal(parent, recipe.name, recipe.description,
                                     recipe.imageUrl, recipe.difficulty,
-                                    recipe.totalTime, recipe.recipeSource);
+                                    recipe.totalTime, recipe.recipeSource, false);
 }
 
 lv_obj_t *createRecipeCard(lv_obj_t *parent, const Favorite &fav)
 {
     return createRecipeCardInternal(parent, fav.name, fav.description,
                                     fav.imageUrl, fav.difficulty,
-                                    fav.totalTime, "");
+                                    fav.totalTime, "", true);
 }
 
 // ── Snackbar / Spinner ────────────────────────────────────────────────────────

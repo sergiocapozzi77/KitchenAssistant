@@ -118,7 +118,8 @@ int RecipeSuggestionsManager::getSuggestionSize()
 
 void RecipeSuggestionsManager::showCurrentPageRecipes(bool force)
 {
-    if (!objects.recipes_list || !lv_obj_is_valid(objects.recipes_list)) {
+    if (!objects.recipes_list || !lv_obj_is_valid(objects.recipes_list))
+    {
         ESP_LOGE("ShowRecipesTask", "recipes_list is invalid");
         return;
     }
@@ -211,7 +212,8 @@ void RecipeSuggestionsManager::updatePaginationButtons()
 void fetchRecipesTask(void *param)
 {
     lv_lock();
-    if (objects.spinner && lv_obj_is_valid(objects.spinner)) {
+    if (objects.spinner && lv_obj_is_valid(objects.spinner))
+    {
         lv_obj_clear_flag(objects.spinner, LV_OBJ_FLAG_HIDDEN);
     }
     lv_unlock();
@@ -226,7 +228,7 @@ void fetchRecipesTask(void *param)
     ESP_LOGI("ShowRecipesTask", "Free heap: %lu", (unsigned long)esp_get_free_heap_size());
     ESP_LOGI("ShowRecipesTask", "Selected products: %d", (int)selectedProducts.size());
 
-    heap_caps_check_integrity_all(true);
+    // heap_caps_check_integrity_all(true);
     ESP_LOGI("ShowRecipesTask", "Heap OK before building ingredients");
 
     if (objects.products_filters_panel__poducts_selected_cb && lv_obj_is_valid(objects.products_filters_panel__poducts_selected_cb) &&
@@ -240,7 +242,7 @@ void fetchRecipesTask(void *param)
         }
     }
 
-    heap_caps_check_integrity_all(true);
+    // heap_caps_check_integrity_all(true);
     ESP_LOGI("ShowRecipesTask", "Heap OK after building ingredients");
 
     std::vector<std::string> keywords = filterState->keywords;
@@ -297,7 +299,8 @@ void fetchRecipesTask(void *param)
     manager->appendSuggestions(suggestions);
 
     lv_lock();
-    if (objects.spinner && lv_obj_is_valid(objects.spinner)) {
+    if (objects.spinner && lv_obj_is_valid(objects.spinner))
+    {
         lv_obj_add_flag(objects.spinner, LV_OBJ_FLAG_HIDDEN);
     }
     lv_unlock();

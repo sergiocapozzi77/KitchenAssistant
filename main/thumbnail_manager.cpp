@@ -591,7 +591,7 @@ void thumb_worker_task(void *)
         uint16_t w = ctx->maxW ? ctx->maxW : s_thumb_max_w;
         uint16_t h = ctx->maxH ? ctx->maxH : s_thumb_max_h;
         bool ok = fetch_and_decode_jpeg(ctx->url, w, h,
-                                        &dsc, &px, s_thumb_cache);
+                                        &dsc, &px, ctx->cacheAllowed);
 
         lv_lock();
 
