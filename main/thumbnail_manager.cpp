@@ -188,11 +188,11 @@ void thumb_obj_deleted_cb(lv_event_t *e)
         return;
     ctx->cancelled.store(true);
     ctx->thumb = nullptr;
-    if (ctx->shimmer && lv_obj_is_valid(ctx->shimmer))
-    {
-        stop_shimmer_animation(ctx->shimmer);
-        ctx->shimmer = nullptr;
-    }
+    // Shimmer is a child of thumb (create_shimmer_overlay), so it has already been
+    // cascade-deleted by LVGL before this LV_EVENT_DELETE fires.  Do NOT call
+    // lv_obj_is_valid on it — the freed memory may have been reused by another
+    // LVGL object, causing a false positive and corrupting that object.
+    ctx->shimmer = nullptr;
 }
 
 void free_thumb_data_cb(lv_event_t *e)
