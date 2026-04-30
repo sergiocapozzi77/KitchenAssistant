@@ -10,6 +10,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <errno.h>
+#include <atomic>
 #include <algorithm>
 #include <vector>
 #include <string>
@@ -51,8 +52,35 @@ namespace thumbnail_cache
         FLUSH_INDEX
     };
 
+    // ─── GET context ─────────────────────────────────────────────────────────────
+    //
+    // Heap-allocated so it outlives the get() stack frame in the timeout case.
+    // Ownership rules:
+    //   • get() allocates it and sends it to the IO task via IoJob::ctx.
+    //   • If get() times out it sets cancelled=true and walks away — the IO task
+    //     then owns the struct and is responsible for freeing it.
+    //   • If get() succeeds (semaphore taken in time) it reads the result and
+    //     frees the struct itself; the IO task must NOT touch it after giving the
+    //     semaphore.
+    //
+    // The cancelled flag is std::atomic<bool> so the write in get() and the read
+    // in cache_io_task are race-free on dual-core ESP32-P4.
+    //
+    struct GetContext
+    {
+        std::vector<uint8_t> *out_jpeg; // caller's buffer — only valid while !cancelled
+        bool result;
+        std::atomic<bool> cancelled;
+        SemaphoreHandle_t done_sem;
+
+        GetContext() : out_jpeg(nullptr), result(false), cancelled(false), done_sem(nullptr) {}
+    };
+
+    // ─── IO job ──────────────────────────────────────────────────────────────────
+    //
     // Passed by value through FreeRTOS queue — must be POD / trivially copyable.
     // No std::string or std::vector members allowed here.
+    //
     struct IoJob
     {
         JobType type;
@@ -65,10 +93,8 @@ namespace thumbnail_cache
         uint16_t width;
         uint16_t height;
 
-        // GET fields — caller blocks on done_sem until IO task signals it
-        std::vector<uint8_t> *out_jpeg;
-        bool *out_result;
-        SemaphoreHandle_t done_sem;
+        // GET fields — see GetContext above
+        GetContext *ctx; // heap-allocated; ownership rules described in GetContext
     };
 
     // ─── Static state ─────────────────────────────────────────────────────────────
@@ -210,9 +236,7 @@ namespace thumbnail_cache
             return;
         std::sort(s_cache.begin(), s_cache.end(),
                   [](const CacheEntry &a, const CacheEntry &b)
-                  {
-                      return a.timestamp < b.timestamp;
-                  });
+                  { return a.timestamp < b.timestamp; });
         while (s_cache.size() > max_items)
         {
             std::string path = std::string(CACHE_BASE_DIR) + "/" + s_cache.front().hash + ".jpg";
@@ -225,7 +249,7 @@ namespace thumbnail_cache
 
     // ─── IO task ─────────────────────────────────────────────────────────────────
     //
-    // THIS IS THE ONLY TASK THAT MAY CALL fopen / fread / fwrite / unlink on SPIFFS.
+    // THIS IS THE ONLY TASK THAT MAY CALL fopen / fread / fwrite / unlink ON SPIFFS.
     // Its stack is in internal DRAM (MALLOC_CAP_INTERNAL) so it remains accessible
     // when the flash cache is disabled during SPIFFS page writes.
     //
@@ -240,14 +264,14 @@ namespace thumbnail_cache
         xSemaphoreGive(s_ready);
 
         IoJob job;
-        TickType_t check_interval = pdMS_TO_TICKS(5000); // Check every 5 seconds
+        TickType_t check_interval = pdMS_TO_TICKS(5000); // check every 5 seconds for timed saves
 
         while (true)
         {
-            // Wait for job with timeout so we can periodically check if index needs saving
+            // Wait for job with timeout so we can periodically flush the index
             if (xQueueReceive(s_io_queue, &job, check_interval) != pdTRUE)
             {
-                // Timeout — check if we need to flush the index
+                // Timeout — flush if dirty and the interval has elapsed
                 xSemaphoreTake(s_mutex, portMAX_DELAY);
                 bool should_save = s_index_dirty &&
                                    ((esp_timer_get_time() - s_last_save_time) > (INDEX_SAVE_INTERVAL_MS * 1000LL));
@@ -295,16 +319,13 @@ namespace thumbnail_cache
                         s_index_dirty = true;
                         s_puts_since_save++;
 
-                        // Save immediately if we've accumulated enough puts
                         bool should_flush = (s_puts_since_save >= INDEX_SAVE_BATCH_SIZE);
 
                         ESP_LOGI(TAG, "Cached: %s (%zu B) [dirty=%d, puts=%u]",
                                  job.hash, job.jpeg_len, s_index_dirty, s_puts_since_save);
 
                         if (should_flush)
-                        {
                             save_index_internal();
-                        }
 
                         xSemaphoreGive(s_mutex);
                     }
@@ -325,43 +346,57 @@ namespace thumbnail_cache
             // ── GET ──────────────────────────────────────────────────────────────
             else if (job.type == JobType::GET)
             {
+                GetContext *ctx = job.ctx;
+
                 std::string path = std::string(CACHE_BASE_DIR) + "/" + job.hash + ".jpg";
                 bool ok = false;
+                std::vector<uint8_t> local_buf; // read into local first, copy only if not cancelled
+
                 FILE *f = fopen(path.c_str(), "rb");
                 if (f)
                 {
                     fseek(f, 0, SEEK_END);
                     long len = ftell(f);
                     fseek(f, 0, SEEK_SET);
-                    job.out_jpeg->resize(len);
-                    size_t rd = fread(job.out_jpeg->data(), 1, len, f);
+                    local_buf.resize(len);
+                    size_t rd = fread(local_buf.data(), 1, len, f);
                     fclose(f);
                     ok = (rd == (size_t)len);
                     if (!ok)
-                        job.out_jpeg->clear();
+                        local_buf.clear();
                 }
                 else
                 {
                     ESP_LOGE(TAG, "fopen failed for read: %s (errno=%d)", path.c_str(), errno);
                 }
 
-                if (ok)
+                // Check cancelled *after* the slow fread, before touching ctx->out_jpeg.
+                // cancelled is std::atomic<bool> — safe on dual-core without a mutex.
+                if (ctx->cancelled.load(std::memory_order_acquire))
                 {
-                    // Update LRU timestamp in index
-                    xSemaphoreTake(s_mutex, portMAX_DELAY);
-                    auto it = std::find_if(s_cache.begin(), s_cache.end(),
-                                           [&job](const CacheEntry &e)
-                                           { return e.hash == job.hash; });
-                    if (it != s_cache.end())
-                    {
-                        it->timestamp = (uint64_t)esp_timer_get_time();
-                        s_index_dirty = true;
-                    }
-                    xSemaphoreGive(s_mutex);
+                    // get() already returned to the caller — the stack frame is gone.
+                    // We own ctx; clean it up and move on.
+                    ESP_LOGW(TAG, "GET timed out, discarding result for %s", job.hash);
+                    vSemaphoreDelete(ctx->done_sem);
+                    delete ctx;
                 }
+                else
+                {
+                    // get() is still blocking on the semaphore — safe to write results.
+                    // NOTE: we deliberately do NOT update the LRU timestamp here.
+                    // Reads are FIFO-neutral: only writes (PUT) age the entries.
+                    // This keeps the index clean — a cache hit never dirties the index.
+                    if (ok)
+                        *ctx->out_jpeg = std::move(local_buf);
+                    ctx->result = ok;
 
-                *job.out_result = ok;
-                xSemaphoreGive(job.done_sem); // unblock the caller waiting in get()
+                    // Signal get() that the result is ready.
+                    // After this line we must NOT touch ctx — get() owns it now.
+                    xSemaphoreGive(ctx->done_sem);
+
+                    if (ok)
+                        ESP_LOGI(TAG, "Cache hit: %s", job.hash);
+                }
             }
 
             // ── FLUSH_INDEX ──────────────────────────────────────────────────────
@@ -369,9 +404,7 @@ namespace thumbnail_cache
             {
                 xSemaphoreTake(s_mutex, portMAX_DELAY);
                 if (s_index_dirty)
-                {
                     save_index_internal();
-                }
                 xSemaphoreGive(s_mutex);
             }
         }
@@ -449,37 +482,47 @@ namespace thumbnail_cache
         if (!exists)
             return false;
 
-        // Delegate the actual fread to the IO task (internal-stack safe)
-        SemaphoreHandle_t done = xSemaphoreCreateBinary();
-        if (!done)
-            return false;
+        // Allocate the GET context on the heap so it outlives our stack frame
+        // in the (unlikely) case that the IO task doesn't process it before our timeout.
+        GetContext *ctx = new GetContext{};
+        ctx->out_jpeg = &out_jpeg;
+        ctx->done_sem = xSemaphoreCreateBinary();
 
-        bool result = false;
+        if (!ctx->done_sem)
+        {
+            delete ctx;
+            return false;
+        }
+
         IoJob job{};
         job.type = JobType::GET;
-        job.out_jpeg = &out_jpeg;
-        job.out_result = &result;
-        job.done_sem = done;
+        job.ctx = ctx;
         strncpy(job.hash, hash.c_str(), 16);
         job.hash[16] = '\0';
 
         if (xQueueSend(s_io_queue, &job, pdMS_TO_TICKS(2000)) != pdTRUE)
         {
             ESP_LOGE(TAG, "IO queue full on GET");
-            vSemaphoreDelete(done);
+            vSemaphoreDelete(ctx->done_sem);
+            delete ctx;
             return false;
         }
 
-        if (xSemaphoreTake(done, pdMS_TO_TICKS(5000)) != pdTRUE)
+        // Wait for the IO task to signal completion
+        if (xSemaphoreTake(ctx->done_sem, pdMS_TO_TICKS(5000)) != pdTRUE)
         {
-            ESP_LOGW(TAG, "Cache IO timeout");
-            result = false;
+            // Timeout — signal the IO task to discard this job's results and
+            // free ctx itself (we must not touch ctx after this store).
+            ESP_LOGW(TAG, "Cache IO timeout for %s", hash.c_str());
+            ctx->cancelled.store(true, std::memory_order_release);
+            // ctx and done_sem are now owned by the IO task — do not free here.
+            return false;
         }
 
-        vSemaphoreDelete(done);
-
-        if (result)
-            ESP_LOGI(TAG, "Cache hit: %s", hash.c_str());
+        // Semaphore taken — IO task has finished and will not touch ctx again.
+        bool result = ctx->result;
+        vSemaphoreDelete(ctx->done_sem);
+        delete ctx;
         return result;
     }
 
@@ -538,13 +581,9 @@ namespace thumbnail_cache
         job.type = JobType::FLUSH_INDEX;
 
         if (xQueueSend(s_io_queue, &job, pdMS_TO_TICKS(1000)) != pdTRUE)
-        {
             ESP_LOGW(TAG, "Failed to queue index flush");
-        }
         else
-        {
             ESP_LOGI(TAG, "Index flush queued");
-        }
     }
 
     size_t size()
@@ -560,8 +599,8 @@ namespace thumbnail_cache
     void prune(size_t max_items)
     {
         // Pruning involves unlink() + fwrite (index) so it must run in the IO task.
-        // This public overload is left for explicit external calls; for now it's a
-        // no-op because prune_internal() is already called automatically on every put().
+        // This public overload is a no-op because prune_internal() is already called
+        // automatically inside the IO task on every PUT.
         (void)max_items;
     }
 
