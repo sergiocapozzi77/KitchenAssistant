@@ -17,20 +17,6 @@
 
 // === SHIMMER EFFECT FOR LOADING THUMBNAILS ===
 
-struct ShimmerAnimCtx
-{
-    lv_obj_t *shimmer_bar;
-    lv_obj_t *parent;
-};
-
-static void shimmer_anim_cb(void *var, int32_t v)
-{
-    lv_obj_t *shimmer_bar = (lv_obj_t *)var;
-    if (!shimmer_bar || !lv_obj_is_valid(shimmer_bar))
-        return;
-    lv_obj_set_x(shimmer_bar, v);
-}
-
 // Helper to parse quantity string to float, supports integers, decimals, simple fractions
 static bool parseQuantity(const std::string &str, float &out)
 {
@@ -130,16 +116,6 @@ static std::string ingredientToDisplayText(const RecipeIngredient &ing)
     return ingredientToDisplayTextScaled(ing, 1.0f);
 }
 
-// Appwrite Storage constants for recipe phase images
-static const std::string STORAGE_ENDPOINT = "https://fra.cloud.appwrite.io/v1";
-static const std::string STORAGE_BUCKET_ID = "69cff07c002843354236";
-
-static std::string makeStorageUrl(const std::string &fileId)
-{
-    std::string url = STORAGE_ENDPOINT + "/storage/buckets/" + STORAGE_BUCKET_ID + "/files/" + fileId + "/view";
-    return url;
-}
-
 // Static member definitions
 Recipe UIExtensionsRecipeSteps::s_currentRecipe{};
 int UIExtensionsRecipeSteps::s_currentPhaseIndex = 0;
@@ -170,7 +146,9 @@ void UIExtensionsRecipeSteps::createRecipeStepsTask()
                 std::vector<const char *> labels;
                 labels.reserve(recipe.aggregatedSteps.size());
 
-                for (const auto &phase : recipe.aggregatedSteps)
+                setCurrentRecipe(recipe);
+
+                for (const auto &phase : s_currentRecipe.aggregatedSteps)
                 {
                     labels.push_back(phase.title.c_str());
 
@@ -188,8 +166,6 @@ void UIExtensionsRecipeSteps::createRecipeStepsTask()
                 // spb_init may clamp numSteps to a minimum of 2; pad labels to match
                 while (labels.size() < 2)
                     labels.push_back("");
-
-                setCurrentRecipe(recipe);
 
                 lv_lock();
                 lv_obj_clear_flag(objects.step_progress, LV_OBJ_FLAG_HIDDEN);
@@ -215,7 +191,7 @@ void UIExtensionsRecipeSteps::createRecipeStepsTask()
             vTaskDelete(NULL);
         },
         "GetRecipeTask",
-        20480, // 20 KB — revisit after checking high-water mark
+        49152, // 48 KB — increased from 20 KB to prevent stack overflow into SPIRAM heap
         nullptr,
         5,
         NULL, tskNO_AFFINITY, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
@@ -446,7 +422,6 @@ void UIExtensionsRecipeSteps::populatePhaseMethod(const Recipe &recipe, int phas
                 lv_obj_set_style_text_color(text_lbl, lv_color_hex(0x212529), 0);
                 lv_obj_set_style_text_line_space(text_lbl, 6, 0); // Line spacing for readability
                 lv_obj_set_style_pad_all(text_lbl, 0, 0);
-                vTaskDelay(pdMS_TO_TICKS(10));
             }
         }
         else
@@ -535,11 +510,9 @@ void UIExtensionsRecipeSteps::navigateToPhase(int index)
     if (index < 0 || index >= (int)s_currentRecipe.aggregatedSteps.size())
         return;
 
-    lv_lock();
     s_currentPhaseIndex = index;
     updateUIForCurrentPhase();
     updatePhaseNavigationButtons();
-    lv_unlock();
 }
 
 void UIExtensionsRecipeSteps::navigateNext()

@@ -444,7 +444,7 @@ namespace thumbnail_cache
         // stack — PSRAM stacks panic when the flash cache is disabled during writes.
         BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
             cache_io_task, "cache_io", IO_TASK_STACK, NULL,
-            4, // priority — lower than thumb_worker so writes don't block UI
+            2, // priority — lower than thumb_worker so writes don't block UI
             NULL,
             0, // pin to core 0 alongside SPIFFS driver
             MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);

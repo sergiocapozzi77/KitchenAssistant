@@ -263,7 +263,6 @@ void populateIngredientsUI(lv_obj_t *container, const std::vector<std::string> &
     for (const auto &text : displayTexts)
     {
         createIngredientRow(container, text);
-        vTaskDelay(pdMS_TO_TICKS(10));
     }
 }
 
