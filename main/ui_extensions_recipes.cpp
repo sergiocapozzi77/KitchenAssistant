@@ -35,7 +35,14 @@ static void recipe_card_click_cb(lv_event_t *e)
         return;
 
     ESP_LOGI(TAG, "Recipe clicked");
-    showRecipeDetailScreen(ctx->recipe);
+    // Copy recipe so ctx lifetime is irrelevant after this returns
+    RecipeSuggestion *recipe_copy = new RecipeSuggestion(ctx->recipe);
+
+    lv_async_call([](void *arg)
+                  {
+        RecipeSuggestion *r = static_cast<RecipeSuggestion *>(arg);
+        showRecipeDetailScreen(*r);
+        delete r; }, recipe_copy);
 }
 
 // === HELPER FUNCTIONS ===
