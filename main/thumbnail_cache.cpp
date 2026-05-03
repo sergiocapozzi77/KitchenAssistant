@@ -532,6 +532,8 @@ namespace thumbnail_cache
         if (!s_initialized)
             return false;
 
+        ESP_LOGI(TAG, "Queueing cache PUT for %s (%zu B)", url.c_str(), jpeg_len);
+
         // Block until index is loaded — we don't want to write before we know
         // what's already cached
         xSemaphoreTake(s_ready, portMAX_DELAY);

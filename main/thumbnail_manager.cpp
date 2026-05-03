@@ -553,6 +553,18 @@ bool fetch_and_decode_jpeg(const std::string &url,
     return true;
 }
 
+// Centralize shimmer deletion so ctx->shimmer is always kept in sync
+static void delete_ctx_shimmer(ThumbContext *ctx)
+{
+    // Must be called with lv_lock held
+    if (ctx->shimmer && lv_obj_is_valid(ctx->shimmer))
+    {
+        stop_shimmer_animation(ctx->shimmer);
+        lv_obj_del(ctx->shimmer);
+    }
+    ctx->shimmer = nullptr; // always null, even if already invalid
+}
+
 // ── Worker task ─────────────────────────────────────────────────────────────
 
 void thumb_worker_task(void *)
@@ -569,15 +581,19 @@ void thumb_worker_task(void *)
         // Stale check
         if (ctx->generation != s_thumb_generation.load())
         {
-            ESP_LOGI(TAG, "Stale thumb, skipping: %s", ctx->url.c_str());
             lv_lock();
-            if (ctx->thumb && lv_obj_is_valid(ctx->thumb))
+            // If cancelled, thumb_obj_deleted_cb already ran and nulled both pointers.
+            // Do NOT call lv_obj_is_valid on shimmer — freed memory may have been reused.
+            if (!ctx->cancelled.load())
             {
-                lv_obj_remove_event_cb_with_user_data(ctx->thumb, thumb_obj_deleted_cb, ctx);
-                if (ctx->shimmer && lv_obj_is_valid(ctx->shimmer))
+                if (ctx->thumb && lv_obj_is_valid(ctx->thumb))
                 {
-                    stop_shimmer_animation(ctx->shimmer);
-                    lv_obj_del(ctx->shimmer);
+                    lv_obj_remove_event_cb_with_user_data(ctx->thumb, thumb_obj_deleted_cb, ctx);
+                    if (ctx->shimmer && lv_obj_is_valid(ctx->shimmer))
+                    {
+                        stop_shimmer_animation(ctx->shimmer);
+                        delete_ctx_shimmer(ctx);
+                    }
                 }
             }
             lv_unlock();
@@ -599,7 +615,7 @@ void thumb_worker_task(void *)
         if (ctx->shimmer && lv_obj_is_valid(ctx->shimmer))
         {
             stop_shimmer_animation(ctx->shimmer);
-            lv_obj_del(ctx->shimmer);
+            delete_ctx_shimmer(ctx);
             ctx->shimmer = nullptr;
         }
 
