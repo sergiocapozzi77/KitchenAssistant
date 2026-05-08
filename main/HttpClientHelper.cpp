@@ -32,8 +32,8 @@ esp_http_client_handle_t HttpClientHelper::createHttpClient(const std::string &u
     esp_http_client_config_t cfg = {};
     cfg.url = url.c_str();
     cfg.timeout_ms = _timeout_ms;
-    cfg.buffer_size = 16384;
-    cfg.buffer_size_tx = 4096;
+    cfg.buffer_size = 4096;
+    cfg.buffer_size_tx = 2048;
     cfg.skip_cert_common_name_check = false;
     cfg.crt_bundle_attach = esp_crt_bundle_attach;
 

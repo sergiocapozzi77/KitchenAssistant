@@ -521,10 +521,9 @@ std::string FavouriteService::buildFavouriteJson(const Favorite &recipe)
 std::vector<Favorite> FavouriteService::getFavouritesRetry(const std::vector<std::string> &queries, int &out)
 {
     std::vector<Favorite> result;
-    int maxRetry = 5; // Set the limit clearly
     int attempt = 0;
 
-    while (attempt < maxRetry)
+    while (true)
     {
         result = getFavourites(queries, out);
 
@@ -535,11 +534,10 @@ std::vector<Favorite> FavouriteService::getFavouritesRetry(const std::vector<std
         }
 
         attempt++;
-        ESP_LOGE(TAG, "Attempt %d/%d failed. Retrying in 2s...", attempt, maxRetry);
+        ESP_LOGE(TAG, "Attempt %d failed. Retrying in 2s...", attempt);
         vTaskDelay(pdMS_TO_TICKS(2000));
     }
 
-    ESP_LOGE(TAG, "All retry attempts failed.");
     return result;
 }
 

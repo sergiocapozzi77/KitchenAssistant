@@ -272,7 +272,13 @@ static void dropdown_event_handler(lv_event_t *e)
     if (is_syncing)
         return;
 
+    if (lv_event_get_code(e) != LV_EVENT_VALUE_CHANGED)
+        return;
+
     filter_panel_t *panel = (filter_panel_t *)lv_event_get_user_data(e);
+    if (!panel)
+        return;
+
     lv_obj_t *dropdown = (lv_obj_t *)lv_event_get_target(e);
 
     uint16_t selected = lv_dropdown_get_selected(dropdown);

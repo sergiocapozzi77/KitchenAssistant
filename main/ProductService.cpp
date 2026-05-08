@@ -58,10 +58,9 @@ ProductService::ProductService()
 std::vector<Product> ProductService::getProductsRetry(const std::vector<std::string> &queries, int &out)
 {
     std::vector<Product> result;
-    int maxRetry = 5; // Set the limit clearly
     int attempt = 0;
 
-    while (attempt < maxRetry)
+    while (true)
     {
         result = getProducts(queries, out);
 
@@ -72,11 +71,10 @@ std::vector<Product> ProductService::getProductsRetry(const std::vector<std::str
         }
 
         attempt++;
-        ESP_LOGE(TAG, "Attempt %d/%d failed. Retrying in 2s...", attempt, maxRetry);
+        ESP_LOGE(TAG, "Attempt %d failed. Retrying in 2s...", attempt);
         vTaskDelay(pdMS_TO_TICKS(2000));
     }
 
-    ESP_LOGE(TAG, "All retry attempts failed.");
     return result;
 }
 

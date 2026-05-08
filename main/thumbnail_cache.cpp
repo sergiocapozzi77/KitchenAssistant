@@ -188,6 +188,11 @@ namespace thumbnail_cache
                 ESP_LOGW(TAG, "Orphaned file, removing: %s", e.hash.c_str());
                 unlink(path.c_str());
             }
+
+            // Yield between SPIFFS I/O operations so the IDLE task can feed the
+            // watchdog. Each stat/unlink disables the flash cache, and doing many
+            // in a row without yielding can starve IDLE0 on CPU 0.
+            vTaskDelay(1);
         }
         cJSON_Delete(root);
         ESP_LOGI(TAG, "Loaded %zu cache entries", s_cache.size());

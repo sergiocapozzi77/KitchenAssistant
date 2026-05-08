@@ -314,11 +314,9 @@ static void fetch_recipe_detail_task(void *arg)
              (int)ctx->recipe.methodSteps.size());
 
     // ── Populate ingredients ──────────────────────────────────────────────
-    // Acquire/release a dedicated lock for the ingredient block so we don't
-    // hold the mutex across the entire method-steps loop too.
+    // Quick LVGL lock: update HeartButtonContext, hide spinner, set up container.
     lv_lock();
 
-    // Update HeartButtonContext with fetched recipe details.
     if (ok)
     {
         HeartButtonContext *heartCtx = static_cast<HeartButtonContext *>(
@@ -341,7 +339,10 @@ static void fetch_recipe_detail_task(void *arg)
     }
 
     if (ctx->spinner && lv_obj_is_valid(ctx->spinner))
+    {
+        lv_anim_delete(ctx->spinner, NULL);
         lv_obj_add_flag(ctx->spinner, LV_OBJ_FLAG_HIDDEN);
+    }
 
     if (ctx->ingredients_cont && lv_obj_is_valid(ctx->ingredients_cont))
     {
@@ -350,22 +351,43 @@ static void fetch_recipe_detail_task(void *arg)
                               LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
         lv_obj_set_style_pad_column(ctx->ingredients_cont, 12, 0);
         lv_obj_set_style_pad_row(ctx->ingredients_cont, 12, 0);
+    }
 
-        if (ok && !ctx->recipe.ingredients.empty())
+    lv_unlock();
+    // ── End ingredients lock ──────────────────────────────────────────────
+
+    // Create each ingredient chip individually with a yield between,
+    // so the main LVGL task can tick and the WDT doesn't fire.
+    if (ok && !ctx->recipe.ingredients.empty())
+    {
+        for (const auto &ingredient : ctx->recipe.ingredients)
         {
-            populateIngredientsUI(ctx->ingredients_cont, ctx->recipe.ingredients);
+            lv_lock();
+
+            // Re-check validity after yield — screen may have been navigated away
+            if (!ctx->ingredients_cont || !lv_obj_is_valid(ctx->ingredients_cont))
+            {
+                lv_unlock();
+                break;
+            }
+
+            createIngredientRow(ctx->ingredients_cont, ingredient);
+            lv_unlock();
+            vTaskDelay(pdMS_TO_TICKS(10));
         }
-        else
+    }
+    else if (!ok)
+    {
+        lv_lock();
+        if (ctx->ingredients_cont && lv_obj_is_valid(ctx->ingredients_cont))
         {
             lv_obj_t *lbl = lv_label_create(ctx->ingredients_cont);
             lv_label_set_text(lbl, "Could not load ingredients.");
             lv_obj_set_style_text_color(lbl, lv_color_hex(0x6C757D), 0);
             lv_obj_set_style_text_font(lbl, &lv_font_montserrat_16, 0);
         }
+        lv_unlock();
     }
-
-    lv_unlock();
-    // ── End ingredients lock ──────────────────────────────────────────────
 
     // ── Populate method steps ─────────────────────────────────────────────
     // Each step gets its own lock/unlock pair so the LVGL task is never
@@ -480,11 +502,22 @@ static void fetch_recipe_detail_task(void *arg)
 
     if (!thumbUrl.empty() && ctx->header_img)
     {
-        // Hero image download disabled — the Appwrite image-resize function
-        // triggers an unrecoverable SDIO host crash on this ESP32-P4 +
-        // external WiFi hardware. The header_img remains as a styled empty
-        // container with no HTTP request made.
-        ESP_LOGI(TAG, "Header image download disabled (SDIO crash workaround)");
+        lv_lock();
+        if (ctx->header_img && lv_obj_is_valid(ctx->header_img))
+        {
+            lv_obj_t *shimmer = create_shimmer_overlay(ctx->header_img);
+            start_shimmer_animation(shimmer, ctx->header_img);
+
+            ThumbContext *tctx = new ThumbContext{ctx->header_img, shimmer, thumbUrl, 0, {}, 800, 280};
+            lv_obj_add_event_cb(ctx->header_img, thumb_obj_deleted_cb, LV_EVENT_DELETE, tctx);
+            lv_unlock();
+
+            thumb_queue_push(tctx);
+        }
+        else
+        {
+            lv_unlock();
+        }
     }
 
     delete ctx;
@@ -523,6 +556,7 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
     {
         lv_image_set_src(header_img, NULL);
         lv_obj_set_size(header_img, lv_pct(100), 280);
+        lv_image_set_inner_align(header_img, LV_IMAGE_ALIGN_CENTER);
         lv_obj_set_style_radius(header_img, 12, 0);
         lv_obj_set_style_clip_corner(header_img, true, 0);
     }

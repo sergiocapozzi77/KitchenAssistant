@@ -1,6 +1,6 @@
 {
   "navigation": {
-    "selectedUserPageObject": "[KitchenHelp.eez-project]:/userPages/2",
+    "selectedUserPageObject": "[KitchenHelp.eez-project]:/userPages/1",
     "selectedUserWidgetObject": "[KitchenHelp.eez-project]:/userWidgets/1",
     "selectedActionObject": "[KitchenHelp.eez-project]:/actions/4",
     "selectedStyleObject": "[KitchenHelp.eez-project]:/lvglStyles/styles/2",
@@ -200,10 +200,10 @@
                 {
                   "type": "tab",
                   "id": "#d87ad084-60a3-4802-81ee-5afa040eb605",
-                  "name": "Recipe Phase",
+                  "name": "RecipeDetail",
                   "component": "editor",
                   "config": {
-                    "objectPath": "[KitchenHelp.eez-project]:/userPages/2",
+                    "objectPath": "[KitchenHelp.eez-project]:/userPages/1",
                     "permanent": false
                   },
                   "icon": "svg:page"

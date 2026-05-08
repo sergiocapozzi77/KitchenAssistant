@@ -15,7 +15,7 @@
 #include "LeonardoImageGenerator.h"
 #include "AppwriteClientInstance.h"
 #include "cJSON.h"
-#include "thumbnail_cache.h"
+// #include "thumbnail_cache.h"  // DISABLED
 #include "thumbnail_manager.h"
 
 static const char *TAG = "THUMB";
@@ -67,6 +67,18 @@ static bool s_thumb_cache = true;
 
 std::atomic<uint32_t> s_thumb_generation{0};
 
+// Must be called with lv_lock held.
+// Safe to call even if ctx->shimmer is nullptr or already invalid.
+void delete_ctx_shimmer(ThumbContext *ctx)
+{
+    if (ctx->shimmer && lv_obj_is_valid(ctx->shimmer))
+    {
+        stop_shimmer_animation(ctx->shimmer);
+        lv_obj_del(ctx->shimmer);
+    }
+    ctx->shimmer = nullptr; // always sync, regardless of prior validity
+}
+
 // ── Init ────────────────────────────────────────────────────────────────────
 
 void thumbnail_manager_init(uint16_t thumbMaxWidth, uint16_t thumbMaxHeight,
@@ -106,6 +118,18 @@ void thumb_queue_push(ThumbContext *ctx)
     if (xQueueSend(s_thumb_queue, &ctx, 0) != pdTRUE)
     {
         ESP_LOGW(TAG, "Thumb queue full, dropping: %s", ctx->url.c_str());
+
+        // FIX: Before deleting ctx we must remove the event callback that was
+        // registered on ctx->thumb with ctx as user_data, and clean up the
+        // shimmer. Without this, thumb_obj_deleted_cb would fire later with a
+        // dangling ctx pointer, causing a crash / memory corruption.
+        lv_lock();
+        if (ctx->thumb && lv_obj_is_valid(ctx->thumb))
+            lv_obj_remove_event_cb_with_user_data(ctx->thumb, thumb_obj_deleted_cb, ctx);
+        // delete_ctx_shimmer handles nullptr / already-invalid shimmer safely.
+        delete_ctx_shimmer(ctx);
+        lv_unlock();
+
         delete ctx;
     }
 }
@@ -221,8 +245,6 @@ static size_t tjpgd_in_cb(JDEC *jd, uint8_t *buf, size_t n)
 
 static int tjpgd_out_cb(JDEC *jd, void *bitmap, JRECT *rect)
 {
-    // ESP_LOGI("WDT", "WDT reset 2");
-    //  esp_task_wdt_reset();
     static int s_rect_count = 0;
     if ((++s_rect_count & 7) == 0)
         taskYIELD();
@@ -258,8 +280,6 @@ static bool decode_jpeg_buffer(uint8_t *jpeg_buf, size_t jpeg_len,
     JpegIo io = {jpeg_buf, jpeg_len, 0, nullptr, 0};
     JDEC jd;
     JRESULT res = jd_prepare(&jd, tjpgd_in_cb, work, 3100, &io);
-    // ESP_LOGI("WDT", "WDT reset 3");
-    //  esp_task_wdt_reset();
 
     uint8_t *px = nullptr;
     if (res == JDR_OK)
@@ -282,8 +302,6 @@ static bool decode_jpeg_buffer(uint8_t *jpeg_buf, size_t jpeg_len,
         *out_height = decoded_h;
 
         res = jd_decomp(&jd, tjpgd_out_cb, jd.scale);
-        // ESP_LOGI("WDT", "WDT reset 4");
-        //  esp_task_wdt_reset();
     }
 
     heap_caps_free(work);
@@ -323,29 +341,45 @@ static bool fetch_resized_base64(const std::string &image_url,
 
     if ((status != 200 && status != 201 && status != 202) || response.empty())
     {
-        ESP_LOGE(TAG, "HTTP request failed (status %d)", status);
+        ESP_LOGE(TAG, "HTTP request failed (status %d): %.*s",
+                 status, (int)response.size(), response.c_str());
         return false;
     }
 
     cJSON *root = cJSON_Parse(response.c_str());
     if (!root)
+    {
+        ESP_LOGE(TAG, "fetch_resized: root JSON parse failed, status=%d, response=%.100s",
+                 status, response.c_str());
         return false;
+    }
 
     cJSON *rbField = cJSON_GetObjectItem(root, "responseBody");
     if (!rbField || !cJSON_IsString(rbField))
     {
+        ESP_LOGE(TAG, "fetch_resized: responseBody missing, status=%d, response=%.100s",
+                 status, response.c_str());
         cJSON_Delete(root);
         return false;
     }
 
-    cJSON *inner = cJSON_Parse(rbField->valuestring);
+    // FIX: Copy responseBody string into a std::string *before* cJSON_Delete(root),
+    // which would free rbField and its valuestring, making any later access UB.
+    std::string rb_copy = rbField->valuestring;
     cJSON_Delete(root);
+
+    cJSON *inner = cJSON_Parse(rb_copy.c_str());
     if (!inner)
+    {
+        ESP_LOGE(TAG, "fetch_resized: inner JSON parse failed, responseBody=%.100s",
+                 rb_copy.c_str());
         return false;
+    }
 
     cJSON *imgField = cJSON_GetObjectItem(inner, "image");
     if (!imgField || !cJSON_IsString(imgField))
     {
+        ESP_LOGE(TAG, "fetch_resized: image field missing in inner JSON");
         cJSON_Delete(inner);
         return false;
     }
@@ -375,45 +409,15 @@ bool fetch_and_decode_jpeg(const std::string &url,
                            uint8_t **out_px,
                            bool useCache)
 {
-    uint16_t reqW = W, reqH = H;
-
-    // 1. Cache lookup
-    std::vector<uint8_t> cached_jpeg;
-    if (useCache && thumbnail_cache::get(url, W, H, cached_jpeg))
-    {
-        uint8_t *buf = (uint8_t *)heap_caps_malloc(cached_jpeg.size(),
-                                                   MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-        if (!buf)
-            return false;
-        memcpy(buf, cached_jpeg.data(), cached_jpeg.size());
-
-        uint8_t *px = nullptr;
-        uint16_t dw, dh;
-        if (!decode_jpeg_buffer(buf, cached_jpeg.size(), &px, &dw, &dh))
-        {
-            heap_caps_free(buf);
-            return false;
-        }
-        heap_caps_free(buf);
-
-        lv_image_dsc_t *dsc = new lv_image_dsc_t{};
-        dsc->header.cf = LV_COLOR_FORMAT_RGB888;
-        dsc->header.w = dw;
-        dsc->header.h = dh;
-        dsc->header.stride = dw * 3;
-        dsc->data_size = dw * dh * 3;
-        dsc->data = px;
-        *out_dsc = dsc;
-        *out_px = px;
-        return true;
-    }
-
-    // 2. Acquire HTTP semaphore
+    // 1. Acquire HTTP semaphore
     SemaphoreGuard semGuard(s_http_concurrency_sem);
     if (!semGuard.acquired())
+    {
+        ESP_LOGE(TAG, "fetch fail: HTTP semaphore not acquired: %.60s", url.c_str());
         return false;
+    }
 
-    // 3. Resolve URL (Leonardo generate: or plain)
+    // 2. Resolve URL (Leonardo generate: or plain)
     std::string image_url_to_fetch;
     if (url.find("generate:") == 0)
     {
@@ -423,7 +427,10 @@ bool fetch_and_decode_jpeg(const std::string &url,
         std::string recipeDesc = (delim != std::string::npos) ? rest.substr(delim + 3) : "";
 
         if (strlen(LEONARDO_API_KEY) == 0)
+        {
+            ESP_LOGE(TAG, "fetch fail: Leonardo API key empty: %.60s", url.c_str());
             return false;
+        }
 
         // Check Leonardo URL cache (mutex-protected)
         std::string cache_key = url + "|" + std::to_string(W) + "x" + std::to_string(H);
@@ -451,7 +458,10 @@ bool fetch_and_decode_jpeg(const std::string &url,
             int status = 0;
             image_url_to_fetch = leonardoGen.generateImage(prompt, W, H, status);
             if (image_url_to_fetch.empty())
+            {
+                ESP_LOGE(TAG, "fetch fail: Leonardo generate returned empty: %.60s", url.c_str());
                 return false;
+            }
 
             xSemaphoreTake(s_leonardo_cache_mutex, portMAX_DELAY);
             s_leonardo_url_cache[cache_key] = image_url_to_fetch;
@@ -463,11 +473,19 @@ bool fetch_and_decode_jpeg(const std::string &url,
         image_url_to_fetch = url;
     }
 
+    ESP_LOGI(TAG, "heap: internal=%u SPIRAM=%u before fetch",
+             heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+             heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+
     std::string b64Str;
     bool fetchOk = fetch_resized_base64(image_url_to_fetch, W, H, b64Str);
 
     if (!fetchOk)
+    {
+        ESP_LOGE(TAG, "fetch fail: fetch_resized_base64 returned false: %.60s",
+                 image_url_to_fetch.c_str());
         return false;
+    }
 
     const uint8_t *b64 = reinterpret_cast<const uint8_t *>(b64Str.c_str());
     size_t b64Len = b64Str.size();
@@ -475,28 +493,36 @@ bool fetch_and_decode_jpeg(const std::string &url,
     size_t jpegLen = 0;
     int ret = mbedtls_base64_decode(nullptr, 0, &jpegLen, b64, b64Len);
     if (ret != 0 && ret != MBEDTLS_ERR_BASE64_BUFFER_TOO_SMALL)
+    {
+        ESP_LOGE(TAG, "fetch fail: base64 header decode error=%d: %.60s", ret, url.c_str());
         return false;
+    }
 
     uint8_t *jpeg_buf = (uint8_t *)heap_caps_malloc(jpegLen, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (!jpeg_buf)
+    {
+        ESP_LOGE(TAG, "fetch fail: OOM for JPEG buf (%zu bytes): %.60s", jpegLen, url.c_str());
         return false;
+    }
 
     ret = mbedtls_base64_decode(jpeg_buf, jpegLen, &jpegLen, b64, b64Len);
     if (ret != 0)
     {
+        ESP_LOGE(TAG, "fetch fail: base64 body decode error=%d: %.60s", ret, url.c_str());
         heap_caps_free(jpeg_buf);
         return false;
     }
 
-    // 5. Release semaphore before CPU-intensive decode
+    // 3. Release semaphore before CPU-intensive decode
     semGuard.release();
 
-    // 6. Decode
+    // 4. Decode
     uint8_t *px = nullptr;
     uint16_t decoded_w = 0, decoded_h = 0;
-    uint8_t *work = (uint8_t *)heap_caps_malloc(3100, MALLOC_CAP_INTERNAL);
+    uint8_t *work = (uint8_t *)heap_caps_malloc(3100, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (!work)
     {
+        ESP_LOGE(TAG, "fetch fail: OOM for TJpgD work buf: %.60s", url.c_str());
         heap_caps_free(jpeg_buf);
         return false;
     }
@@ -520,16 +546,20 @@ bool fetch_and_decode_jpeg(const std::string &url,
             W = decoded_w;
             H = decoded_h;
             res = jd_decomp(&jd, tjpgd_out_cb, jd.scale);
-            // ESP_LOGI("WDT", "WDT reset 5");
-            //  esp_task_wdt_reset();
+            if (res != JDR_OK)
+                ESP_LOGE(TAG, "fetch fail: jd_decomp error=%d: %.60s", (int)res, url.c_str());
         }
         else
+        {
+            ESP_LOGE(TAG, "fetch fail: OOM for px buf (%ux%u): %.60s",
+                     decoded_w, decoded_h, url.c_str());
             res = JDR_MEM1;
+        }
     }
-
-    // 7. Store in cache
-    if (res == JDR_OK && useCache)
-        thumbnail_cache::put(url, reqW, reqH, jpeg_buf, jpegLen);
+    else
+    {
+        ESP_LOGE(TAG, "fetch fail: jd_prepare error=%d: %.60s", (int)res, url.c_str());
+    }
 
     heap_caps_free(jpeg_buf);
     heap_caps_free(work);
@@ -541,7 +571,7 @@ bool fetch_and_decode_jpeg(const std::string &url,
         return false;
     }
 
-    // 8. Build LVGL descriptor
+    // 5. Build LVGL descriptor
     lv_image_dsc_t *dsc = new lv_image_dsc_t{};
     dsc->header.cf = LV_COLOR_FORMAT_RGB888;
     dsc->header.w = W;
@@ -554,17 +584,7 @@ bool fetch_and_decode_jpeg(const std::string &url,
     return true;
 }
 
-// Centralize shimmer deletion so ctx->shimmer is always kept in sync
-static void delete_ctx_shimmer(ThumbContext *ctx)
-{
-    // Must be called with lv_lock held
-    if (ctx->shimmer && lv_obj_is_valid(ctx->shimmer))
-    {
-        stop_shimmer_animation(ctx->shimmer);
-        lv_obj_del(ctx->shimmer);
-    }
-    ctx->shimmer = nullptr; // always null, even if already invalid
-}
+// ── Centralized shimmer cleanup ──────────────────────────────────────────────
 
 // ── Worker task ─────────────────────────────────────────────────────────────
 
@@ -574,12 +594,10 @@ void thumb_worker_task(void *)
 
     while (true)
     {
-
-        // esp_task_wdt_reset();
         if (xQueueReceive(s_thumb_queue, &ctx, pdMS_TO_TICKS(1000)) != pdTRUE)
         {
             static uint32_t s_wait_count = 0;
-            if ((++s_wait_count & 15) == 0)  // every ~16 seconds
+            if ((++s_wait_count & 15) == 0) // every ~16 seconds
                 ESP_LOGI(TAG, "Worker idle (waiting for queue)...");
             continue;
         }
@@ -587,51 +605,46 @@ void thumb_worker_task(void *)
         ESP_LOGI(TAG, "Worker got: gen=%u cur_gen=%u url=%.60s",
                  ctx->generation, s_thumb_generation.load(), ctx->url.c_str());
 
-        // Stale check
+        // ── Stale check ────────────────────────────────────────────────────
         if (ctx->generation != s_thumb_generation.load())
         {
             ESP_LOGI(TAG, "Stale: gen=%u cur=%u url=%.60s",
                      ctx->generation, s_thumb_generation.load(), ctx->url.c_str());
+
             lv_lock();
-            // If cancelled, thumb_obj_deleted_cb already ran and nulled both pointers.
-            // Do NOT call lv_obj_is_valid on shimmer — freed memory may have been reused.
             if (!ctx->cancelled.load())
             {
+                // FIX: Remove event cb and clean up shimmer unconditionally —
+                // do not gate shimmer cleanup on thumb validity. If thumb was
+                // deleted by other code without going through thumb_obj_deleted_cb,
+                // the shimmer could still be alive and would leak.
                 if (ctx->thumb && lv_obj_is_valid(ctx->thumb))
-                {
                     lv_obj_remove_event_cb_with_user_data(ctx->thumb, thumb_obj_deleted_cb, ctx);
-                    if (ctx->shimmer && lv_obj_is_valid(ctx->shimmer))
-                    {
-                        stop_shimmer_animation(ctx->shimmer);
-                        delete_ctx_shimmer(ctx);
-                    }
-                }
+                delete_ctx_shimmer(ctx); // handles nullptr / invalid safely
             }
             lv_unlock();
+
             delete ctx;
             continue;
         }
 
         vTaskDelay(1);
+
         lv_image_dsc_t *dsc = nullptr;
         uint8_t *px = nullptr;
         uint16_t w = ctx->maxW ? ctx->maxW : s_thumb_max_w;
         uint16_t h = ctx->maxH ? ctx->maxH : s_thumb_max_h;
-        bool ok = fetch_and_decode_jpeg(ctx->url, w, h,
-                                        &dsc, &px, ctx->cacheAllowed);
+        bool ok = fetch_and_decode_jpeg(ctx->url, w, h, &dsc, &px, ctx->cacheAllowed);
+
         ESP_LOGI(TAG, "fetch%s %s ok=%d w=%u h=%u gen=%u",
                  (ctx->cacheAllowed ? "" : " (no cache)"),
                  ctx->url.c_str(), ok, w, h, ctx->generation);
 
         lv_lock();
 
-        // Always clean up shimmer first
-        if (ctx->shimmer && lv_obj_is_valid(ctx->shimmer))
-        {
-            stop_shimmer_animation(ctx->shimmer);
-            delete_ctx_shimmer(ctx);
-            ctx->shimmer = nullptr;
-        }
+        // Always clean up shimmer first — regardless of fetch outcome.
+        // FIX: delete_ctx_shimmer already nulls ctx->shimmer; don't repeat it.
+        delete_ctx_shimmer(ctx);
 
         if (ok && !ctx->cancelled.load() &&
             ctx->thumb && lv_obj_is_valid(ctx->thumb))

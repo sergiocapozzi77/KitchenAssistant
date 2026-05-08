@@ -51,6 +51,12 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
                            lv_image_dsc_t **out_dsc, uint8_t **out_px,
                            bool useCache = true);
 
+// DISABLED: Load a previously-cached thumbnail from SPIFFS without any HTTP fallback.
+// DISABLED: Returns the decoded image via out_dsc/out_px if found in the thumbnail cache.
+// DISABLED: This is safe to call from any context — it never makes network requests.
+// bool thumb_load_cached_only(const std::string &url, uint16_t w, uint16_t h,
+//                             lv_image_dsc_t **out_dsc, uint8_t **out_px);
+
 // ── Leonardo URL cache ──────────────────────────────────────────────────────
 // Returns cached Leonardo-generated image URL for a given recipe URL + dimensions,
 // or empty string if not found.

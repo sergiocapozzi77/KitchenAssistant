@@ -18,7 +18,7 @@
 #include "ui_extensions.h"
 #include "ProductsManager.h"
 #include "FavouritesManager.h"
-#include "thumbnail_cache.h"
+// #include "thumbnail_cache.h"  // DISABLED
 #include "cJSON.h"
 #include <cstdio>
 
@@ -134,11 +134,11 @@ void Application::initHardware()
             ESP_LOGI(TAG, "No saved WiFi credentials found — will prompt user in settings");
         }
 
-        // Initialize thumbnail cache (after credentials loaded)
-        if (!thumbnail_cache::init())
-        {
-            ESP_LOGW(TAG, "Thumbnail cache init failed (continuing without cache)");
-        }
+        // // DISABLED: thumbnail cache
+        // if (!thumbnail_cache::init())
+        // {
+        //     ESP_LOGW(TAG, "Thumbnail cache init failed (continuing without cache)");
+        // }
     }
 
     // Initialize WiFi driver (always, regardless of saved credentials)
