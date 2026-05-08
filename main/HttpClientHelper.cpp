@@ -32,8 +32,8 @@ esp_http_client_handle_t HttpClientHelper::createHttpClient(const std::string &u
     esp_http_client_config_t cfg = {};
     cfg.url = url.c_str();
     cfg.timeout_ms = _timeout_ms;
-    cfg.buffer_size = 4096;
-    cfg.buffer_size_tx = 2048;
+    cfg.buffer_size = 16384;
+    cfg.buffer_size_tx = 4096;
     cfg.skip_cert_common_name_check = false;
     cfg.crt_bundle_attach = esp_crt_bundle_attach;
 
@@ -131,8 +131,13 @@ std::string HttpClientHelper::httpPost(const std::string &url, const std::string
     esp_http_client_fetch_headers(client);
     status = esp_http_client_get_status_code(client);
     ESP_LOGI(TAG, "POST Status: %d. Reading response", status);
+
+    // Pre-allocate response buffer to avoid repeated reallocation during read
+    int content_len = esp_http_client_get_content_length(client);
     std::string response;
-    char buffer[1024];
+    response.reserve(content_len > 0 ? content_len : 4096);
+
+    char buffer[2048];
     int bytes_read;
     while ((bytes_read = esp_http_client_read(client, buffer, sizeof(buffer))) > 0)
     {
@@ -179,8 +184,11 @@ std::string HttpClientHelper::httpPatch(const std::string &url, const std::strin
     esp_http_client_fetch_headers(client);
     status = esp_http_client_get_status_code(client);
 
+    int content_len = esp_http_client_get_content_length(client);
     std::string response;
-    char buffer[1024];
+    response.reserve(content_len > 0 ? content_len : 4096);
+
+    char buffer[2048];
     int bytes_read;
     while ((bytes_read = esp_http_client_read(client, buffer, sizeof(buffer))) > 0)
     {

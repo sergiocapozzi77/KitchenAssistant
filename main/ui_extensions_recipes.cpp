@@ -59,6 +59,7 @@ void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &rec
 
     // esp_task_wdt_reset();
     s_thumb_generation++;
+    ESP_LOGI(TAG, "Recipe list: thumb gen bumped to %u", s_thumb_generation.load());
 
     lv_lock();
     init_styles();

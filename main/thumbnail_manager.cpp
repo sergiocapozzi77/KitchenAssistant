@@ -102,6 +102,7 @@ void thumbnail_manager_init(uint16_t thumbMaxWidth, uint16_t thumbMaxHeight,
 void thumb_queue_push(ThumbContext *ctx)
 {
     ctx->generation = s_thumb_generation.load();
+    ESP_LOGI(TAG, "Queue push: gen=%u url=%.60s", ctx->generation, ctx->url.c_str());
     if (xQueueSend(s_thumb_queue, &ctx, 0) != pdTRUE)
     {
         ESP_LOGW(TAG, "Thumb queue full, dropping: %s", ctx->url.c_str());
@@ -576,11 +577,21 @@ void thumb_worker_task(void *)
 
         // esp_task_wdt_reset();
         if (xQueueReceive(s_thumb_queue, &ctx, pdMS_TO_TICKS(1000)) != pdTRUE)
+        {
+            static uint32_t s_wait_count = 0;
+            if ((++s_wait_count & 15) == 0)  // every ~16 seconds
+                ESP_LOGI(TAG, "Worker idle (waiting for queue)...");
             continue;
+        }
+
+        ESP_LOGI(TAG, "Worker got: gen=%u cur_gen=%u url=%.60s",
+                 ctx->generation, s_thumb_generation.load(), ctx->url.c_str());
 
         // Stale check
         if (ctx->generation != s_thumb_generation.load())
         {
+            ESP_LOGI(TAG, "Stale: gen=%u cur=%u url=%.60s",
+                     ctx->generation, s_thumb_generation.load(), ctx->url.c_str());
             lv_lock();
             // If cancelled, thumb_obj_deleted_cb already ran and nulled both pointers.
             // Do NOT call lv_obj_is_valid on shimmer — freed memory may have been reused.
@@ -608,6 +619,9 @@ void thumb_worker_task(void *)
         uint16_t h = ctx->maxH ? ctx->maxH : s_thumb_max_h;
         bool ok = fetch_and_decode_jpeg(ctx->url, w, h,
                                         &dsc, &px, ctx->cacheAllowed);
+        ESP_LOGI(TAG, "fetch%s %s ok=%d w=%u h=%u gen=%u",
+                 (ctx->cacheAllowed ? "" : " (no cache)"),
+                 ctx->url.c_str(), ok, w, h, ctx->generation);
 
         lv_lock();
 
@@ -628,9 +642,14 @@ void thumb_worker_task(void *)
             lv_obj_remove_event_cb_with_user_data(ctx->thumb, thumb_obj_deleted_cb, ctx);
             lv_obj_add_event_cb(ctx->thumb, free_thumb_data_cb,
                                 LV_EVENT_DELETE, new ThumbDataCtx{dsc, px});
+            ESP_LOGI(TAG, "Image set: %.50s", ctx->url.c_str());
         }
         else
         {
+            ESP_LOGI(TAG, "Skip img: ok=%d cancelled=%d thumb_valid=%d url=%.50s",
+                     ok, ctx->cancelled.load(),
+                     (ctx->thumb && lv_obj_is_valid(ctx->thumb)) ? 1 : 0,
+                     ctx->url.c_str());
             if (ok)
             {
                 heap_caps_free(px);

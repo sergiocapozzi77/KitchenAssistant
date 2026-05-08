@@ -4,6 +4,7 @@
 #include <cstring>
 #include "lvgl.h"
 #include "esp_log.h"
+#include "esp_heap_caps.h"
 #include "ui_extensions.h"
 #include "ui_extensions_internal.h"
 #include "ui.h"
@@ -451,6 +452,20 @@ static void fetch_recipe_detail_task(void *arg)
     }
     // ── End method steps ──────────────────────────────────────────────────
 
+    // Unregister delete-guard callbacks BEFORE freeing ctx,
+    // otherwise they fire with a dangling pointer when the widgets
+    // are eventually deleted (e.g. on screen transition).
+    lv_lock();
+    if (ctx->spinner && lv_obj_is_valid(ctx->spinner))
+        lv_obj_remove_event_cb_with_user_data(ctx->spinner, detail_widget_deleted_cb, ctx);
+    if (ctx->ingredients_cont && lv_obj_is_valid(ctx->ingredients_cont))
+        lv_obj_remove_event_cb_with_user_data(ctx->ingredients_cont, detail_widget_deleted_cb, ctx);
+    if (ctx->method_cont && lv_obj_is_valid(ctx->method_cont))
+        lv_obj_remove_event_cb_with_user_data(ctx->method_cont, detail_widget_deleted_cb, ctx);
+    if (ctx->header_img && lv_obj_is_valid(ctx->header_img))
+        lv_obj_remove_event_cb_with_user_data(ctx->header_img, detail_widget_deleted_cb, ctx);
+    lv_unlock();
+
     // Kick off header image fetch at larger size.
     std::string thumbUrl;
     if (!ctx->recipe.imageUrlBig.empty())
@@ -465,22 +480,11 @@ static void fetch_recipe_detail_task(void *arg)
 
     if (!thumbUrl.empty() && ctx->header_img)
     {
-        lv_lock();
-        if (ctx->header_img && lv_obj_is_valid(ctx->header_img))
-        {
-            lv_obj_t *shimmer = create_shimmer_overlay(ctx->header_img);
-            start_shimmer_animation(shimmer, ctx->header_img);
-
-            ThumbContext *tctx = new ThumbContext{ctx->header_img, shimmer, thumbUrl, 0, {}, 800, 280};
-            lv_obj_add_event_cb(ctx->header_img, thumb_obj_deleted_cb, LV_EVENT_DELETE, tctx);
-            lv_unlock();
-
-            thumb_queue_push(tctx);
-        }
-        else
-        {
-            lv_unlock();
-        }
+        // Hero image download disabled — the Appwrite image-resize function
+        // triggers an unrecoverable SDIO host crash on this ESP32-P4 +
+        // external WiFi hardware. The header_img remains as a styled empty
+        // container with no HTTP request made.
+        ESP_LOGI(TAG, "Header image download disabled (SDIO crash workaround)");
     }
 
     delete ctx;
@@ -612,8 +616,8 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
 
     BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
         fetch_recipe_detail_task, "RecipeDetail",
-        16384, fctx, 2, NULL, tskNO_AFFINITY,
-        MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        16384, fctx, 2, NULL, 1,
+        MALLOC_CAP_8BIT);
 
     if (ret != pdPASS)
     {
