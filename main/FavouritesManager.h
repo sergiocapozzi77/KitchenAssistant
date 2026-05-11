@@ -4,6 +4,8 @@
 #include <vector>
 #include <mutex>
 #include <optional>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "models.h"
 #include "FavouriteService.h"
 
@@ -23,6 +25,9 @@ public:
 private:
     // Background task
     static void fetchFavouritesTask(void *param);
+
+    StackType_t *_favTaskStack = nullptr;
+    StaticTask_t _favTaskBuf;
 
     // In-memory cache
     std::vector<Favorite> _favourites;

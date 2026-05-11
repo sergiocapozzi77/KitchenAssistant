@@ -4,6 +4,7 @@
 #include "esp_log.h"
 #include "esp_err.h"
 #include "esp_check.h"
+#include "esp_heap_caps.h"
 #include "esp_memory_utils.h"
 #include "esp_task_wdt.h"
 #include "lvgl.h"
@@ -21,6 +22,8 @@
 // #include "thumbnail_cache.h"  // DISABLED
 #include "cJSON.h"
 #include <cstdio>
+#include "display_sleep.h"
+#include "quick_panel.h"
 
 static const char *TAG = "APP";
 
@@ -34,6 +37,31 @@ static const char *TAG = "APP";
 // #define LCD_SLEEP_DELAY_MS 120
 
 // RTC_DATA_ATTR bool woke_from_touch = false;
+
+// Original BSP touch read callback — called inside our wrapper
+static lv_indev_read_cb_t s_bsp_touch_read_cb = nullptr;
+
+static void wrappedTouchReadCb(lv_indev_t *indev, lv_indev_data_t *data)
+{
+    // 1. Let BSP fill in coordinates as normal
+    if (s_bsp_touch_read_cb)
+        s_bsp_touch_read_cb(indev, data);
+
+    bool pressed = (data->state == LV_INDEV_STATE_PRESSED);
+
+    // 2. Wake display on any touch
+    g_display_sleep.onTouch();
+
+    // 3. Quick panel gesture
+    bool consumed = g_quick_panel.handleTouch(
+        data->point.x, data->point.y, pressed);
+
+    // 4. Swallow touch if screen was asleep or a gesture consumed it
+    if (g_display_sleep.isSleeping() || consumed)
+    {
+        data->state = LV_INDEV_STATE_RELEASED;
+    }
+}
 
 void Application::initNVS()
 {
@@ -60,21 +88,50 @@ void Application::initQueues()
     ui_extensions_init(112, 112, true);
 }
 
+static void combinedFetchTask(void *param)
+{
+    showSpinner();
+
+    while (!wifiManager.isConnected())
+        vTaskDelay(pdMS_TO_TICKS(1000));
+
+    while (!wifiManager.isSntpSynced())
+        vTaskDelay(pdMS_TO_TICKS(500));
+
+    lv_lock();
+    if (objects.current_wifi_lbl && lv_obj_is_valid(objects.current_wifi_lbl))
+        lv_label_set_text(objects.current_wifi_lbl, wifiManager.getSSID().c_str());
+    lv_unlock();
+
+    ESP_LOGI(TAG, "WiFi connected. Starting combined data fetch...");
+
+    // Run product and favourite fetches sequentially in one task
+    productsManager.fetchProductsSync();
+    favouritesManager.fetchFavourites();
+
+    // Refresh favourites UI if on the favourites tab
+    if (objects.tabview && lv_obj_is_valid(objects.tabview) && lv_tabview_get_tab_act(objects.tabview) == 2)
+    {
+        showCurrentPageFavourites(true);
+    }
+
+    hideSpinner();
+
+    vTaskDelete(NULL);
+}
+
 void Application::initTasks()
 {
-    // barcode_reader = new BarcodeReader(barcode_queue);
-    // ESP_ERROR_CHECK(barcode_reader->init());
+    StackType_t *stack = (StackType_t *)heap_caps_malloc(16384 * sizeof(StackType_t), MALLOC_CAP_SPIRAM);
+    if (!stack)
+    {
+        ESP_LOGE(TAG, "Failed to allocate PSRAM stack for combinedFetch task");
+        return;
+    }
+    ESP_LOGI(TAG, "Allocated combinedFetch task stack in PSRAM");
 
-    // product_fetcher = new ProductFetcher(
-    //     barcode_queue,
-    //     product_queue,
-    //     &product_cache);
-    // ESP_ERROR_CHECK(product_fetcher->start());
-
-    productsManager.fetchProducts();
-    favouritesManager.startBackgroundFetch();
-
-    // ESP_LOGI(TAG, "Tasks started");
+    static StaticTask_t taskBuf;
+    xTaskCreateStatic(combinedFetchTask, "combinedFetch", 16384, nullptr, 2, stack, &taskBuf);
 }
 
 void Application::initHardware()
@@ -165,6 +222,25 @@ void Application::initHardware()
 
     // Initialize EEZ Studio UI once
     bsp_display_lock(0);
+
+    // ── wrap the BSP touch indev ──────────────────────────────────────
+    lv_indev_t *cur = lv_indev_get_next(nullptr);
+    while (cur)
+    {
+        if (lv_indev_get_type(cur) == LV_INDEV_TYPE_POINTER)
+        {
+            s_bsp_touch_read_cb = lv_indev_get_read_cb(cur);
+            lv_indev_set_read_cb(cur, wrappedTouchReadCb);
+            ESP_LOGI(TAG, "Touch callback wrapped");
+            break;
+        }
+        cur = lv_indev_get_next(cur);
+    }
+
+    // ── init sleep + quick panel ──────────────────────────────────────
+    g_display_sleep.init(60 * 10 * 1000); // 10min inactivity timeout
+    g_quick_panel.init();
+
     ui_init();
     bsp_display_unlock();
 

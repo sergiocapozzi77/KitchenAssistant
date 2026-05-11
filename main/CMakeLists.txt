@@ -27,6 +27,8 @@ idf_component_register(
         thumbnail_manager.cpp
         spiffs_cleanup.cpp
         filters_ui.cpp
+        display_sleep.cpp
+        quick_panel.cpp
         ui/screens.c
         ui/styles.c
         ui/images.c

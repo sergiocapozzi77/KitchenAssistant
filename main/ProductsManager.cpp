@@ -3,6 +3,7 @@
 #include "freertos/FreeRTOS.h" // MUST be first FreeRTOS header
 #include "freertos/task.h"
 #include "freertos/queue.h"
+#include "esp_heap_caps.h"
 #include "esp_log.h"
 #include <algorithm>
 #include "ui_extensions.h"
@@ -114,10 +115,45 @@ std::vector<Product> ProductsManager::getSelectedProducts() const
     return _selectedProducts;
 }
 
-void ProductsManager::fetchProducts()
+void ProductsManager::fetchProductsAsync()
 {
-    // Task to fetch products expiring today or tomorrow
-    xTaskCreate(ProductsManager::fetchProductsTask, "FetchProducts", 8096, this, 2, NULL);
+    if (!_productTaskStack)
+    {
+        _productTaskStack = (StackType_t *)heap_caps_malloc(16384 * sizeof(StackType_t), MALLOC_CAP_SPIRAM);
+        if (!_productTaskStack)
+        {
+            ESP_LOGE(TAG, "Failed to allocate PSRAM stack for FetchProducts task");
+            return;
+        }
+        ESP_LOGI(TAG, "Allocated FetchProducts task stack in PSRAM");
+    }
+
+    xTaskCreateStatic(ProductsManager::fetchProductsTask, "FetchProducts", 16384, this, 2, _productTaskStack, &_productTaskBuf);
+}
+
+void ProductsManager::fetchProductsSync()
+{
+    ESP_LOGI(TAG, "Fetching products...");
+
+    int out;
+    auto products = productService.getProductsRetry({}, out);
+    if (products.empty())
+    {
+        ESP_LOGI(TAG, "No products found");
+        return;
+    }
+
+    ESP_LOGI(TAG, "Fetched %d products", products.size());
+    productsManager.addProducts(products);
+
+    if (objects.products_list && lv_obj_is_valid(objects.products_list))
+    {
+        populateProductListUi(objects.products_list, productsManager.getAllProducts());
+    }
+    else
+    {
+        ESP_LOGE(TAG, "products_list is invalid, skipping UI update");
+    }
 }
 
 // Task to fetch products expiring today or tomorrow
@@ -133,39 +169,16 @@ void ProductsManager::fetchProductsTask(void *param)
         vTaskDelay(pdMS_TO_TICKS(500));
 
     lv_lock();
-    if (objects.current_wifi_lbl && lv_obj_is_valid(objects.current_wifi_lbl)) {
+    if (objects.current_wifi_lbl && lv_obj_is_valid(objects.current_wifi_lbl))
+    {
         lv_label_set_text(objects.current_wifi_lbl, wifiManager.getSSID().c_str());
     }
     lv_unlock();
 
     ESP_LOGI(TAG, "WiFi connected. Fetching products...");
 
-    // Fetch products
-    int out;
-    auto products = productService.getProductsRetry({}, out);
+    productsManager.fetchProductsSync();
     hideSpinner();
-    if (products.empty())
-    {
-        ESP_LOGI(TAG, "No products found");
-        //  LVGLManager::updateStatusLabel("No products expiring soon");
-        vTaskDelete(NULL);
-        return;
-    }
-    else
-    {
-        ESP_LOGI(TAG, "Fetched %d products", products.size());
-        productsManager.addProducts(products);
-        // LVGLManager::updateStatusLabel("Fetched " + std::to_string(products.size()) + " expiring products");
-        if (objects.products_list && lv_obj_is_valid(objects.products_list))
-        {
-            populateProductListUi(objects.products_list, productsManager.getAllProducts());
-        }
-        else
-        {
-            ESP_LOGE(TAG, "products_list is invalid, skipping UI update");
-        }
-    }
-
     vTaskDelete(NULL);
 }
 

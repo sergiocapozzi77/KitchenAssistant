@@ -19,6 +19,7 @@
 #include "ProductsManager.h"
 #include "LeonardoImageGenerator.h"
 #include "secrets.h"
+#include "esp_heap_caps.h"
 
 static const char *TAG = "UIEXTENSIONS";
 static uint32_t s_current_generation = 0;
@@ -115,12 +116,16 @@ static void heart_button_cb(lv_event_t *e)
         // Background task to sync with Appwrite.
         // Heap-allocate the URL so it survives past this callback.
         std::string *urlParam = new std::string(ctx->url);
-        BaseType_t ret = xTaskCreate([](void *param)
-                                     {
-                        std::string *url = static_cast<std::string *>(param);
-                        favouriteService.removeFavourite(*url);
-                        delete url;
-                        vTaskDelete(nullptr); }, "removeFav", 8192, urlParam, 1, nullptr);
+        BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
+            [](void *param)
+            {
+                std::string *url = static_cast<std::string *>(param);
+                favouriteService.removeFavourite(*url);
+                delete url;
+                vTaskDelete(nullptr);
+            },
+            "removeFav", 8192, urlParam, 1, NULL, tskNO_AFFINITY,
+            MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 
         if (ret != pdPASS)
         {
@@ -211,12 +216,16 @@ static void heart_button_cb(lv_event_t *e)
 
         // Background task to sync with Appwrite.
         Favorite *favParam = new Favorite(fav);
-        BaseType_t ret = xTaskCreate([](void *param)
-                                     {
-                        Favorite *favourite = static_cast<Favorite *>(param);
-                        favouriteService.addFavourite(*favourite);
-                        delete favourite;
-                        vTaskDelete(nullptr); }, "addFav", 8192, favParam, 1, nullptr);
+        BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
+            [](void *param)
+            {
+                Favorite *favourite = static_cast<Favorite *>(param);
+                favouriteService.addFavourite(*favourite);
+                delete favourite;
+                vTaskDelete(nullptr);
+            },
+            "addFav", 8192, favParam, 1, NULL, tskNO_AFFINITY,
+            MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 
         if (ret != pdPASS)
         {
@@ -650,8 +659,8 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
 
     BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
         fetch_recipe_detail_task, "RecipeDetail",
-        16384, fctx, 2, NULL, 1,
-        MALLOC_CAP_8BIT);
+        16384, fctx, 2, NULL, tskNO_AFFINITY,
+        MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 
     if (ret != pdPASS)
     {

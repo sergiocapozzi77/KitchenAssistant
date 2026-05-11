@@ -1,6 +1,7 @@
 #include "FavouritesManager.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "WiFiManager.h"
 #include <algorithm>
@@ -90,14 +91,25 @@ void FavouritesManager::removeFavourite(const std::string &url)
 // Public API: Start background task to fetch favourites
 void FavouritesManager::startBackgroundFetch()
 {
-    // Create background task similar to products fetch
-    xTaskCreate(
+    if (!_favTaskStack)
+    {
+        _favTaskStack = (StackType_t *)heap_caps_malloc(16384 * sizeof(StackType_t), MALLOC_CAP_SPIRAM);
+        if (!_favTaskStack)
+        {
+            ESP_LOGE(TAG, "Failed to allocate PSRAM stack for fetchFavourites task");
+            return;
+        }
+        ESP_LOGI(TAG, "Allocated fetchFavourites task stack in PSRAM");
+    }
+
+    xTaskCreateStatic(
         fetchFavouritesTask,
         "fetchFavourites",
-        8192,
+        16384,
         this,
-        1,
-        nullptr);
+        2,
+        _favTaskStack,
+        &_favTaskBuf);
 }
 
 // Background task implementation

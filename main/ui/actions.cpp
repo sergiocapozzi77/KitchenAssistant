@@ -489,7 +489,7 @@ void action_favourites_prev(lv_event_t *e)
 
 void action_products_reload_click(lv_event_t *e)
 {
-    productsManager.fetchProducts();
+    productsManager.fetchProductsAsync();
 }
 
 void action_favourites_reload_click(lv_event_t *e)

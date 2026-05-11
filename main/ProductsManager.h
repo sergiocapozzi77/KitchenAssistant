@@ -3,6 +3,8 @@
 #include <vector>
 #include <mutex>
 #include <optional>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "models.h"
 
 class ProductsManager
@@ -24,12 +26,16 @@ public:
     int getSelectedCount() const;
     std::vector<Product> getSelectedProducts() const;
 
-    void fetchProducts();
+    void fetchProductsAsync();
+    void fetchProductsSync();
 
     void populateProductList();
 
 private:
     static void fetchProductsTask(void *param);
+
+    StackType_t *_productTaskStack = nullptr;
+    StaticTask_t _productTaskBuf;
 
     std::vector<Product> _allProducts;
     std::vector<Product> _selectedProducts;
