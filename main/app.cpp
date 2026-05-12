@@ -107,6 +107,8 @@ static void combinedFetchTask(void *param)
 
     // Run product and favourite fetches sequentially in one task
     productsManager.fetchProductsSync();
+    hideSpinner();
+
     favouritesManager.fetchFavourites();
 
     // Refresh favourites UI if on the favourites tab
@@ -114,8 +116,6 @@ static void combinedFetchTask(void *param)
     {
         showCurrentPageFavourites(true);
     }
-
-    hideSpinner();
 
     vTaskDelete(NULL);
 }

@@ -86,6 +86,7 @@ typedef struct _objects_t {
     lv_obj_t *favourites_prev_btn;
     lv_obj_t *favourites_next_btn;
     lv_obj_t *favourites_reload_btn;
+    lv_obj_t *favourites_search_ta;
     lv_obj_t *favourites_list;
     lv_obj_t *settings_wifi_btn;
     lv_obj_t *current_wifi_lbl;

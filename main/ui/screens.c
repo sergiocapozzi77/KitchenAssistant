@@ -578,7 +578,7 @@ void create_screen_main() {
                                                     // favourites_prev_btn
                                                     lv_obj_t *obj = lv_button_create(parent_obj);
                                                     objects.favourites_prev_btn = obj;
-                                                    lv_obj_set_pos(obj, 197, -7);
+                                                    lv_obj_set_pos(obj, 596, -7);
                                                     lv_obj_set_size(obj, 70, 50);
                                                     lv_obj_add_event_cb(obj, action_favourites_prev, LV_EVENT_CLICKED, (void *)0);
                                                     add_style_main_button(obj);
@@ -598,7 +598,7 @@ void create_screen_main() {
                                                     // favourites_next_btn
                                                     lv_obj_t *obj = lv_button_create(parent_obj);
                                                     objects.favourites_next_btn = obj;
-                                                    lv_obj_set_pos(obj, 279, -7);
+                                                    lv_obj_set_pos(obj, 682, -7);
                                                     lv_obj_set_size(obj, 70, 50);
                                                     lv_obj_add_event_cb(obj, action_favourites_next, LV_EVENT_CLICKED, (void *)0);
                                                     add_style_main_button(obj);
@@ -633,6 +633,17 @@ void create_screen_main() {
                                                             lv_label_set_text_static(obj, "\uF021");
                                                         }
                                                     }
+                                                }
+                                                {
+                                                    // favourites_search_ta
+                                                    lv_obj_t *obj = lv_textarea_create(parent_obj);
+                                                    objects.favourites_search_ta = obj;
+                                                    lv_obj_set_pos(obj, 161, -6);
+                                                    lv_obj_set_size(obj, 276, 48);
+                                                    lv_textarea_set_max_length(obj, 128);
+                                                    lv_textarea_set_placeholder_text(obj, "Search...");
+                                                    lv_textarea_set_one_line(obj, true);
+                                                    lv_textarea_set_password_mode(obj, false);
                                                 }
                                             }
                                         }
@@ -1394,7 +1405,7 @@ void create_screen_recipe_phase() {
                     lv_obj_set_style_pad_bottom(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_bg_opa(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                     lv_obj_set_style_border_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-                    create_user_widget_step_progress_bar(obj, 107);
+                    create_user_widget_step_progress_bar(obj, 108);
                     lv_obj_set_style_grid_cell_row_pos(obj, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
                 }
                 {
@@ -1617,7 +1628,7 @@ void create_screen_recipe_phase() {
 }
 
 void tick_screen_recipe_phase() {
-    tick_user_widget_step_progress_bar(107);
+    tick_user_widget_step_progress_bar(108);
 }
 
 void create_user_widget_product_edit(lv_obj_t *parent_obj, int startWidgetIndex) {

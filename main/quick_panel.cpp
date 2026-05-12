@@ -211,6 +211,7 @@ bool QuickPanel::handleTouch(int32_t x, int32_t y, bool pressed)
         {
             _show_track = true;
             _show_start_y = y;
+            _show_start_tick = lv_tick_get();
             // Don't consume — let LVGL process the PRESS so taps on
             // top-edge UI elements (tabs, etc.) still work.
             return false;
@@ -219,11 +220,20 @@ bool QuickPanel::handleTouch(int32_t x, int32_t y, bool pressed)
     }
 
     // Mid-gesture: consume to keep the movement away from LVGL
-    if (y - _show_start_y >= SHOW_THRESHOLD)
+    // Only trigger if fast enough (≥200 px/s) — deliberate flick, not slow drag
+    int32_t dy = y - _show_start_y;
+    uint32_t dt = lv_tick_get() - _show_start_tick;
+    if (dy >= SHOW_THRESHOLD && dt > 0 && (dy * 1000 / dt) >= SHOW_VELOCITY)
     {
         _show_track = false;
         _show_consuming = true;
         show();
+    }
+    else if (dy >= SHOW_THRESHOLD && dt > 0 && (dy * 1000 / dt) < SHOW_VELOCITY)
+    {
+        // Too slow — cancel tracking so a slow drag doesn't eventually trigger
+        _show_track = false;
+        return false;
     }
     return true;
 }
@@ -244,6 +254,9 @@ void QuickPanel::buildUI()
     lv_obj_set_style_bg_color(_scrim, lv_color_hex(0x000000), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(_scrim, LV_OPA_30, LV_PART_MAIN);
     lv_obj_add_flag(_scrim, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_event_cb(_scrim, [](lv_event_t *e) {
+        static_cast<QuickPanel *>(lv_event_get_user_data(e))->hide();
+    }, LV_EVENT_CLICKED, this);
 
     // ── panel ─────────────────────────────────────────────────────────
     _panel = lv_obj_create(layer);

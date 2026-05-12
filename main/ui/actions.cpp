@@ -12,6 +12,7 @@
 #include "RecipeSuggestionsManager.h"
 #include "filters_ui.h"
 #include <algorithm>
+#include <cctype>
 #include <string>
 #include <string.h>
 #include "freertos/FreeRTOS.h"
@@ -33,6 +34,7 @@ filter_panel_t recipes_panel;
 // Favourites pagination state
 static int favouritesCurrentPage = 1;
 const int favouritesPageSize = 6;
+static std::string s_favouritesSearchFilter;
 
 static void updateFavouritesPaginationButtons()
 {
@@ -55,7 +57,24 @@ static void updateFavouritesPaginationButtons()
     }
 
     // Update next button
-    std::vector<Favorite> favourites = favouritesManager.getFavourites();
+    std::vector<Favorite> allFavourites = favouritesManager.getFavourites();
+    std::vector<Favorite> favourites;
+    if (s_favouritesSearchFilter.length() >= 3)
+    {
+        std::string filterLower = s_favouritesSearchFilter;
+        std::transform(filterLower.begin(), filterLower.end(), filterLower.begin(), ::tolower);
+        for (const auto &fav : allFavourites)
+        {
+            std::string nameLower = fav.name;
+            std::transform(nameLower.begin(), nameLower.end(), nameLower.begin(), ::tolower);
+            if (nameLower.find(filterLower) != std::string::npos)
+                favourites.push_back(fav);
+        }
+    }
+    else
+    {
+        favourites = std::move(allFavourites);
+    }
     int totalPages = favourites.empty() ? 0 : ((favourites.size() + favouritesPageSize - 1) / favouritesPageSize);
     if (totalPages == 0 || favouritesCurrentPage < totalPages)
     {
@@ -81,7 +100,26 @@ void showCurrentPageFavourites(bool force)
         return; // Don't repopulate if already populated (e.g. when switching tabs)
     }
 
-    std::vector<Favorite> favourites = favouritesManager.getFavourites();
+    std::vector<Favorite> allFavourites = favouritesManager.getFavourites();
+
+    // Apply search filter
+    std::vector<Favorite> favourites;
+    if (s_favouritesSearchFilter.length() >= 3)
+    {
+        std::string filterLower = s_favouritesSearchFilter;
+        std::transform(filterLower.begin(), filterLower.end(), filterLower.begin(), ::tolower);
+        for (const auto &fav : allFavourites)
+        {
+            std::string nameLower = fav.name;
+            std::transform(nameLower.begin(), nameLower.end(), nameLower.begin(), ::tolower);
+            if (nameLower.find(filterLower) != std::string::npos)
+                favourites.push_back(fav);
+        }
+    }
+    else
+    {
+        favourites = std::move(allFavourites);
+    }
 
     int start = (favouritesCurrentPage - 1) * favouritesPageSize;
     int end = std::min(start + favouritesPageSize, (int)favourites.size());
@@ -292,6 +330,17 @@ static void product_search_value_changed_cb(lv_event_t *e)
     productsManager.populateProductList();
 }
 
+static void favourites_search_value_changed_cb(lv_event_t *e)
+{
+    lv_obj_t *textarea = (lv_obj_t *)lv_event_get_target(e);
+    const char *text = lv_textarea_get_text(textarea);
+    if (!text)
+        text = "";
+    s_favouritesSearchFilter = text;
+    favouritesCurrentPage = 1;
+    showCurrentPageFavourites(true);
+}
+
 void set_tab_icon(lv_obj_t *tabview, uint32_t index, const void *img_src)
 {
     lv_obj_t *tab_btns = lv_tabview_get_tab_btns(tabview);
@@ -405,6 +454,9 @@ void action_screen_loading(lv_event_t *e)
     lv_obj_add_event_cb(objects.product_search_ta, keywords_textarea_focused_cb, LV_EVENT_FOCUSED, nullptr);
     lv_obj_add_event_cb(objects.product_search_ta, keywords_textarea_defocused_cb, LV_EVENT_DEFOCUSED, nullptr);
     lv_obj_add_event_cb(objects.product_search_ta, product_search_value_changed_cb, LV_EVENT_VALUE_CHANGED, nullptr);
+    lv_obj_add_event_cb(objects.favourites_search_ta, keywords_textarea_focused_cb, LV_EVENT_FOCUSED, nullptr);
+    lv_obj_add_event_cb(objects.favourites_search_ta, keywords_textarea_defocused_cb, LV_EVENT_DEFOCUSED, nullptr);
+    lv_obj_add_event_cb(objects.favourites_search_ta, favourites_search_value_changed_cb, LV_EVENT_VALUE_CHANGED, nullptr);
     lv_obj_add_event_cb(objects.product_edit__product_edit_name_ta, keywords_textarea_focused_cb, LV_EVENT_FOCUSED, nullptr);
     lv_obj_add_event_cb(objects.product_edit__product_edit_name_ta, keywords_textarea_defocused_cb, LV_EVENT_DEFOCUSED, nullptr);
 
@@ -465,7 +517,24 @@ void action_recipe_suggestion_prev(lv_event_t *e)
 
 void action_favourites_next(lv_event_t *e)
 {
-    std::vector<Favorite> favourites = favouritesManager.getFavourites();
+    std::vector<Favorite> allFavourites = favouritesManager.getFavourites();
+    std::vector<Favorite> favourites;
+    if (s_favouritesSearchFilter.length() >= 3)
+    {
+        std::string filterLower = s_favouritesSearchFilter;
+        std::transform(filterLower.begin(), filterLower.end(), filterLower.begin(), ::tolower);
+        for (const auto &fav : allFavourites)
+        {
+            std::string nameLower = fav.name;
+            std::transform(nameLower.begin(), nameLower.end(), nameLower.begin(), ::tolower);
+            if (nameLower.find(filterLower) != std::string::npos)
+                favourites.push_back(fav);
+        }
+    }
+    else
+    {
+        favourites = std::move(allFavourites);
+    }
     int totalPages = (favourites.size() + favouritesPageSize - 1) / favouritesPageSize;
     if (totalPages == 0)
         totalPages = 1; // at least one page even if empty
