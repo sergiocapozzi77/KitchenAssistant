@@ -483,18 +483,39 @@ static void fetch_recipe_detail_task(void *arg)
     }
     // ── End method steps ──────────────────────────────────────────────────
 
-    // Unregister delete-guard callbacks BEFORE freeing ctx,
-    // otherwise they fire with a dangling pointer when the widgets
-    // are eventually deleted (e.g. on screen transition).
+    // ── Finalise layout ────────────────────────────────────────────────────
+    // Verify generation is still current AND objects.recipe_detail is the
+    // active screen before touching LVGL widgets.  If the user navigated
+    // away (or reopened the screen — new generation), skip the layout
+    // update and callback removal since a fresher task owns this screen.
     lv_lock();
-    if (ctx->spinner && lv_obj_is_valid(ctx->spinner))
-        lv_obj_remove_event_cb_with_user_data(ctx->spinner, detail_widget_deleted_cb, ctx);
-    if (ctx->ingredients_cont && lv_obj_is_valid(ctx->ingredients_cont))
-        lv_obj_remove_event_cb_with_user_data(ctx->ingredients_cont, detail_widget_deleted_cb, ctx);
-    if (ctx->method_cont && lv_obj_is_valid(ctx->method_cont))
-        lv_obj_remove_event_cb_with_user_data(ctx->method_cont, detail_widget_deleted_cb, ctx);
-    if (ctx->header_img && lv_obj_is_valid(ctx->header_img))
-        lv_obj_remove_event_cb_with_user_data(ctx->header_img, detail_widget_deleted_cb, ctx);
+    if (ctx->generation == s_current_generation && objects.recipe_detail == lv_scr_act())
+    {
+        // Force a complete layout update so the screen layout is clean
+        // before any touch event can trigger lv_obj_update_layout again.
+        // Without this, a touch on a just-created checkbox would trigger
+        // flex layout recalc, which could walk a partially-built child
+        // tree and dereference a null style pointer.
+        lv_obj_update_layout(objects.recipe_detail);
+
+        // Log internal SRAM state after population so we can correlate
+        // future crashes with heap pressure.
+        ESP_LOGI(TAG, "Post-populate: int=%lu psram=%lu",
+                 (unsigned long)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+                 (unsigned long)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+
+        // Unregister delete-guard callbacks BEFORE freeing ctx,
+        // otherwise they fire with a dangling pointer when the widgets
+        // are eventually deleted (e.g. on screen transition).
+        if (ctx->spinner && lv_obj_is_valid(ctx->spinner))
+            lv_obj_remove_event_cb_with_user_data(ctx->spinner, detail_widget_deleted_cb, ctx);
+        if (ctx->ingredients_cont && lv_obj_is_valid(ctx->ingredients_cont))
+            lv_obj_remove_event_cb_with_user_data(ctx->ingredients_cont, detail_widget_deleted_cb, ctx);
+        if (ctx->method_cont && lv_obj_is_valid(ctx->method_cont))
+            lv_obj_remove_event_cb_with_user_data(ctx->method_cont, detail_widget_deleted_cb, ctx);
+        if (ctx->header_img && lv_obj_is_valid(ctx->header_img))
+            lv_obj_remove_event_cb_with_user_data(ctx->header_img, detail_widget_deleted_cb, ctx);
+    }
     lv_unlock();
 
     // Kick off header image fetch at larger size.

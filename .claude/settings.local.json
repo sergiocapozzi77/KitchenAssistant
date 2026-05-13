@@ -25,7 +25,9 @@
       "Bash(find /c/Users/sergi/source/repos/KitchenAssistant -name \"*.h\" -type f -exec grep -l \"virtual\\\\|abstract\\\\|interface\" {} \\\\;)",
       "Bash(find /c/Users/sergi/source/repos/KitchenAssistant -type f -name \"*.h\" -exec grep -l \"APPWRITE_\" {} \\\\;)",
       "Bash(find /c/Users/sergi/esp -name \"*.h\" 2>/dev/null | head -5; echo \"---\"; ls /c/Users/sergi/esp/ 2>/dev/null)",
-      "Read(//c/Users/sergi/**)"
+      "Read(//c/Users/sergi/**)",
+      "Bash(git *)",
+      "Bash(find C:/Users/sergi/source/repos/KitchenAssistant/managed_components -name \"*.c\" -path \"*bsp*\" -exec grep -l \"backlight_on\\\\|backlight_off\\\\|display_backlight\" {} \\\\;)"
     ],
     "deny": [
       "Bash(idf.py build *)",

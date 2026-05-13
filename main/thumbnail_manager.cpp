@@ -247,6 +247,11 @@ void free_thumb_data_cb(lv_event_t *e)
     ThumbDataCtx *d = (ThumbDataCtx *)lv_event_get_user_data(e);
     if (!d)
         return;
+
+    // The image descriptor is externally managed (variable source), so
+    // free the pixel data and descriptor directly.  LVGL won't try to
+    // render this source after the object is deleted because the delete
+    // holds the LVGL lock — no need to detach via lv_image_set_src(NULL).
     free((void *)d->dsc->data);
     delete d->dsc;
     delete d;
@@ -636,13 +641,15 @@ void thumb_worker_task(void *)
             lv_lock();
             if (!ctx->cancelled.load())
             {
-                // FIX: Remove event cb and clean up shimmer unconditionally —
-                // do not gate shimmer cleanup on thumb validity. If thumb was
-                // deleted by other code without going through thumb_obj_deleted_cb,
-                // the shimmer could still be alive and would leak.
                 if (ctx->thumb && lv_obj_is_valid(ctx->thumb))
                     lv_obj_remove_event_cb_with_user_data(ctx->thumb, thumb_obj_deleted_cb, ctx);
-                delete_ctx_shimmer(ctx); // handles nullptr / invalid safely
+                // Do NOT call delete_ctx_shimmer here — the shimmer belongs to a
+                // past generation and its memory may have been freed and reused by
+                // another LVGL child of ctx->thumb (e.g. during a recipe list
+                // rebuild).  Deleting what looks like a valid child would corrupt
+                // the event system.  LVGL will cascade-delete the real shimmer
+                // when the thumb itself is cleaned up.
+                ctx->shimmer = nullptr;
             }
             lv_unlock();
 
@@ -663,6 +670,31 @@ void thumb_worker_task(void *)
                  ctx->url.c_str(), ok, w, h, ctx->generation);
 
         lv_lock();
+
+        // Re-check generation AFTER the lock.  The network fetch (above) ran
+        // without the lock, and the recipe list could have been rebuilt in the
+        // meantime — deleting ctx->thumb's children (including shimmer) and
+        // incrementing s_thumb_generation.  If we proceed now, ctx->shimmer
+        // may be a dangling pointer whose memory was reused by a different
+        // LVGL child of ctx->thumb, and delete_ctx_shimmer would delete the
+        // wrong object and corrupt the event system.
+        if (ctx->generation != s_thumb_generation.load())
+        {
+            ESP_LOGI(TAG, "Stale after fetch: gen=%u cur=%u url=%.60s",
+                     ctx->generation, s_thumb_generation.load(), ctx->url.c_str());
+            if (ctx->thumb && lv_obj_is_valid(ctx->thumb))
+                lv_obj_remove_event_cb_with_user_data(ctx->thumb, thumb_obj_deleted_cb, ctx);
+            // ctx->shimmer may point to freed memory or an imposter — do NOT
+            // call delete_ctx_shimmer.  The shimmer is already gone or belongs
+            // to a fresher context.  Just null the pointer and let LVGL handle
+            // the shimmers of current-generation thumbs.
+            ctx->shimmer = nullptr;
+            // dsc / px were allocated by fetch_and_decode_jpeg — free them.
+            if (ok) { heap_caps_free(px); delete dsc; }
+            lv_unlock();
+            delete ctx;
+            continue;
+        }
 
         // Always clean up shimmer first — regardless of fetch outcome.
         // FIX: delete_ctx_shimmer already nulls ctx->shimmer; don't repeat it.

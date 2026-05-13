@@ -52,14 +52,18 @@ static void wrappedTouchReadCb(lv_indev_t *indev, lv_indev_data_t *data)
     bool pressed = (data->state == LV_INDEV_STATE_PRESSED);
 
     // 2. Wake display on any touch
+    bool was_sleeping = g_display_sleep.isSleeping();
     g_display_sleep.onTouch();
 
     // 3. Quick panel gesture
     bool consumed = g_quick_panel.handleTouch(
         data->point.x, data->point.y, pressed);
 
-    // 4. Swallow touch if screen was asleep or a gesture consumed it
-    if (g_display_sleep.isSleeping() || consumed)
+    // 4. Swallow touch if:
+    //    - the display was asleep before this touch (wake-up press)
+    //    - the display is still asleep (e.g. explicit sleep suppression window)
+    //    - a quick-panel gesture consumed it
+    if (was_sleeping || g_display_sleep.isSleeping() || consumed)
     {
         data->state = LV_INDEV_STATE_RELEASED;
     }
@@ -218,7 +222,7 @@ void Application::initHardware()
             .buff_spiram = true,
             .sw_rotate = false,
         }};
-    cfg.lvgl_port_cfg.task_stack = 24576;
+    cfg.lvgl_port_cfg.task_stack = 32768; // Allocate LVGL port task stack in PSRAM
     bsp_display_start_with_config(&cfg);
     bsp_display_backlight_on();
 

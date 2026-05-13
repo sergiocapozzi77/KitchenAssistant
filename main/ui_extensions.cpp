@@ -234,6 +234,12 @@ lv_obj_t *createIngredientRow(lv_obj_t *parent, const std::string &displayText)
     lv_obj_set_style_pad_column(row, 8, 0);
 
     lv_obj_t *checkbox = lv_checkbox_create(row);
+    // Clear SCROLL_ON_FOCUS so touching the checkbox won't trigger
+    // lv_obj_scroll_to_view_recursive → lv_obj_update_layout while the
+    // background task is still populating siblings (layout walk can hit
+    // a null style pointer when internal SRAM is fragmented).
+    lv_obj_clear_flag(checkbox, LV_OBJ_FLAG_SCROLL_ON_FOCUS);
+    lv_obj_clear_flag(checkbox, LV_OBJ_FLAG_CLICK_FOCUSABLE);
     lv_checkbox_set_text(checkbox, "");
     lv_obj_set_style_pad_right(checkbox, 8, 0);
     add_style_checkbox_default(checkbox);
