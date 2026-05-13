@@ -71,12 +71,31 @@ std::atomic<uint32_t> s_thumb_generation{0};
 // Safe to call even if ctx->shimmer is nullptr or already invalid.
 void delete_ctx_shimmer(ThumbContext *ctx)
 {
-    if (ctx->shimmer && lv_obj_is_valid(ctx->shimmer))
+    if (ctx->shimmer)
     {
-        stop_shimmer_animation(ctx->shimmer);
-        lv_obj_del(ctx->shimmer);
+        // CRITICAL: Only delete shimmer if it's still a child of ctx->thumb.
+        // Shimmer is created as a child of thumb (create_shimmer_overlay(thumb)).
+        // If thumb was cascade-deleted (screen transition), shimmer was also
+        // cascade-deleted and ctx->shimmer is a dangling pointer.
+        //
+        // lv_obj_is_valid() alone is NOT sufficient here: if the freed shimmer
+        // memory was reused by another valid LVGL object, lv_obj_is_valid()
+        // would incorrectly return true, causing us to delete the wrong object
+        // and corrupt the event system.
+        //
+        // By verifying shimmer's parent is still ctx->thumb, we catch both:
+        // 1. Cascade-deleted shimmer (parent was cleared by LVGL)
+        // 2. Freed-and-reused memory (the imposter object has a different parent)
+        if (ctx->thumb &&
+            lv_obj_is_valid(ctx->thumb) &&
+            lv_obj_is_valid(ctx->shimmer) &&
+            lv_obj_get_parent(ctx->shimmer) == ctx->thumb)
+        {
+            stop_shimmer_animation(ctx->shimmer);
+            lv_obj_del(ctx->shimmer);
+        }
+        ctx->shimmer = nullptr; // always sync, regardless of prior validity
     }
-    ctx->shimmer = nullptr; // always sync, regardless of prior validity
 }
 
 // ── Init ────────────────────────────────────────────────────────────────────
@@ -213,10 +232,13 @@ void thumb_obj_deleted_cb(lv_event_t *e)
         return;
     ctx->cancelled.store(true);
     ctx->thumb = nullptr;
-    // Shimmer is a child of thumb (create_shimmer_overlay), so it has already been
-    // cascade-deleted by LVGL before this LV_EVENT_DELETE fires.  Do NOT call
-    // lv_obj_is_valid on it — the freed memory may have been reused by another
-    // LVGL object, causing a false positive and corrupting that object.
+    // Shimmer is a child of thumb (create_shimmer_overlay(thumb)). When this
+    // callback fires (thumb's LV_EVENT_DELETE), shimmer has NOT been cascade-
+    // deleted yet — LVGL processes children AFTER the delete event. However,
+    // shimmer WILL be freed during children cleanup later in obj_delete_core.
+    // Null ctx->shimmer now so delete_ctx_shimmer doesn't try to delete it.
+    // Do NOT call lv_obj_is_valid on the shimmer pointer here — it's still
+    // valid at this point but will be freed imminently.
     ctx->shimmer = nullptr;
 }
 

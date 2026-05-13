@@ -29,6 +29,7 @@ idf_component_register(
         filters_ui.cpp
         display_sleep.cpp
         quick_panel.cpp
+        battery.cpp
         ui/screens.c
         ui/styles.c
         ui/images.c

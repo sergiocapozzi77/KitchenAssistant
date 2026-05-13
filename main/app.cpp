@@ -24,8 +24,10 @@
 #include <cstdio>
 #include "display_sleep.h"
 #include "quick_panel.h"
+#include "battery.h"
 
 static const char *TAG = "APP";
+static BatteryMonitor s_battery;
 
 #define BASE_DIR CONFIG_BSP_SPIFFS_MOUNT_POINT
 
@@ -240,6 +242,7 @@ void Application::initHardware()
     // ── init sleep + quick panel ──────────────────────────────────────
     g_display_sleep.init(60 * 10 * 1000); // 10min inactivity timeout
     g_quick_panel.init();
+    s_battery.init();
 
     ui_init();
     bsp_display_unlock();
@@ -264,13 +267,24 @@ void Application::initHardware()
 
 void Application::mainLoop()
 {
+    uint32_t last_info_update = 0;
     while (true)
     {
         bsp_display_lock(0);
         ui_tick();
         bsp_display_unlock();
 
-        //   //esp_task_wdt_reset();
+        uint32_t now = lv_tick_get();
+        if (now - last_info_update >= 2000)
+        {
+            last_info_update = now;
+
+            bool connected = wifiManager.isConnected();
+            g_quick_panel.updateWifi(connected,
+                                     connected ? wifiManager.getSSID().c_str() : nullptr);
+
+            g_quick_panel.updateBattery(s_battery.readPercent());
+        }
         vTaskDelay(pdMS_TO_TICKS(10)); // ~100Hz update rate
     }
 }

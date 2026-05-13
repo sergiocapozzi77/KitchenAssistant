@@ -23,7 +23,9 @@
       "Bash(find . -maxdepth 2 -type d -name *function*)",
       "Bash(grep:*)",
       "Bash(find /c/Users/sergi/source/repos/KitchenAssistant -name \"*.h\" -type f -exec grep -l \"virtual\\\\|abstract\\\\|interface\" {} \\\\;)",
-      "Bash(find /c/Users/sergi/source/repos/KitchenAssistant -type f -name \"*.h\" -exec grep -l \"APPWRITE_\" {} \\\\;)"
+      "Bash(find /c/Users/sergi/source/repos/KitchenAssistant -type f -name \"*.h\" -exec grep -l \"APPWRITE_\" {} \\\\;)",
+      "Bash(find /c/Users/sergi/esp -name \"*.h\" 2>/dev/null | head -5; echo \"---\"; ls /c/Users/sergi/esp/ 2>/dev/null)",
+      "Read(//c/Users/sergi/**)"
     ],
     "deny": [
       "Bash(idf.py build *)",

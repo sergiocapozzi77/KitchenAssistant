@@ -93,6 +93,7 @@ void QuickPanel::updateBattery(int pct, bool charging)
 {
     if (!_bat_label)
         return;
+
     const char *icon;
     if (charging)
         icon = LV_SYMBOL_CHARGE;
@@ -106,13 +107,18 @@ void QuickPanel::updateBattery(int pct, bool charging)
         icon = LV_SYMBOL_BATTERY_1;
     else
         icon = LV_SYMBOL_BATTERY_EMPTY;
+
+    lv_lock();
     lv_label_set_text_fmt(_bat_label, "%s  %d%%", icon, pct);
+    lv_unlock();
 }
 
 void QuickPanel::updateWifi(bool connected, const char *ssid)
 {
     if (!_wifi_label)
         return;
+
+    lv_lock();
     if (connected && ssid)
         lv_label_set_text_fmt(_wifi_label, LV_SYMBOL_WIFI "  %s", ssid);
     else if (connected)
@@ -123,6 +129,7 @@ void QuickPanel::updateWifi(bool connected, const char *ssid)
         _wifi_label,
         connected ? lv_color_hex(0x1A73E8) : lv_color_hex(0xAAAAAA),
         LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_unlock();
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -254,9 +261,8 @@ void QuickPanel::buildUI()
     lv_obj_set_style_bg_color(_scrim, lv_color_hex(0x000000), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(_scrim, LV_OPA_30, LV_PART_MAIN);
     lv_obj_add_flag(_scrim, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_event_cb(_scrim, [](lv_event_t *e) {
-        static_cast<QuickPanel *>(lv_event_get_user_data(e))->hide();
-    }, LV_EVENT_CLICKED, this);
+    lv_obj_add_event_cb(_scrim, [](lv_event_t *e)
+                        { static_cast<QuickPanel *>(lv_event_get_user_data(e))->hide(); }, LV_EVENT_CLICKED, this);
 
     // ── panel ─────────────────────────────────────────────────────────
     _panel = lv_obj_create(layer);
