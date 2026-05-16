@@ -9,6 +9,7 @@
 #include "fonts.h"
 #include "models.h"
 #include "esp_task_wdt.h"
+#include "thumbnail_manager.h"
 
 static const char *TAG = "UIEXTENSIONS";
 
@@ -63,6 +64,9 @@ void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &rec
 
     lv_lock();
     init_styles();
+    // Stop shimmer animations before cleaning — active animations on children
+    // being deleted can cause use-after-free in the LVGL animation system.
+    stop_all_shimmer_animations();
     // Capture scroll position before cleaning
     lv_coord_t scroll_y = lv_obj_get_scroll_y(root);
     lv_obj_clean(root);

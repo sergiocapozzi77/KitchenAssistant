@@ -71,31 +71,31 @@ std::atomic<uint32_t> s_thumb_generation{0};
 // Safe to call even if ctx->shimmer is nullptr or already invalid.
 void delete_ctx_shimmer(ThumbContext *ctx)
 {
-    if (ctx->shimmer)
+    if (!ctx || !ctx->shimmer)
+        return;
+
+    // CRITICAL: Only delete shimmer if it's still a child of ctx->thumb.
+    // Shimmer is created as a child of thumb (create_shimmer_overlay(thumb)).
+    // If thumb was cascade-deleted (screen transition), shimmer was also
+    // cascade-deleted and ctx->shimmer is a dangling pointer.
+    //
+    // lv_obj_is_valid() alone is NOT sufficient here: if the freed shimmer
+    // memory was reused by another valid LVGL object, lv_obj_is_valid()
+    // would incorrectly return true, causing us to delete the wrong object
+    // and corrupt the event system.
+    //
+    // By verifying shimmer's parent is still ctx->thumb, we catch both:
+    // 1. Cascade-deleted shimmer (parent was cleared by LVGL)
+    // 2. Freed-and-reused memory (the imposter object has a different parent)
+    if (ctx->thumb &&
+        lv_obj_is_valid(ctx->thumb) &&
+        lv_obj_is_valid(ctx->shimmer) &&
+        lv_obj_get_parent(ctx->shimmer) == ctx->thumb)
     {
-        // CRITICAL: Only delete shimmer if it's still a child of ctx->thumb.
-        // Shimmer is created as a child of thumb (create_shimmer_overlay(thumb)).
-        // If thumb was cascade-deleted (screen transition), shimmer was also
-        // cascade-deleted and ctx->shimmer is a dangling pointer.
-        //
-        // lv_obj_is_valid() alone is NOT sufficient here: if the freed shimmer
-        // memory was reused by another valid LVGL object, lv_obj_is_valid()
-        // would incorrectly return true, causing us to delete the wrong object
-        // and corrupt the event system.
-        //
-        // By verifying shimmer's parent is still ctx->thumb, we catch both:
-        // 1. Cascade-deleted shimmer (parent was cleared by LVGL)
-        // 2. Freed-and-reused memory (the imposter object has a different parent)
-        if (ctx->thumb &&
-            lv_obj_is_valid(ctx->thumb) &&
-            lv_obj_is_valid(ctx->shimmer) &&
-            lv_obj_get_parent(ctx->shimmer) == ctx->thumb)
-        {
-            stop_shimmer_animation(ctx->shimmer);
-            lv_obj_del(ctx->shimmer);
-        }
-        ctx->shimmer = nullptr; // always sync, regardless of prior validity
+        stop_shimmer_animation(ctx->shimmer);
+        lv_obj_del(ctx->shimmer);
     }
+    ctx->shimmer = nullptr; // always sync, regardless of prior validity
 }
 
 // ── Init ────────────────────────────────────────────────────────────────────
@@ -245,15 +245,27 @@ void thumb_obj_deleted_cb(lv_event_t *e)
 void free_thumb_data_cb(lv_event_t *e)
 {
     ThumbDataCtx *d = (ThumbDataCtx *)lv_event_get_user_data(e);
-    if (!d)
+    if (!d || d->freed)
+    {
+        if (d && d->freed)
+            ESP_LOGW(TAG, "free_thumb_data_cb: double-free prevented");
         return;
+    }
+    d->freed = true;
 
     // The image descriptor is externally managed (variable source), so
     // free the pixel data and descriptor directly.  LVGL won't try to
     // render this source after the object is deleted because the delete
     // holds the LVGL lock — no need to detach via lv_image_set_src(NULL).
-    free((void *)d->dsc->data);
+    void *data = (void *)d->dsc->data;
+    if (data)
+    {
+        free(data);
+        d->dsc->data = nullptr;
+    }
     delete d->dsc;
+    d->dsc = nullptr;
+    d->px = nullptr;
     delete d;
 }
 
@@ -690,7 +702,7 @@ void thumb_worker_task(void *)
             // the shimmers of current-generation thumbs.
             ctx->shimmer = nullptr;
             // dsc / px were allocated by fetch_and_decode_jpeg — free them.
-            if (ok) { heap_caps_free(px); delete dsc; }
+            if (ok) { heap_caps_free(px); px = nullptr; delete dsc; dsc = nullptr; }
             lv_unlock();
             delete ctx;
             continue;
@@ -720,7 +732,9 @@ void thumb_worker_task(void *)
             if (ok)
             {
                 heap_caps_free(px);
+                px = nullptr;
                 delete dsc;
+                dsc = nullptr;
             }
             if (ctx->thumb && lv_obj_is_valid(ctx->thumb))
                 lv_obj_remove_event_cb_with_user_data(ctx->thumb, thumb_obj_deleted_cb, ctx);

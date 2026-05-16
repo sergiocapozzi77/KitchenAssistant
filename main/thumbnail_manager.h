@@ -24,6 +24,7 @@ struct ThumbDataCtx
 {
     lv_image_dsc_t *dsc;
     uint8_t *px;
+    bool freed = false; // sentinel — set true before freeing, checked to detect double-free
 };
 
 struct JpegIo

@@ -25,6 +25,7 @@
 #include "ui_extensions_recipe_steps.h"
 #include "WiFiSettingsUI.h"
 #include "spiffs_cleanup.h"
+#include "thumbnail_manager.h"
 
 static const char *TAG = "ACTIONS";
 
@@ -372,6 +373,7 @@ static void tabview_tab_changed_cb(lv_event_t *e)
         // Switching TO Products tab — destroy recipe widgets to free PSRAM thumbnails
         // Cancel any in-flight thumbnail fetches first
         s_thumb_generation++; // defined extern in ui_extensions.h
+        stop_all_shimmer_animations();
         lv_obj_clean(objects.recipes_list);
         lv_obj_clean(objects.favourites_list);
     }
@@ -393,6 +395,7 @@ static void tabview_tab_changed_cb(lv_event_t *e)
         lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
         // Cancel any in-flight thumbnail fetches for favourites (disabled to allow background downloads)
         // s_thumb_generation++;
+        stop_all_shimmer_animations();
         lv_obj_clean(objects.favourites_list);
     }
     else if (tab == 2)
@@ -400,6 +403,7 @@ static void tabview_tab_changed_cb(lv_event_t *e)
         // Switching TO Favourites tab — rebuild from cached favourites
         // Cancel any in-flight thumbnail fetches for recipes (disabled to allow background downloads)
         // s_thumb_generation++;
+        stop_all_shimmer_animations();
         lv_obj_clean(objects.recipes_list);
         // Hide keyboard when switching away from products tab
         lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
@@ -564,6 +568,7 @@ void action_products_reload_click(lv_event_t *e)
 void action_favourites_reload_click(lv_event_t *e)
 {
     lv_lock();
+    stop_all_shimmer_animations();
     lv_obj_clean(objects.favourites_list);
     lv_unlock();
     favouritesCurrentPage = 1;
