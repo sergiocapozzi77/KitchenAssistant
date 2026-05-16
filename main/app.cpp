@@ -45,28 +45,20 @@ static lv_indev_read_cb_t s_bsp_touch_read_cb = nullptr;
 
 static void wrappedTouchReadCb(lv_indev_t *indev, lv_indev_data_t *data)
 {
-    // 1. Let BSP fill in coordinates as normal
     if (s_bsp_touch_read_cb)
         s_bsp_touch_read_cb(indev, data);
 
     bool pressed = (data->state == LV_INDEV_STATE_PRESSED);
-
-    // 2. Wake display on any touch
     bool was_sleeping = g_display_sleep.isSleeping();
-    g_display_sleep.onTouch();
 
-    // 3. Quick panel gesture
+    if (pressed) // ← only on actual touch
+        g_display_sleep.onTouch();
+
     bool consumed = g_quick_panel.handleTouch(
         data->point.x, data->point.y, pressed);
 
-    // 4. Swallow touch if:
-    //    - the display was asleep before this touch (wake-up press)
-    //    - the display is still asleep (e.g. explicit sleep suppression window)
-    //    - a quick-panel gesture consumed it
     if (was_sleeping || g_display_sleep.isSleeping() || consumed)
-    {
         data->state = LV_INDEV_STATE_RELEASED;
-    }
 }
 
 void Application::initNVS()
@@ -244,7 +236,7 @@ void Application::initHardware()
     }
 
     // ── init sleep + quick panel ──────────────────────────────────────
-    g_display_sleep.init(60 * 10 * 1000); // 10min inactivity timeout
+    g_display_sleep.init(60 * 1 * 1000); // 10min inactivity timeout
     g_quick_panel.init();
     s_battery.init();
 

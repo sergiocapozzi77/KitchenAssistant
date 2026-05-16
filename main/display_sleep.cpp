@@ -8,9 +8,9 @@ DisplaySleep g_display_sleep;
 
 void DisplaySleep::init(uint32_t timeout_ms)
 {
-    // One-shot inactivity timer — started/reset on every touch
+    _timeout_ms = timeout_ms;
     _timer = lv_timer_create(onTimerExpired, timeout_ms, this);
-    lv_timer_set_repeat_count(_timer, 1);
+    lv_timer_set_repeat_count(_timer, -1); // infinite — we own the lifecycle
     lv_timer_pause(_timer);
     lv_timer_reset(_timer);
 }
