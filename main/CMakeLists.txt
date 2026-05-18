@@ -13,6 +13,8 @@ idf_component_register(
         RecipeDetailService.cpp
         FavouriteService.cpp
         FavouritesManager.cpp
+        CookbookService.cpp
+        CookbookManager.cpp
         HttpClientHelper.cpp
         AppwriteClientInstance.cpp
         WiFiSettingsUI.cpp

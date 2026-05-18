@@ -52,4 +52,11 @@ struct Favorite
     std::string recipeSource; // e.g., "ai-deepseek", "bbcgoodfood", etc.
     std::vector<std::string> ingredients;
     std::vector<std::string> methodSteps;
+    std::vector<std::string> cookbookIds;
+};
+
+struct Cookbook
+{
+    std::string id;   // Appwrite $id
+    std::string name;
 };
