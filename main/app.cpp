@@ -236,7 +236,7 @@ void Application::initHardware()
     }
 
     // ── init sleep + quick panel ──────────────────────────────────────
-    g_display_sleep.init(60 * 1 * 1000); // 10min inactivity timeout
+    g_display_sleep.init(60 * 10 * 1000); // 10min inactivity timeout
     g_quick_panel.init();
     s_battery.init();
 
