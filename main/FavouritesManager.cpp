@@ -88,6 +88,20 @@ void FavouritesManager::removeFavourite(const std::string &url)
     }
 }
 
+void FavouritesManager::removeFavouritesByCookbook(const std::string &cookbookId)
+{
+    // Remove from cache all favourites with this cookbookId
+    std::lock_guard<std::mutex> lock(_favouritesMutex);
+    auto it = std::remove_if(_favourites.begin(), _favourites.end(),
+        [&cookbookId](const Favorite &fav) {
+            return std::find(fav.cookbookIds.begin(), fav.cookbookIds.end(), cookbookId) != fav.cookbookIds.end();
+        });
+    if (it != _favourites.end())
+    {
+        _favourites.erase(it, _favourites.end());
+    }
+}
+
 // Public API: Start background task to fetch favourites
 void FavouritesManager::startBackgroundFetch()
 {

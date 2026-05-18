@@ -18,6 +18,7 @@ public:
     bool isFavouriteUrl(const std::string &url) const;
     void addFavourite(const Favorite &favourite);
     void removeFavourite(const std::string &url);
+    void removeFavouritesByCookbook(const std::string &cookbookId);
 
     // Background task for fetching favourites
     void startBackgroundFetch();
