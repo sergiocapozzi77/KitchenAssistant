@@ -761,6 +761,53 @@ bool FavouriteService::removeFavourite(const std::string &url)
 }
 
 /* =========================================================
+ * COOKBOOK-AWARE METHODS
+ * ========================================================= */
+bool FavouriteService::addFavouriteToCookbook(const std::string &favouriteId, const std::string &cookbookId)
+{
+    // PATCH the favourite to append cookbookId to its cookbookIds array
+    std::string url = Endpoint + "/tablesdb/" + DatabaseId + "/tables/" + FavouritesCollectionId + "/rows/" + favouriteId;
+
+    // Build patch body: append cookbookId to cookbookIds
+    cJSON *root = cJSON_CreateObject();
+    cJSON *data = cJSON_AddObjectToObject(root, "data");
+    cJSON *ids = cJSON_AddArrayToObject(data, "cookbookIds");
+    cJSON_AddItemToArray(ids, cJSON_CreateString(cookbookId.c_str()));
+
+    char *json = cJSON_PrintUnformatted(root);
+    std::string body = json ? json : "{}";
+    free(json);
+    cJSON_Delete(root);
+
+    int status = 0;
+    std::string response = httpPatch(url, body, status);
+    bool ok = (status == 200);
+    ESP_LOGI(TAG, "addFavouriteToCookbook: fav=%s cookbook=%s -> %s", favouriteId.c_str(), cookbookId.c_str(), ok ? "ok" : "fail");
+    return ok;
+}
+
+std::vector<Favorite> FavouriteService::getFavouritesByCookbook(const std::string &cookbookId)
+{
+    std::vector<std::string> queries;
+    std::string q = "{\"method\":\"equal\",\"attribute\":\"cookbookIds\",\"values\":[\"" + cookbookId + "\"]}";
+    queries.push_back(q);
+    int out;
+    return getFavourites(queries, out);
+}
+
+void FavouriteService::removeCookbookFromFavourites(const std::string &cookbookId)
+{
+    // Find all favourites with this cookbookId
+    std::vector<Favorite> toDelete = getFavouritesByCookbook(cookbookId);
+    ESP_LOGI(TAG, "Removing cookbook %s from %zu favourites", cookbookId.c_str(), toDelete.size());
+
+    for (const auto &fav : toDelete)
+    {
+        removeFavourite(fav.url);
+    }
+}
+
+/* =========================================================
  * PUBLIC API: Check if URL is favourited
  * ========================================================= */
 bool FavouriteService::isFavourite(const std::string &url)

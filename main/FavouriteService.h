@@ -31,6 +31,9 @@ public:
     bool addFavourite(const Favorite &recipe);
     bool removeFavourite(const std::string &url);
     bool isFavourite(const std::string &url);
+    bool addFavouriteToCookbook(const std::string &favouriteId, const std::string &cookbookId);
+    std::vector<Favorite> getFavouritesByCookbook(const std::string &cookbookId);
+    void removeCookbookFromFavourites(const std::string &cookbookId);
     std::string generateId(int length = 20);
 
 private:
