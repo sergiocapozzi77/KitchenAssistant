@@ -19,6 +19,7 @@
 #include "ui_extensions.h"
 #include "ProductsManager.h"
 #include "FavouritesManager.h"
+#include "CookbookManager.h"
 // #include "thumbnail_cache.h"  // DISABLED
 #include "cJSON.h"
 #include <cstdio>
@@ -108,6 +109,8 @@ static void combinedFetchTask(void *param)
     hideSpinner();
 
     favouritesManager.fetchFavourites();
+
+    cookbookManager.fetchCookbooks();
 
     // Refresh favourites UI if on the favourites tab
     if (objects.tabview && lv_obj_is_valid(objects.tabview) && lv_tabview_get_tab_act(objects.tabview) == 2)
