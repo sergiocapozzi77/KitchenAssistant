@@ -25,6 +25,59 @@ struct FavouriteClickCtx
     Favorite favourite;
 };
 
+// === BACK BUTTON (COOKBOOK DRILL-IN) ===
+
+static lv_obj_t *s_back_btn = nullptr;
+
+static void back_to_cookbooks_cb(lv_event_t *e)
+{
+    g_favouritesViewMode = FavouritesViewMode::COOKBOOK_LIST;
+    g_activeCookbookId.clear();
+    g_activeCookbookName.clear();
+
+    if (s_back_btn && lv_obj_is_valid(s_back_btn))
+    {
+        lv_obj_del(s_back_btn);
+        s_back_btn = nullptr;
+    }
+
+    showCurrentPageFavourites(true);
+}
+
+void ensure_back_button()
+{
+    if (s_back_btn && lv_obj_is_valid(s_back_btn)) return;
+
+    if (!objects.favourites_header_pnl || !lv_obj_is_valid(objects.favourites_header_pnl))
+        return;
+
+    s_back_btn = lv_button_create(objects.favourites_header_pnl);
+    lv_obj_set_pos(s_back_btn, 0, 0);
+    lv_obj_set_size(s_back_btn, 60, 40);
+    lv_obj_set_style_border_width(s_back_btn, 0, 0);
+    lv_obj_set_style_bg_color(s_back_btn, lv_color_hex(0xE9ECEF), 0);
+    lv_obj_set_style_bg_opa(s_back_btn, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(s_back_btn, 8, 0);
+
+    lv_obj_t *lbl = lv_label_create(s_back_btn);
+    lv_label_set_text(lbl, LV_SYMBOL_LEFT " Back");
+    lv_obj_center(lbl);
+
+    lv_obj_add_event_cb(s_back_btn, back_to_cookbooks_cb, LV_EVENT_CLICKED, nullptr);
+}
+
+void cleanupCookbookDrill()
+{
+    g_favouritesViewMode = FavouritesViewMode::COOKBOOK_LIST;
+    g_activeCookbookId.clear();
+    g_activeCookbookName.clear();
+    if (s_back_btn && lv_obj_is_valid(s_back_btn))
+    {
+        lv_obj_del(s_back_btn);
+        s_back_btn = nullptr;
+    }
+}
+
 // === CLEANUP CALLBACKS ===
 
 static void free_favourite_click_ctx_cb(lv_event_t *e)

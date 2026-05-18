@@ -45,6 +45,10 @@ extern lv_style_t style_expiry_badge;
 extern lv_style_t style_checkbox_indicator;
 extern bool styles_initialized;
 
+// Cookbook navigation helpers
+void cleanupCookbookDrill();
+void ensure_back_button();
+
 // Cookbook navigation state
 enum class FavouritesViewMode {
     COOKBOOK_LIST,

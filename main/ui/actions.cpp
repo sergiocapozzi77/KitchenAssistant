@@ -9,6 +9,7 @@
 #include "ProductService.h"
 #include "ui_extensions.h"
 #include "FavouritesManager.h"
+#include "CookbookManager.h"
 #include "RecipeSuggestionsManager.h"
 #include "filters_ui.h"
 #include <algorithm>
@@ -98,63 +99,28 @@ void showCurrentPageFavourites(bool force)
     if (lv_obj_get_child_count(objects.favourites_list) > 0 && !force)
     {
         updateFavouritesPaginationButtons();
-        return; // Don't repopulate if already populated (e.g. when switching tabs)
+        return;
     }
 
-    std::vector<Favorite> allFavourites = favouritesManager.getFavourites();
-
-    // Apply search filter
-    std::vector<Favorite> favourites;
-    if (s_favouritesSearchFilter.length() >= 3)
+    // ── View mode dispatch ──
+    if (g_favouritesViewMode == FavouritesViewMode::COOKBOOK_LIST)
     {
-        std::string filterLower = s_favouritesSearchFilter;
-        std::transform(filterLower.begin(), filterLower.end(), filterLower.begin(), ::tolower);
-        for (const auto &fav : allFavourites)
-        {
-            std::string nameLower = fav.name;
-            std::transform(nameLower.begin(), nameLower.end(), nameLower.begin(), ::tolower);
-            if (nameLower.find(filterLower) != std::string::npos)
-                favourites.push_back(fav);
-        }
+        showCurrentPageCookbooks(force);
+        return;
     }
-    else
+
+    // ── COOKBOOK_DRILL: show favourites for the active cookbook ──
+    ensure_back_button();
+
+    std::vector<Favorite> allFavs = favouritesManager.getFavourites();
+    std::vector<Favorite> filtered;
+    for (const auto &fav : allFavs)
     {
-        favourites = std::move(allFavourites);
+        if (std::find(fav.cookbookIds.begin(), fav.cookbookIds.end(), g_activeCookbookId) != fav.cookbookIds.end())
+            filtered.push_back(fav);
     }
 
-    int start = (favouritesCurrentPage - 1) * favouritesPageSize;
-    int end = std::min(start + favouritesPageSize, (int)favourites.size());
-
-    // If start is beyond the end of the vector, show empty page
-    if (start >= favourites.size() || start < 0)
-    {
-        ESP_LOGI("favourites", "No favourites to show for page %d", favouritesCurrentPage);
-        // Optionally adjust page number to last valid page
-        if (favouritesCurrentPage > 1)
-        {
-            favouritesCurrentPage = (favourites.size() + favouritesPageSize - 1) / favouritesPageSize;
-            if (favouritesCurrentPage < 1)
-                favouritesCurrentPage = 1;
-            start = (favouritesCurrentPage - 1) * favouritesPageSize;
-            end = std::min(start + favouritesPageSize, (int)favourites.size());
-        }
-        else
-        {
-            // Empty list
-            populateFavouritesList(objects.favourites_list, {});
-            updateFavouritesPaginationButtons();
-            return;
-        }
-    }
-
-    std::vector<Favorite> pageItems(
-        favourites.begin() + start,
-        favourites.begin() + end);
-
-    ESP_LOGI("favourites", "Showing favourites page %d, items %d-%d of %d",
-             favouritesCurrentPage, start, end, (int)favourites.size());
-    populateFavouritesList(objects.favourites_list, pageItems);
-    updateFavouritesPaginationButtons();
+    populateFavouritesList(objects.favourites_list, filtered);
 }
 
 // Structure for barcode upsert task
@@ -400,13 +366,11 @@ static void tabview_tab_changed_cb(lv_event_t *e)
     }
     else if (tab == 2)
     {
-        // Switching TO Favourites tab — rebuild from cached favourites
-        // Cancel any in-flight thumbnail fetches for recipes (disabled to allow background downloads)
-        // s_thumb_generation++;
         stop_all_shimmer_animations();
         lv_obj_clean(objects.recipes_list);
-        // Hide keyboard when switching away from products tab
         lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
+        // Reset to cookbook list view when entering the tab
+        cleanupCookbookDrill();
         showCurrentPageFavourites();
     }
 }
