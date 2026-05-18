@@ -11,6 +11,8 @@
 
 #include "thumbnail_manager.h"
 #include "CookbookManager.h"
+#include "CookbookService.h"
+#include "FavouriteService.h"
 
 static const char *TAG = "UIEXTENSIONS";
 
@@ -182,6 +184,45 @@ static void free_cookbook_click_ctx_cb(lv_event_t *e)
     delete (CookbookClickCtx *)lv_event_get_user_data(e);
 }
 
+// ── Delete cookbook with confirmation ─────────────────────────────────
+
+static void delete_cookbook_with_confirmation(const std::string &cookbookId, const std::string &cookbookName)
+{
+    ESP_LOGI(TAG, "Deleting cookbook: %s (%s)", cookbookName.c_str(), cookbookId.c_str());
+
+    // Background task: delete from Appwrite + local cache
+    struct DeleteCtx {
+        std::string cookbookId;
+        std::string cookbookName;
+    };
+    DeleteCtx *dctx = new DeleteCtx{cookbookId, cookbookName};
+    BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
+        [](void *param) {
+            DeleteCtx *ctx = static_cast<DeleteCtx *>(param);
+
+            // 1. Delete all favourites in this cookbook
+            ESP_LOGI(TAG, "Deleting favourites for cookbook: %s", ctx->cookbookId.c_str());
+            favouriteService.removeCookbookFromFavourites(ctx->cookbookId);
+
+            // 2. Delete the cookbook document
+            ESP_LOGI(TAG, "Deleting cookbook document: %s", ctx->cookbookId.c_str());
+            cookbookService.deleteCookbook(ctx->cookbookId);
+
+            // 3. Update local caches (on LVGL thread)
+            lv_async_call([](void *p) {
+                DeleteCtx *c = static_cast<DeleteCtx *>(p);
+                cookbookManager.removeCookbook(c->cookbookId);
+                favouritesManager.removeFavouritesByCookbook(c->cookbookId);
+                showSnackbar(("Deleted '" + c->cookbookName + "'").c_str(), 2000);
+                showCurrentPageCookbooks(true);
+                delete c;
+            }, ctx);
+        },
+        "delCookbook", 12288, dctx, 1, NULL, tskNO_AFFINITY,
+        MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (ret != pdPASS) { delete dctx; }
+}
+
 void populateCookbooksList(lv_obj_t *root, const std::vector<Cookbook> &cookbooks)
 {
     if (!root || !lv_obj_is_valid(root)) return;
@@ -273,12 +314,10 @@ void populateCookbooksList(lv_obj_t *root, const std::vector<Cookbook> &cookbook
         lv_obj_add_event_cb(del_btn, [](lv_event_t *e) {
             std::string *cookbookId = static_cast<std::string *>(lv_event_get_user_data(e));
             if (!cookbookId) return;
-            // Find cookbook name for confirmation
             std::vector<Cookbook> cbs = cookbookManager.getCookbooks();
             std::string name;
             for (const auto &cb : cbs) { if (cb.id == *cookbookId) { name = cb.name; break; } }
-            showSnackbar(("Delete '" + name + "' and all its favourites?").c_str(), 5000);
-            // TODO: proper confirmation + actual deletion — implemented in Task 10
+            delete_cookbook_with_confirmation(*cookbookId, name);
         }, LV_EVENT_CLICKED, delCtx);
         lv_obj_add_event_cb(del_btn, [](lv_event_t *e) {
             delete static_cast<std::string *>(lv_event_get_user_data(e));
