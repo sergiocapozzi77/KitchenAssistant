@@ -22,6 +22,8 @@ void close_product_edit_modal();
 void populateRecipeList(lv_obj_t *root, const std::vector<RecipeSuggestion> &recipes);
 void populateFavouritesList(lv_obj_t *root, const std::vector<Favorite> &favourites);
 void showCurrentPageFavourites(bool force = false);
+void populateCookbooksList(lv_obj_t *root, const std::vector<Cookbook> &cookbooks);
+void showCurrentPageCookbooks(bool force = false);
 void showRecipeDetailScreen(const RecipeSuggestion &recipe);
 
 // ── UI helpers ───────────────────────────────────────────────────────────────

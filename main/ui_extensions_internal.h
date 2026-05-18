@@ -44,3 +44,12 @@ extern lv_style_t style_del_btn;
 extern lv_style_t style_expiry_badge;
 extern lv_style_t style_checkbox_indicator;
 extern bool styles_initialized;
+
+// Cookbook navigation state
+enum class FavouritesViewMode {
+    COOKBOOK_LIST,
+    COOKBOOK_DRILL
+};
+extern FavouritesViewMode g_favouritesViewMode;
+extern std::string g_activeCookbookId;
+extern std::string g_activeCookbookName;
