@@ -14,7 +14,12 @@
 #include "RecipeAIDetailService.h"
 #include "FavouritesManager.h"
 #include "FavouriteService.h"
+#include "CookbookManager.h"
+#include "CookbookService.h"
 #include "styles.h"
+
+// Cookbook selection modal
+static lv_obj_t *s_cookbook_modal = nullptr;
 #include "filters_ui.h"
 #include "ProductsManager.h"
 #include "LeonardoImageGenerator.h"
@@ -92,6 +97,280 @@ static void detail_widget_deleted_cb(lv_event_t *e)
         ctx->header_img = nullptr;
 }
 
+// ── Cookbook selection modal ────────────────────────────────────────────
+
+static void close_cookbook_modal()
+{
+    if (s_cookbook_modal && lv_obj_is_valid(s_cookbook_modal))
+    {
+        lv_obj_del(s_cookbook_modal);
+        s_cookbook_modal = nullptr;
+    }
+}
+
+static void on_cookbook_selected(lv_event_t *e)
+{
+    HeartButtonContext *ctx = static_cast<HeartButtonContext *>(lv_event_get_user_data(e));
+    std::string *cookbookId = static_cast<std::string *>(lv_obj_get_user_data(lv_event_get_target(e)));
+    if (!ctx || !cookbookId) return;
+
+    std::string targetId = *cookbookId;
+    close_cookbook_modal();
+
+    // Same add-favourite logic as original heart_button_cb
+    std::string url = ctx->url;
+    if (url.empty() && ctx->recipeSource == "ai-deepseek")
+    {
+        url = "ai://deepseek/" + favouriteService.generateId();
+        ctx->url = url;
+    }
+
+    Favorite fav;
+    fav.url = url;
+    fav.name = ctx->name;
+    fav.imageUrl = ctx->imageUrl;
+    fav.imageUrlBig = ctx->imageUrlBig;
+    fav.description = ctx->description;
+    fav.difficulty = ctx->difficulty;
+    fav.totalTime = ctx->totalTime;
+    fav.recipeSource = ctx->recipeSource;
+    fav.ingredients = ctx->ingredients;
+    fav.methodSteps = ctx->methodSteps;
+    favouritesManager.addFavourite(fav);
+
+    lv_obj_add_flag(ctx->add, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(ctx->remove, LV_OBJ_FLAG_HIDDEN);
+
+    showSnackbar("Added to favourites", 3000);
+
+    // Background: create favourite in Appwrite, then link to cookbook
+    struct AddFavCtx { Favorite fav; std::string cookbookId; };
+    AddFavCtx *afCtx = new AddFavCtx{fav, targetId};
+    BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
+        [](void *param) {
+            AddFavCtx *a = static_cast<AddFavCtx *>(param);
+            bool ok = favouriteService.addFavourite(a->fav);
+            if (ok) {
+                std::vector<Favorite> favs = favouriteService.getFavourites();
+                for (const auto &f : favs) {
+                    if (f.url == a->fav.url) {
+                        favouriteService.addFavouriteToCookbook(f.id, a->cookbookId);
+                        break;
+                    }
+                }
+            }
+            delete a;
+            vTaskDelete(nullptr);
+        }, "addFavCB", 12288, afCtx, 1, NULL, tskNO_AFFINITY,
+        MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+
+    if (ret != pdPASS) { delete afCtx; }
+}
+
+static void show_cookbook_selection_modal(HeartButtonContext *ctx)
+{
+    if (s_cookbook_modal && lv_obj_is_valid(s_cookbook_modal)) return;
+
+    std::vector<Cookbook> cookbooks = cookbookManager.getCookbooks();
+
+    // Create modal overlay
+    s_cookbook_modal = lv_obj_create(lv_layer_top());
+    lv_obj_set_size(s_cookbook_modal, lv_pct(100), lv_pct(100));
+    lv_obj_set_style_bg_color(s_cookbook_modal, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_bg_opa(s_cookbook_modal, 160, 0);
+    lv_obj_set_style_border_width(s_cookbook_modal, 0, 0);
+    lv_obj_set_style_pad_all(s_cookbook_modal, 0, 0);
+    lv_obj_clear_flag(s_cookbook_modal, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_event_cb(s_cookbook_modal, [](lv_event_t *) {
+        close_cookbook_modal();
+    }, LV_EVENT_CLICKED, nullptr);
+
+    // Content panel
+    lv_obj_t *panel = lv_obj_create(s_cookbook_modal);
+    lv_obj_set_size(panel, 400, LV_SIZE_CONTENT);
+    lv_obj_set_max_height(panel, 500);
+    lv_obj_center(panel);
+    lv_obj_set_style_radius(panel, 16, 0);
+    lv_obj_set_style_bg_color(panel, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_bg_opa(panel, LV_OPA_COVER, 0);
+    lv_obj_set_style_pad_all(panel, 20, 0);
+    lv_obj_set_flex_flow(panel, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_row(panel, 12, 0);
+    lv_obj_clear_flag(panel, LV_OBJ_FLAG_SCROLLABLE);
+
+    // Title
+    lv_obj_t *title = lv_label_create(panel);
+    lv_label_set_text(title, "Add to Cookbook");
+    lv_obj_set_style_text_font(title, &ui_font_ext_font_montserrat_26, 0);
+    lv_obj_set_style_text_color(title, lv_color_hex(0x212529), 0);
+
+    // Cookbook list
+    for (const auto &cb : cookbooks)
+    {
+        lv_obj_t *btn = lv_button_create(panel);
+        lv_obj_set_width(btn, lv_pct(100));
+        lv_obj_set_height(btn, 48);
+        lv_obj_set_style_border_width(btn, 1, 0);
+        lv_obj_set_style_border_color(btn, lv_color_hex(0xE0E0E0), 0);
+        lv_obj_set_style_radius(btn, 8, 0);
+        lv_obj_set_style_bg_color(btn, lv_color_hex(0xF8F9FA), 0);
+        lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, 0);
+
+        lv_obj_t *lbl = lv_label_create(btn);
+        lv_label_set_text(lbl, cb.name.c_str());
+        lv_obj_center(lbl);
+        lv_obj_set_style_text_font(lbl, &ui_font_ext_font_montserrat_18, 0);
+
+        std::string *cbId = new std::string(cb.id);
+        lv_obj_set_user_data(btn, cbId);
+        lv_obj_add_event_cb(btn, on_cookbook_selected, LV_EVENT_CLICKED, ctx);
+        lv_obj_add_event_cb(btn, [](lv_event_t *ev) {
+            delete static_cast<std::string *>(lv_event_get_user_data(ev));
+        }, LV_EVENT_DELETE, cbId);
+    }
+
+    // "Create new cookbook" button
+    lv_obj_t *create_btn = lv_button_create(panel);
+    lv_obj_set_width(create_btn, lv_pct(100));
+    lv_obj_set_height(create_btn, 48);
+    lv_obj_set_style_border_width(create_btn, 2, 0);
+    lv_obj_set_style_border_color(create_btn, lv_color_hex(0x007AFF), 0);
+    lv_obj_set_style_radius(create_btn, 8, 0);
+    lv_obj_set_style_bg_color(create_btn, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_bg_opa(create_btn, LV_OPA_COVER, 0);
+
+    lv_obj_t *create_lbl = lv_label_create(create_btn);
+    lv_label_set_text(create_lbl, "+ Create New Cookbook");
+    lv_obj_center(create_lbl);
+    lv_obj_set_style_text_color(create_lbl, lv_color_hex(0x007AFF), 0);
+    lv_obj_set_style_text_font(create_lbl, &ui_font_ext_font_montserrat_18, 0);
+
+    // Create flow: show textarea + confirm
+    lv_obj_add_event_cb(create_btn, [](lv_event_t *ev) {
+        HeartButtonContext *hctx = static_cast<HeartButtonContext *>(lv_event_get_user_data(ev));
+        if (!hctx) return;
+
+        lv_obj_t *parent = lv_obj_get_parent(lv_event_get_target(ev));
+
+        // Hide the create button so user can't click it again
+        lv_obj_add_flag(lv_event_get_target(ev), LV_OBJ_FLAG_HIDDEN);
+
+        lv_obj_t *ta = lv_textarea_create(parent);
+        lv_obj_set_width(ta, lv_pct(100));
+        lv_obj_set_height(ta, 48);
+        lv_textarea_set_placeholder_text(ta, "Cookbook name...");
+        lv_obj_set_style_radius(ta, 8, 0);
+        lv_obj_set_style_border_width(ta, 1, 0);
+        lv_obj_set_style_border_color(ta, lv_color_hex(0x007AFF), 0);
+
+        lv_obj_t *confirm_btn = lv_button_create(parent);
+        lv_obj_set_width(confirm_btn, lv_pct(100));
+        lv_obj_set_height(confirm_btn, 48);
+        lv_obj_set_style_bg_color(confirm_btn, lv_color_hex(0x007AFF), 0);
+        lv_obj_set_style_bg_opa(confirm_btn, LV_OPA_COVER, 0);
+        lv_obj_set_style_radius(confirm_btn, 8, 0);
+
+        lv_obj_t *confirm_lbl = lv_label_create(confirm_btn);
+        lv_label_set_text(confirm_lbl, "Create");
+        lv_obj_center(confirm_lbl);
+        lv_obj_set_style_text_color(confirm_lbl, lv_color_white(), 0);
+
+        struct CreateCtx { HeartButtonContext *heartCtx; lv_obj_t *textarea; };
+        CreateCtx *createCtx = new CreateCtx{hctx, ta};
+
+        lv_obj_add_event_cb(confirm_btn, [](lv_event_t *event) {
+            CreateCtx *cctx = static_cast<CreateCtx *>(lv_event_get_user_data(event));
+            if (!cctx || !cctx->textarea) return;
+
+            const char *name = lv_textarea_get_text(cctx->textarea);
+            if (!name || strlen(name) == 0) {
+                showSnackbar("Please enter a name", 2000);
+                return;
+            }
+
+            std::string cbName = name;
+            HeartButtonContext *hctx = cctx->heartCtx;
+
+            close_cookbook_modal();
+
+            // Create cookbook in Appwrite + add to cache
+            std::string newId = cookbookService.createCookbook(cbName);
+            if (newId.empty()) {
+                showSnackbar("Failed to create cookbook", 3000);
+                return;
+            }
+
+            Cookbook newCb;
+            newCb.id = newId;
+            newCb.name = cbName;
+            cookbookManager.addCookbook(newCb);
+
+            // Add the favourite with this cookbookId
+            std::string url = hctx->url;
+            if (url.empty() && hctx->recipeSource == "ai-deepseek")
+            {
+                url = "ai://deepseek/" + favouriteService.generateId();
+                hctx->url = url;
+            }
+
+            Favorite fav;
+            fav.url = url;
+            fav.name = hctx->name;
+            fav.imageUrl = hctx->imageUrl;
+            fav.imageUrlBig = hctx->imageUrlBig;
+            fav.description = hctx->description;
+            fav.difficulty = hctx->difficulty;
+            fav.totalTime = hctx->totalTime;
+            fav.recipeSource = hctx->recipeSource;
+            fav.ingredients = hctx->ingredients;
+            fav.methodSteps = hctx->methodSteps;
+            favouritesManager.addFavourite(fav);
+
+            lv_obj_add_flag(hctx->add, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_clear_flag(hctx->remove, LV_OBJ_FLAG_HIDDEN);
+            showSnackbar("Added to favourites", 3000);
+
+            // Background sync
+            struct AddFavCtx2 { Favorite fav; std::string cookbookId; };
+            AddFavCtx2 *afCtx = new AddFavCtx2{fav, newId};
+            xTaskCreatePinnedToCoreWithCaps(
+                [](void *p) {
+                    AddFavCtx2 *a = static_cast<AddFavCtx2 *>(p);
+                    bool ok = favouriteService.addFavourite(a->fav);
+                    if (ok) {
+                        std::vector<Favorite> favs = favouriteService.getFavourites();
+                        for (const auto &f : favs) {
+                            if (f.url == a->fav.url) {
+                                favouriteService.addFavouriteToCookbook(f.id, a->cookbookId);
+                                break;
+                            }
+                        }
+                    }
+                    delete a;
+                    vTaskDelete(nullptr);
+                }, "addFavNew", 12288, afCtx, 1, NULL, tskNO_AFFINITY,
+                MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+
+            delete cctx;
+        }, LV_EVENT_CLICKED, createCtx);
+    }, LV_EVENT_CLICKED, ctx);
+
+    // Cancel button
+    lv_obj_t *cancel_btn = lv_button_create(panel);
+    lv_obj_set_width(cancel_btn, lv_pct(100));
+    lv_obj_set_height(cancel_btn, 40);
+    lv_obj_set_style_border_width(cancel_btn, 0, 0);
+    lv_obj_set_style_bg_opa(cancel_btn, LV_OPA_TRANSP, 0);
+
+    lv_obj_t *cancel_lbl = lv_label_create(cancel_btn);
+    lv_label_set_text(cancel_lbl, "Cancel");
+    lv_obj_center(cancel_lbl);
+    lv_obj_set_style_text_color(cancel_lbl, lv_color_hex(0x6C757D), 0);
+    lv_obj_add_event_cb(cancel_btn, [](lv_event_t *) { close_cookbook_modal(); }, LV_EVENT_CLICKED, nullptr);
+}
+
+// ── Heart button callback ──────────────────────────────────────────────
+
 static void heart_button_cb(lv_event_t *e)
 {
     // NOTE: this callback fires from within the LVGL dispatch path, so the
@@ -135,103 +414,8 @@ static void heart_button_cb(lv_event_t *e)
     }
     else
     {
-        // For AI recipes with empty URL, generate a synthetic URL.
-        std::string url = ctx->url;
-        if (url.empty() && ctx->recipeSource == "ai-deepseek")
-        {
-            url = "ai://deepseek/" + favouriteService.generateId();
-            ctx->url = url;
-        }
-
-        if (ctx->recipeSource == "ai-deepseek" && ctx->imageUrl.empty())
-        {
-            ESP_LOGI("Favourite", "Generating image for AI recipe: %s", ctx->name.c_str());
-
-            std::string cached = get_leonardo_cached_url(
-                "generate:" + ctx->name + "|||" + ctx->description, 112, 112);
-
-            if (!cached.empty())
-            {
-                ESP_LOGI("Favourite", "Leonardo URL cache hit for: %s", ctx->name.c_str());
-                ctx->imageUrl = cached;
-            }
-            else
-            {
-                ctx->imageUrl = "generate:" + ctx->name + "|||" + ctx->description;
-            }
-
-            std::string cachedBig = get_leonardo_cached_url(
-                "generate:" + ctx->name + "|||" + ctx->description, 800, 280);
-
-            if (!cachedBig.empty())
-            {
-                ESP_LOGI("Favourite", "Leonardo URL cache hit for big image: %s", ctx->name.c_str());
-                ctx->imageUrlBig = cachedBig;
-            }
-            else
-            {
-                ESP_LOGI("Favourite", "No Leonardo cache for big image.");
-            }
-        }
-
-        // Build local Favourite for immediate cache.
-        Favorite fav;
-        fav.url = url;
-        fav.name = ctx->name;
-        fav.imageUrl = ctx->imageUrl;
-        fav.imageUrlBig = ctx->imageUrlBig;
-        fav.description = ctx->description;
-        fav.difficulty = ctx->difficulty;
-        fav.totalTime = ctx->totalTime;
-        fav.recipeSource = ctx->recipeSource;
-        fav.ingredients = ctx->ingredients;
-        fav.methodSteps = ctx->methodSteps;
-        favouritesManager.addFavourite(fav);
-
-        ESP_LOGI("FAVORITE", "Adding favourite:");
-        ESP_LOGI("FAVORITE", "  url: %s", fav.url.c_str());
-        ESP_LOGI("FAVORITE", "  name: %s", fav.name.c_str());
-        ESP_LOGI("FAVORITE", "  imageUrl: %s", fav.imageUrl.c_str());
-        ESP_LOGI("FAVORITE", "  imageUrlBig: %s", fav.imageUrlBig.c_str());
-        ESP_LOGI("FAVORITE", "  description: %s", fav.description.c_str());
-        ESP_LOGI("FAVORITE", "  difficulty: %s", fav.difficulty.c_str());
-        ESP_LOGI("FAVORITE", "  totalTime: %s", fav.totalTime.c_str());
-        ESP_LOGI("FAVORITE", "  recipeSource: %s", fav.recipeSource.c_str());
-
-        for (size_t i = 0; i < fav.ingredients.size(); i++)
-            ESP_LOGI("FAVORITE", "  ingredient[%d]: %s", (int)i, fav.ingredients[i].c_str());
-        if (fav.ingredients.empty())
-            ESP_LOGI("FAVORITE", "  ingredients: (none)");
-
-        for (size_t i = 0; i < fav.methodSteps.size(); i++)
-            ESP_LOGI("FAVORITE", "  step[%d]: %s", (int)i, fav.methodSteps[i].c_str());
-        if (fav.methodSteps.empty())
-            ESP_LOGI("FAVORITE", "  methodSteps: (none)");
-
-        // Already inside LVGL lock — call directly, no lv_lock/unlock.
-        lv_obj_add_flag(ctx->add, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_clear_flag(ctx->remove, LV_OBJ_FLAG_HIDDEN);
-
-        showSnackbar("Added to favourites", 3000);
-
-        // Background task to sync with Appwrite.
-        Favorite *favParam = new Favorite(fav);
-        BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
-            [](void *param)
-            {
-                Favorite *favourite = static_cast<Favorite *>(param);
-                favouriteService.addFavourite(*favourite);
-                delete favourite;
-                vTaskDelete(nullptr);
-            },
-            "addFav", 8192, favParam, 1, NULL, tskNO_AFFINITY,
-            MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-
-        if (ret != pdPASS)
-        {
-            ESP_LOGE(TAG, "Failed to create addFav task — freeing param");
-            delete favParam;
-        }
+        // Show cookbook selection modal instead of adding directly
+        show_cookbook_selection_modal(ctx);
     }
 }
 
