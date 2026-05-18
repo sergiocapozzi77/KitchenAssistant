@@ -51,7 +51,7 @@ std::string CookbookService::httpGet(const std::string &url, int &status)
 {
     ESP_LOGI(TAG, "GET: %s", url.c_str());
     esp_http_client_handle_t client = createHttpClient(url);
-    if (!client) { status = -1; return {}; }
+    if (!client) { ESP_LOGE(TAG, "Failed to create HTTP client"); status = -1; return {}; }
 
     esp_err_t err = esp_http_client_open(client, 0);
     if (err != ESP_OK) { ESP_LOGE(TAG, "HTTP open error: %s", esp_err_to_name(err)); status = -1; esp_http_client_cleanup(client); return {}; }
@@ -75,13 +75,13 @@ std::string CookbookService::httpPost(const std::string &url, const std::string 
 {
     ESP_LOGI(TAG, "POST: %s", url.c_str());
     esp_http_client_handle_t client = createHttpClient(url);
-    if (!client) { status = -1; return {}; }
+    if (!client) { ESP_LOGE(TAG, "Failed to create HTTP client"); status = -1; return {}; }
 
     esp_http_client_set_method(client, HTTP_METHOD_POST);
     esp_http_client_set_header(client, "Content-Type", "application/json");
 
     esp_err_t err = esp_http_client_open(client, body.size());
-    if (err != ESP_OK) { status = -1; esp_http_client_cleanup(client); return {}; }
+    if (err != ESP_OK) { ESP_LOGE(TAG, "HTTP open error: %s", esp_err_to_name(err)); status = -1; esp_http_client_cleanup(client); return {}; }
 
     int bytes_written = esp_http_client_write(client, body.c_str(), body.size());
     if (bytes_written != (int)body.size()) { status = -1; esp_http_client_cleanup(client); return {}; }
@@ -103,11 +103,11 @@ int CookbookService::httpDelete(const std::string &url)
 {
     ESP_LOGI(TAG, "DELETE: %s", url.c_str());
     esp_http_client_handle_t client = createHttpClient(url);
-    if (!client) return -1;
+    if (!client) { ESP_LOGE(TAG, "Failed to create HTTP client"); return -1; }
 
     esp_http_client_set_method(client, HTTP_METHOD_DELETE);
     esp_err_t err = esp_http_client_open(client, 0);
-    if (err != ESP_OK) { esp_http_client_cleanup(client); return -1; }
+    if (err != ESP_OK) { ESP_LOGE(TAG, "HTTP open error: %s", esp_err_to_name(err)); esp_http_client_cleanup(client); return -1; }
 
     esp_http_client_fetch_headers(client);
     int status = esp_http_client_get_status_code(client);
@@ -181,8 +181,19 @@ std::string CookbookService::createCookbook(const std::string &name)
     std::string url = Endpoint + "/tablesdb/" + DatabaseId + "/tables/" + CookbooksCollectionId + "/rows";
 
     cJSON *root = cJSON_CreateObject();
+    if (!root)
+    {
+        ESP_LOGE(TAG, "JSON alloc failed");
+        return "";
+    }
     cJSON_AddStringToObject(root, "rowId", generateId().c_str());
     cJSON *data = cJSON_AddObjectToObject(root, "data");
+    if (!data)
+    {
+        ESP_LOGE(TAG, "JSON data alloc failed");
+        cJSON_Delete(root);
+        return "";
+    }
     cJSON_AddStringToObject(data, "name", name.c_str());
 
     char *json = cJSON_PrintUnformatted(root);
