@@ -9,10 +9,12 @@
 #include "fonts.h"
 #include "models.h"
 
+#include "styles.h"
 #include "thumbnail_manager.h"
 #include "CookbookManager.h"
 #include "CookbookService.h"
 #include "FavouriteService.h"
+#include "FavouritesManager.h"
 
 static const char *TAG = "UIEXTENSIONS";
 
@@ -48,21 +50,19 @@ static void back_to_cookbooks_cb(lv_event_t *e)
 
 void ensure_back_button()
 {
-    if (s_back_btn && lv_obj_is_valid(s_back_btn)) return;
+    if (s_back_btn && lv_obj_is_valid(s_back_btn))
+        return;
 
     if (!objects.favourites_header_pnl || !lv_obj_is_valid(objects.favourites_header_pnl))
         return;
 
     s_back_btn = lv_button_create(objects.favourites_header_pnl);
-    lv_obj_set_pos(s_back_btn, 0, 0);
-    lv_obj_set_size(s_back_btn, 60, 40);
-    lv_obj_set_style_border_width(s_back_btn, 0, 0);
-    lv_obj_set_style_bg_color(s_back_btn, lv_color_hex(0xE9ECEF), 0);
-    lv_obj_set_style_bg_opa(s_back_btn, LV_OPA_COVER, 0);
-    lv_obj_set_style_radius(s_back_btn, 8, 0);
+    lv_obj_set_pos(s_back_btn, 0, -7);
+    lv_obj_set_size(s_back_btn, 70, 50);
+    add_style_main_button(s_back_btn);
 
     lv_obj_t *lbl = lv_label_create(s_back_btn);
-    lv_label_set_text(lbl, LV_SYMBOL_LEFT " Back");
+    lv_label_set_text(lbl, LV_SYMBOL_LEFT);
     lv_obj_center(lbl);
 
     lv_obj_add_event_cb(s_back_btn, back_to_cookbooks_cb, LV_EVENT_CLICKED, nullptr);
@@ -168,7 +168,8 @@ struct CookbookClickCtx
 static void cookbook_card_click_cb(lv_event_t *e)
 {
     CookbookClickCtx *ctx = (CookbookClickCtx *)lv_event_get_user_data(e);
-    if (!ctx) return;
+    if (!ctx)
+        return;
 
     ESP_LOGI(TAG, "Cookbook clicked: %s", ctx->cookbookName.c_str());
 
@@ -191,13 +192,15 @@ static void delete_cookbook_with_confirmation(const std::string &cookbookId, con
     ESP_LOGI(TAG, "Deleting cookbook: %s (%s)", cookbookName.c_str(), cookbookId.c_str());
 
     // Background task: delete from Appwrite + local cache
-    struct DeleteCtx {
+    struct DeleteCtx
+    {
         std::string cookbookId;
         std::string cookbookName;
     };
     DeleteCtx *dctx = new DeleteCtx{cookbookId, cookbookName};
     BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
-        [](void *param) {
+        [](void *param)
+        {
             DeleteCtx *ctx = static_cast<DeleteCtx *>(param);
 
             // 1. Delete all favourites in this cookbook
@@ -209,23 +212,27 @@ static void delete_cookbook_with_confirmation(const std::string &cookbookId, con
             cookbookService.deleteCookbook(ctx->cookbookId);
 
             // 3. Update local caches (on LVGL thread)
-            lv_async_call([](void *p) {
+            lv_async_call([](void *p)
+                          {
                 DeleteCtx *c = static_cast<DeleteCtx *>(p);
                 cookbookManager.removeCookbook(c->cookbookId);
                 favouritesManager.removeFavouritesByCookbook(c->cookbookId);
                 showSnackbar(("Deleted '" + c->cookbookName + "'").c_str(), 2000);
                 showCurrentPageCookbooks(true);
-                delete c;
-            }, ctx);
+                delete c; }, ctx);
         },
         "delCookbook", 12288, dctx, 1, NULL, tskNO_AFFINITY,
         MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    if (ret != pdPASS) { delete dctx; }
+    if (ret != pdPASS)
+    {
+        delete dctx;
+    }
 }
 
 void populateCookbooksList(lv_obj_t *root, const std::vector<Cookbook> &cookbooks)
 {
-    if (!root || !lv_obj_is_valid(root)) return;
+    if (!root || !lv_obj_is_valid(root))
+        return;
 
     lv_lock();
     init_styles();
@@ -295,8 +302,9 @@ void populateCookbooksList(lv_obj_t *root, const std::vector<Cookbook> &cookbook
 
         // Delete button (X) in top-right corner
         lv_obj_t *del_btn = lv_button_create(card);
-        lv_obj_set_pos(del_btn, lv_obj_get_width(card) - 30, 0);
         lv_obj_set_size(del_btn, 28, 28);
+        lv_obj_add_flag(del_btn, LV_OBJ_FLAG_FLOATING);
+        lv_obj_align(del_btn, LV_ALIGN_TOP_RIGHT, -6, 6);
         lv_obj_set_style_border_width(del_btn, 0, 0);
         lv_obj_set_style_radius(del_btn, LV_RADIUS_CIRCLE, 0);
         lv_obj_set_style_bg_color(del_btn, lv_color_hex(0xE74C3C), 0);
@@ -311,17 +319,16 @@ void populateCookbooksList(lv_obj_t *root, const std::vector<Cookbook> &cookbook
 
         // Store cookbookId on the delete button's user data
         std::string *delCtx = new std::string(cb.id);
-        lv_obj_add_event_cb(del_btn, [](lv_event_t *e) {
+        lv_obj_add_event_cb(del_btn, [](lv_event_t *e)
+                            {
             std::string *cookbookId = static_cast<std::string *>(lv_event_get_user_data(e));
             if (!cookbookId) return;
             std::vector<Cookbook> cbs = cookbookManager.getCookbooks();
             std::string name;
             for (const auto &cb : cbs) { if (cb.id == *cookbookId) { name = cb.name; break; } }
-            delete_cookbook_with_confirmation(*cookbookId, name);
-        }, LV_EVENT_CLICKED, delCtx);
-        lv_obj_add_event_cb(del_btn, [](lv_event_t *e) {
-            delete static_cast<std::string *>(lv_event_get_user_data(e));
-        }, LV_EVENT_DELETE, delCtx);
+            delete_cookbook_with_confirmation(*cookbookId, name); }, LV_EVENT_CLICKED, delCtx);
+        lv_obj_add_event_cb(del_btn, [](lv_event_t *e)
+                            { delete static_cast<std::string *>(lv_event_get_user_data(e)); }, LV_EVENT_DELETE, delCtx);
     }
 
     lv_obj_scroll_to_y(root, scroll_y, LV_ANIM_OFF);

@@ -618,7 +618,7 @@ void create_screen_main() {
                                                     // favourites_reload_btn
                                                     lv_obj_t *obj = lv_button_create(parent_obj);
                                                     objects.favourites_reload_btn = obj;
-                                                    lv_obj_set_pos(obj, -6, -7);
+                                                    lv_obj_set_pos(obj, 99, -7);
                                                     lv_obj_set_size(obj, 50, 50);
                                                     lv_obj_add_event_cb(obj, action_favourites_reload_click, LV_EVENT_CLICKED, (void *)0);
                                                     add_style_main_button(obj);

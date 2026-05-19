@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-KitchenAssistant is an ESP32-P4 embedded application for kitchen inventory management. It tracks products and expiry dates via Appwrite cloud, and suggests recipes from GoodFood, Giallo Zafferano, and Ania Gotuje based on available ingredients. The UI runs on an 800x1280 LCD using LVGL 9.x.
+KitchenAssistant is an ESP32-P4 embedded application for kitchen inventory management. It tracks products and expiry dates via Appwrite cloud, and suggests recipes from GoodFood, Giallo Zafferano, and Ania Gotuje based on available ingredients. The UI runs on an 800x1280 LCD using LVGL 9.5.
 
 ## Build Commands
 

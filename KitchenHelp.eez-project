@@ -2509,7 +2509,7 @@
                                 {
                                   "objID": "c7340f91-2dc5-425a-9104-d9e93ab76b78",
                                   "type": "LVGLButtonWidget",
-                                  "left": -6,
+                                  "left": 99,
                                   "top": -7,
                                   "width": 50,
                                   "height": 50,

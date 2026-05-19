@@ -101,6 +101,11 @@ static void detail_widget_deleted_cb(lv_event_t *e)
 
 static void close_cookbook_modal()
 {
+    // Move the shared keyboard back to the main screen before closing
+    if (objects.keywords_keyboard && lv_obj_is_valid(objects.keywords_keyboard)) {
+        lv_obj_set_parent(objects.keywords_keyboard, lv_scr_act());
+        lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
+    }
     if (s_cookbook_modal && lv_obj_is_valid(s_cookbook_modal))
     {
         lv_obj_del(s_cookbook_modal);
@@ -111,7 +116,8 @@ static void close_cookbook_modal()
 static void on_cookbook_selected(lv_event_t *e)
 {
     HeartButtonContext *ctx = static_cast<HeartButtonContext *>(lv_event_get_user_data(e));
-    std::string *cookbookId = static_cast<std::string *>(lv_obj_get_user_data(lv_event_get_target(e)));
+    lv_obj_t *target = (lv_obj_t *)lv_event_get_target(e);
+    std::string *cookbookId = static_cast<std::string *>(lv_obj_get_user_data(target));
     if (!ctx || !cookbookId) return;
 
     std::string targetId = *cookbookId;
@@ -136,6 +142,7 @@ static void on_cookbook_selected(lv_event_t *e)
     fav.recipeSource = ctx->recipeSource;
     fav.ingredients = ctx->ingredients;
     fav.methodSteps = ctx->methodSteps;
+    fav.cookbookIds.push_back(targetId);
     favouritesManager.addFavourite(fav);
 
     lv_obj_add_flag(ctx->add, LV_OBJ_FLAG_HIDDEN);
@@ -188,7 +195,6 @@ static void show_cookbook_selection_modal(HeartButtonContext *ctx)
     // Content panel
     lv_obj_t *panel = lv_obj_create(s_cookbook_modal);
     lv_obj_set_size(panel, 400, LV_SIZE_CONTENT);
-    lv_obj_set_max_height(panel, 500);
     lv_obj_center(panel);
     lv_obj_set_style_radius(panel, 16, 0);
     lv_obj_set_style_bg_color(panel, lv_color_hex(0xFFFFFF), 0);
@@ -210,16 +216,11 @@ static void show_cookbook_selection_modal(HeartButtonContext *ctx)
         lv_obj_t *btn = lv_button_create(panel);
         lv_obj_set_width(btn, lv_pct(100));
         lv_obj_set_height(btn, 48);
-        lv_obj_set_style_border_width(btn, 1, 0);
-        lv_obj_set_style_border_color(btn, lv_color_hex(0xE0E0E0), 0);
-        lv_obj_set_style_radius(btn, 8, 0);
-        lv_obj_set_style_bg_color(btn, lv_color_hex(0xF8F9FA), 0);
-        lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, 0);
+        add_style_main_button(btn);
 
         lv_obj_t *lbl = lv_label_create(btn);
         lv_label_set_text(lbl, cb.name.c_str());
         lv_obj_center(lbl);
-        lv_obj_set_style_text_font(lbl, &ui_font_ext_font_montserrat_18, 0);
 
         std::string *cbId = new std::string(cb.id);
         lv_obj_set_user_data(btn, cbId);
@@ -233,47 +234,59 @@ static void show_cookbook_selection_modal(HeartButtonContext *ctx)
     lv_obj_t *create_btn = lv_button_create(panel);
     lv_obj_set_width(create_btn, lv_pct(100));
     lv_obj_set_height(create_btn, 48);
-    lv_obj_set_style_border_width(create_btn, 2, 0);
-    lv_obj_set_style_border_color(create_btn, lv_color_hex(0x007AFF), 0);
-    lv_obj_set_style_radius(create_btn, 8, 0);
-    lv_obj_set_style_bg_color(create_btn, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_set_style_bg_opa(create_btn, LV_OPA_COVER, 0);
+    add_style_main_button(create_btn);
 
     lv_obj_t *create_lbl = lv_label_create(create_btn);
     lv_label_set_text(create_lbl, "+ Create New Cookbook");
     lv_obj_center(create_lbl);
     lv_obj_set_style_text_color(create_lbl, lv_color_hex(0x007AFF), 0);
-    lv_obj_set_style_text_font(create_lbl, &ui_font_ext_font_montserrat_18, 0);
 
     // Create flow: show textarea + confirm
     lv_obj_add_event_cb(create_btn, [](lv_event_t *ev) {
         HeartButtonContext *hctx = static_cast<HeartButtonContext *>(lv_event_get_user_data(ev));
         if (!hctx) return;
 
-        lv_obj_t *parent = lv_obj_get_parent(lv_event_get_target(ev));
+        lv_obj_t *target = (lv_obj_t *)lv_event_get_target(ev);
+        lv_obj_t *parent = lv_obj_get_parent(target);
 
         // Hide the create button so user can't click it again
-        lv_obj_add_flag(lv_event_get_target(ev), LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(target, LV_OBJ_FLAG_HIDDEN);
 
         lv_obj_t *ta = lv_textarea_create(parent);
         lv_obj_set_width(ta, lv_pct(100));
         lv_obj_set_height(ta, 48);
         lv_textarea_set_placeholder_text(ta, "Cookbook name...");
+        lv_obj_set_style_text_font(ta, &ui_font_ext_font_montserrat_18, 0);
         lv_obj_set_style_radius(ta, 8, 0);
         lv_obj_set_style_border_width(ta, 1, 0);
         lv_obj_set_style_border_color(ta, lv_color_hex(0x007AFF), 0);
+        // Link the shared keyboard — move it to the top layer so it's above the modal overlay
+        lv_obj_add_event_cb(ta, [](lv_event_t *e) {
+            lv_obj_t *ta = (lv_obj_t *)lv_event_get_target(e);
+            if (objects.keywords_keyboard && lv_obj_is_valid(objects.keywords_keyboard)) {
+                lv_obj_set_parent(objects.keywords_keyboard, lv_layer_top());
+                lv_obj_move_foreground(objects.keywords_keyboard);
+                lv_obj_set_size(objects.keywords_keyboard, lv_pct(100), 299);
+                lv_obj_align(objects.keywords_keyboard, LV_ALIGN_BOTTOM_LEFT, 0, 0);
+                lv_keyboard_set_textarea(objects.keywords_keyboard, ta);
+                lv_obj_clear_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
+            }
+        }, LV_EVENT_FOCUSED, nullptr);
+        lv_obj_add_event_cb(ta, [](lv_event_t *) {
+            if (objects.keywords_keyboard && lv_obj_is_valid(objects.keywords_keyboard)) {
+                lv_obj_set_parent(objects.keywords_keyboard, lv_scr_act());
+                lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
+            }
+        }, LV_EVENT_DEFOCUSED, nullptr);
 
         lv_obj_t *confirm_btn = lv_button_create(parent);
         lv_obj_set_width(confirm_btn, lv_pct(100));
         lv_obj_set_height(confirm_btn, 48);
-        lv_obj_set_style_bg_color(confirm_btn, lv_color_hex(0x007AFF), 0);
-        lv_obj_set_style_bg_opa(confirm_btn, LV_OPA_COVER, 0);
-        lv_obj_set_style_radius(confirm_btn, 8, 0);
+        add_style_main_button(confirm_btn);
 
         lv_obj_t *confirm_lbl = lv_label_create(confirm_btn);
         lv_label_set_text(confirm_lbl, "Create");
         lv_obj_center(confirm_lbl);
-        lv_obj_set_style_text_color(confirm_lbl, lv_color_white(), 0);
 
         struct CreateCtx { HeartButtonContext *heartCtx; lv_obj_t *textarea; };
         CreateCtx *createCtx = new CreateCtx{hctx, ta};
@@ -324,6 +337,7 @@ static void show_cookbook_selection_modal(HeartButtonContext *ctx)
             fav.recipeSource = hctx->recipeSource;
             fav.ingredients = hctx->ingredients;
             fav.methodSteps = hctx->methodSteps;
+            fav.cookbookIds.push_back(newId);
             favouritesManager.addFavourite(fav);
 
             lv_obj_add_flag(hctx->add, LV_OBJ_FLAG_HIDDEN);
@@ -359,7 +373,7 @@ static void show_cookbook_selection_modal(HeartButtonContext *ctx)
     lv_obj_t *cancel_btn = lv_button_create(panel);
     lv_obj_set_width(cancel_btn, lv_pct(100));
     lv_obj_set_height(cancel_btn, 40);
-    lv_obj_set_style_border_width(cancel_btn, 0, 0);
+    add_style_main_button(cancel_btn);
     lv_obj_set_style_bg_opa(cancel_btn, LV_OPA_TRANSP, 0);
 
     lv_obj_t *cancel_lbl = lv_label_create(cancel_btn);

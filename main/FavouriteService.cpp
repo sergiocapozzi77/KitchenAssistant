@@ -359,6 +359,17 @@ Favorite FavouriteService::parseFavouriteFromJson(cJSON *item)
                     fav.methodSteps.push_back(step->valuestring);
             }
         }
+
+        cJSON *cookbookIds = cJSON_GetObjectItem(data, "cookbookIds");
+        if (cookbookIds && cJSON_IsArray(cookbookIds))
+        {
+            cJSON *id;
+            cJSON_ArrayForEach(id, cookbookIds)
+            {
+                if (cJSON_IsString(id) && id->valuestring)
+                    fav.cookbookIds.push_back(id->valuestring);
+            }
+        }
     }
     else
     {
@@ -430,6 +441,17 @@ Favorite FavouriteService::parseFavouriteFromJson(cJSON *item)
             {
                 if (cJSON_IsString(step) && step->valuestring)
                     fav.methodSteps.push_back(step->valuestring);
+            }
+        }
+
+        cJSON *cookbookIds = cJSON_GetObjectItem(item, "cookbookIds");
+        if (cookbookIds && cJSON_IsArray(cookbookIds))
+        {
+            cJSON *id;
+            cJSON_ArrayForEach(id, cookbookIds)
+            {
+                if (cJSON_IsString(id) && id->valuestring)
+                    fav.cookbookIds.push_back(id->valuestring);
             }
         }
     }
