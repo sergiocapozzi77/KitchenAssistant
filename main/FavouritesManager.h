@@ -19,6 +19,7 @@ public:
     void addFavourite(const Favorite &favourite);
     void removeFavourite(const std::string &url);
     void removeFavouritesByCookbook(const std::string &cookbookId);
+    void setFavourites(const std::vector<Favorite> &favourites);
 
     // Background task for fetching favourites
     void startBackgroundFetch();

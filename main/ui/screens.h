@@ -83,6 +83,7 @@ typedef struct _objects_t {
     lv_obj_t *recipes_filters_panel__product_selected_lbl;
     lv_obj_t *recipe_filter_panel_update_bt;
     lv_obj_t *favourites_header_pnl;
+    lv_obj_t *favourite_bar;
     lv_obj_t *favourites_prev_btn;
     lv_obj_t *favourites_next_btn;
     lv_obj_t *favourites_reload_btn;

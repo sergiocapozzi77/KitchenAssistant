@@ -102,6 +102,13 @@ void FavouritesManager::removeFavouritesByCookbook(const std::string &cookbookId
     }
 }
 
+void FavouritesManager::setFavourites(const std::vector<Favorite> &favourites)
+{
+    std::lock_guard<std::mutex> lock(_favouritesMutex);
+    _favourites = favourites;
+    ESP_LOGI(TAG, "Cache replaced with %zu favourites", favourites.size());
+}
+
 // Public API: Start background task to fetch favourites
 void FavouritesManager::startBackgroundFetch()
 {

@@ -57,7 +57,7 @@ void ensure_back_button()
         return;
 
     s_back_btn = lv_button_create(objects.favourites_header_pnl);
-    lv_obj_set_pos(s_back_btn, 0, -7);
+    lv_obj_set_pos(s_back_btn, 0, 13);
     lv_obj_set_size(s_back_btn, 70, 50);
     add_style_main_button(s_back_btn);
 
@@ -177,7 +177,51 @@ static void cookbook_card_click_cb(lv_event_t *e)
     g_favouritesViewMode = FavouritesViewMode::COOKBOOK_DRILL;
     g_activeCookbookId = ctx->cookbookId;
     g_activeCookbookName = ctx->cookbookName;
-    showCurrentPageFavourites(true);
+
+    // Show spinner while fetching
+    showSpinner();
+
+    // Fetch favourites in background and filter by cookbookId locally
+    // (server-side array query on cookbookIds returns 400, so we fetch all and filter)
+    struct DrillCtx
+    {
+        std::string cookbookId;
+    };
+    DrillCtx *dctx = new DrillCtx{ctx->cookbookId};
+    BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
+        [](void *param)
+        {
+            DrillCtx *d = static_cast<DrillCtx *>(param);
+
+            // Fetch all favourites and filter by cookbookId locally
+            std::vector<Favorite> allFavs = favouriteService.getFavourites();
+            std::vector<Favorite> filtered;
+            for (const auto &fav : allFavs)
+            {
+                if (std::find(fav.cookbookIds.begin(), fav.cookbookIds.end(), d->cookbookId) != fav.cookbookIds.end())
+                    filtered.push_back(fav);
+            }
+
+            // Update cache and show UI on LVGL thread
+            lv_async_call([](void *p)
+                          {
+                auto *f = static_cast<std::vector<Favorite> *>(p);
+                favouritesManager.setFavourites(*f);
+                hideSpinner();
+                showCurrentPageFavourites(true);
+                delete f; }, new std::vector<Favorite>(std::move(filtered)));
+
+            delete d;
+            vTaskDelete(nullptr);
+        },
+        "drillFav", 12288, dctx, 1, NULL, tskNO_AFFINITY,
+        MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+
+    if (ret != pdPASS)
+    {
+        delete dctx;
+        hideSpinner();
+    }
 }
 
 static void free_cookbook_click_ctx_cb(lv_event_t *e)

@@ -96,6 +96,16 @@ void showCurrentPageFavourites(bool force)
         ESP_LOGE("favourites", "favourites_list is invalid");
         return;
     }
+
+    // Show/hide the top bar (search, reload, pagination) based on view mode
+    if (objects.favourite_bar && lv_obj_is_valid(objects.favourite_bar))
+    {
+        if (g_favouritesViewMode == FavouritesViewMode::COOKBOOK_LIST)
+            lv_obj_add_flag(objects.favourite_bar, LV_OBJ_FLAG_HIDDEN);
+        else
+            lv_obj_clear_flag(objects.favourite_bar, LV_OBJ_FLAG_HIDDEN);
+    }
+
     if (lv_obj_get_child_count(objects.favourites_list) > 0 && !force)
     {
         updateFavouritesPaginationButtons();
