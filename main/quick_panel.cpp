@@ -1,6 +1,9 @@
 #include "quick_panel.h"
 #include "display_sleep.h"
 #include "esp_log.h"
+#include "nvs_flash.h"
+#include "nvs.h"
+#include "bsp/display.h"
 #include <algorithm>
 
 static const char *TAG = "QuickPanel";
@@ -64,7 +67,7 @@ void QuickPanel::onSleepClick(lv_event_t *e)
 //  Public API
 // ═══════════════════════════════════════════════════════════════════════
 
-void QuickPanel::init() { buildUI(); }
+void QuickPanel::init() { loadBrightness(); buildUI(); }
 
 void QuickPanel::show()
 {
@@ -246,6 +249,46 @@ bool QuickPanel::handleTouch(int32_t x, int32_t y, bool pressed)
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+//  Brightness — NVS save / restore
+// ═══════════════════════════════════════════════════════════════════════
+
+static const char *NVS_NS = "quick_panel";
+
+void QuickPanel::loadBrightness()
+{
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(NVS_NS, NVS_READONLY, &h);
+    if (err == ESP_OK)
+    {
+        uint8_t val = 80;
+        if (nvs_get_u8(h, "brightness", &val) == ESP_OK)
+        {
+            if (val < 5)
+                val = 5;
+            if (val > 100)
+                val = 100;
+            _brightness = val;
+        }
+        nvs_close(h);
+    }
+    bsp_display_brightness_set(_brightness);
+    ESP_LOGI(TAG, "brightness restored to %d%%", _brightness);
+}
+
+void QuickPanel::saveBrightness(uint8_t val)
+{
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(NVS_NS, NVS_READWRITE, &h);
+    if (err == ESP_OK)
+    {
+        nvs_set_u8(h, "brightness", val);
+        nvs_commit(h);
+        nvs_close(h);
+    }
+    ESP_LOGI(TAG, "brightness saved %d%%", val);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 //  UI — white theme
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -399,18 +442,18 @@ void QuickPanel::buildUI()
         sun_label, lv_color_hex(0xF9A825), LV_PART_MAIN | LV_STATE_DEFAULT);
 
     lv_obj_t *slider = lv_slider_create(bright_row);
-    lv_obj_set_size(slider, SCREEN_W - 28 * 2 - 36 - 14, 6);
+    lv_obj_set_size(slider, SCREEN_W - 28 * 2 - 36 - 14, 20);
     lv_slider_set_range(slider, 5, 100);
-    lv_slider_set_value(slider, 80, LV_ANIM_OFF);
+    lv_slider_set_value(slider, _brightness, LV_ANIM_OFF);
     lv_obj_set_style_bg_color(
         slider, lv_color_hex(0xE0E0E0), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_color(
         slider, lv_color_hex(0xF9A825), LV_PART_INDICATOR | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(slider, LV_OPA_COVER, LV_PART_INDICATOR);
     lv_obj_set_style_bg_color(
-        slider, lv_color_hex(0xFFFFFF), LV_PART_KNOB | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_color(
         slider, lv_color_hex(0xCCCCCC), LV_PART_KNOB | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_color(
+        slider, lv_color_hex(0xAAAAAA), LV_PART_KNOB | LV_STATE_DEFAULT);
     lv_obj_set_style_border_width(slider, 1, LV_PART_KNOB);
     lv_obj_set_style_radius(slider, 3, LV_PART_MAIN);
     lv_obj_set_style_radius(slider, 3, LV_PART_INDICATOR);
@@ -422,7 +465,7 @@ void QuickPanel::buildUI()
     lv_obj_add_event_cb(slider, [](lv_event_t *e)
                         {
         int32_t val = lv_slider_get_value(lv_event_get_target_obj(e));
-        // ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, val * 40);
-        // ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
+        bsp_display_brightness_set((int)val);
+        QuickPanel::saveBrightness((uint8_t)val);
         ESP_LOGI("QuickPanel", "Brightness -> %" PRId32, val); }, LV_EVENT_VALUE_CHANGED, nullptr);
 }

@@ -48,6 +48,11 @@ private:
     int32_t _drag_start_y = 0;
     int32_t _panel_base_y = 0;
 
+    // ── brightness ───────────────────────────────────────────────────
+    uint8_t _brightness = 80;
+    void loadBrightness();
+    static void saveBrightness(uint8_t val);
+
     // ── internals ────────────────────────────────────────────────────
     void buildUI();
     void setY(int32_t y);
