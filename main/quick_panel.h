@@ -60,6 +60,7 @@ private:
 
     static void onAnimDone(lv_anim_t *a);
     static void onSleepClick(lv_event_t *e);
+    static void onDeepSleepClick(lv_event_t *e);
 };
 
 extern QuickPanel g_quick_panel;

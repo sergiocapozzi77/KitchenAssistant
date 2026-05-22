@@ -74,26 +74,32 @@ void delete_ctx_shimmer(ThumbContext *ctx)
     if (!ctx || !ctx->shimmer)
         return;
 
-    // CRITICAL: Only delete shimmer if it's still a child of ctx->thumb.
-    // Shimmer is created as a child of thumb (create_shimmer_overlay(thumb)).
-    // If thumb was cascade-deleted (screen transition), shimmer was also
-    // cascade-deleted and ctx->shimmer is a dangling pointer.
+    // CRITICAL: Do NOT call lv_obj_del on ctx->shimmer here.
     //
-    // lv_obj_is_valid() alone is NOT sufficient here: if the freed shimmer
-    // memory was reused by another valid LVGL object, lv_obj_is_valid()
-    // would incorrectly return true, causing us to delete the wrong object
-    // and corrupt the event system.
+    // The shimmer was created as a child of ctx->thumb
+    // (create_shimmer_overlay(thumb)).  If the shimmer was cascade-deleted
+    // (e.g. by a recipe-list rebuild or screen transition), its memory was
+    // freed and may have been reused by a different LVGL child of the same
+    // thumb.  In that case:
     //
-    // By verifying shimmer's parent is still ctx->thumb, we catch both:
-    // 1. Cascade-deleted shimmer (parent was cleared by LVGL)
-    // 2. Freed-and-reused memory (the imposter object has a different parent)
+    //   - lv_obj_is_valid(ctx->shimmer) returns true (the memory is valid LVGL)
+    //   - lv_obj_get_parent(ctx->shimmer) == ctx->thumb (the new child
+    //     belongs to the same parent)
+    //
+    // Both checks pass, but ctx->shimmer is an *imposter* — deleting it
+    // would corrupt the event system and crash (Load access fault with
+    // 0xa5a5a5a5 dead-canary in the freed event list).
+    //
+    // Instead: stop the animation and hide the shimmer.  It will be
+    // cascade-deleted when the parent thumb is cleaned up during a list
+    // rebuild or screen transition.
     if (ctx->thumb &&
         lv_obj_is_valid(ctx->thumb) &&
         lv_obj_is_valid(ctx->shimmer) &&
         lv_obj_get_parent(ctx->shimmer) == ctx->thumb)
     {
         stop_shimmer_animation(ctx->shimmer);
-        lv_obj_del(ctx->shimmer);
+        lv_obj_add_flag(ctx->shimmer, LV_OBJ_FLAG_HIDDEN);
     }
     ctx->shimmer = nullptr; // always sync, regardless of prior validity
 }

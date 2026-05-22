@@ -1,9 +1,11 @@
 #include "quick_panel.h"
 #include "display_sleep.h"
 #include "esp_log.h"
+#include "esp_sleep.h"
 #include "nvs_flash.h"
 #include "nvs.h"
 #include "bsp/display.h"
+#include "bsp/esp32_p4_function_ev_board.h"
 #include <algorithm>
 
 static const char *TAG = "QuickPanel";
@@ -61,6 +63,33 @@ void QuickPanel::onSleepClick(lv_event_t *e)
         auto *qp = static_cast<QuickPanel *>(d);
         qp->hide();
         g_display_sleep.sleepWithoutWake(); }, self);
+}
+
+void QuickPanel::onDeepSleepClick(lv_event_t *e)
+{
+    auto *self = static_cast<QuickPanel *>(lv_event_get_user_data(e));
+    lv_async_call([](void *d)
+                  {
+        auto *qp = static_cast<QuickPanel *>(d);
+        qp->hide();
+        g_display_sleep.sleep(); // sets sleeping flag + backlight off
+        vTaskDelay(pdMS_TO_TICKS(300)); // let finger lift before sleeping
+
+        ESP_LOGI(TAG, "Entering light sleep (wake on touch)...");
+
+        // Configure touch INT (GPIO 21) as wake source for light sleep.
+        // GSL3680 asserts INT LOW when the screen is touched.
+        gpio_wakeup_enable(BSP_LCD_TOUCH_INT, GPIO_INTR_LOW_LEVEL);
+        esp_sleep_enable_gpio_wakeup();
+
+        esp_light_sleep_start();
+
+        // Woke up — restore display immediately instead of waiting for a
+        // second touch to flow through wrappedTouchReadCb → onTouch().
+        g_display_sleep.wake();
+
+        ESP_LOGI(TAG, "Woke from light sleep");
+    }, self);
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -421,6 +450,7 @@ void QuickPanel::buildUI()
     };
 
     makeTile(LV_SYMBOL_POWER, "Sleep", onSleepClick, 0xE53935);
+    makeTile(LV_SYMBOL_POWER, "Deep Sleep", onDeepSleepClick, 0x6A1B9A);
     makeTile(LV_SYMBOL_HOME, "Home", nullptr, 0x1A73E8);
     makeTile(LV_SYMBOL_SETTINGS, "Settings", nullptr, 0x757575);
 
@@ -457,7 +487,7 @@ void QuickPanel::buildUI()
     lv_obj_set_style_border_width(slider, 1, LV_PART_KNOB);
     lv_obj_set_style_radius(slider, 3, LV_PART_MAIN);
     lv_obj_set_style_radius(slider, 3, LV_PART_INDICATOR);
-    lv_obj_set_style_pad_all(slider, 8, LV_PART_KNOB);
+    lv_obj_set_style_pad_all(slider, 0, LV_PART_KNOB);
     lv_obj_set_style_shadow_width(slider, 4, LV_PART_KNOB);
     lv_obj_set_style_shadow_color(slider, lv_color_hex(0x000000), LV_PART_KNOB);
     lv_obj_set_style_shadow_opa(slider, LV_OPA_10, LV_PART_KNOB);

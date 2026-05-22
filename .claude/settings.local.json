@@ -27,7 +27,14 @@
       "Bash(find /c/Users/sergi/esp -name \"*.h\" 2>/dev/null | head -5; echo \"---\"; ls /c/Users/sergi/esp/ 2>/dev/null)",
       "Read(//c/Users/sergi/**)",
       "Bash(git *)",
-      "Bash(find C:/Users/sergi/source/repos/KitchenAssistant/managed_components -name \"*.c\" -path \"*bsp*\" -exec grep -l \"backlight_on\\\\|backlight_off\\\\|display_backlight\" {} \\\\;)"
+      "Bash(find C:/Users/sergi/source/repos/KitchenAssistant/managed_components -name \"*.c\" -path \"*bsp*\" -exec grep -l \"backlight_on\\\\|backlight_off\\\\|display_backlight\" {} \\\\;)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:www.laskakit.cz)",
+      "WebFetch(domain:www.alibaba.com)",
+      "WebFetch(domain:community.home-assistant.io)",
+      "WebFetch(domain:www.walmart.com)"
     ],
     "deny": [
       "Bash(idf.py build *)",
