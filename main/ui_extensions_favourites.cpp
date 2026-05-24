@@ -18,7 +18,7 @@
 
 static const char *TAG = "UIEXTENSIONS";
 
-FavouritesViewMode g_favouritesViewMode = FavouritesViewMode::COOKBOOK_LIST;
+FavouritesViewMode g_favouritesViewMode = FavouritesViewMode::ALL_FAVOURITES;
 std::string g_activeCookbookId;
 std::string g_activeCookbookName;
 
@@ -35,7 +35,7 @@ static lv_obj_t *s_back_btn = nullptr;
 
 static void back_to_cookbooks_cb(lv_event_t *e)
 {
-    g_favouritesViewMode = FavouritesViewMode::COOKBOOK_LIST;
+    g_favouritesViewMode = FavouritesViewMode::ALL_FAVOURITES;
     g_activeCookbookId.clear();
     g_activeCookbookName.clear();
 
@@ -70,7 +70,7 @@ void ensure_back_button()
 
 void cleanupCookbookDrill()
 {
-    g_favouritesViewMode = FavouritesViewMode::COOKBOOK_LIST;
+    g_favouritesViewMode = FavouritesViewMode::ALL_FAVOURITES;
     g_activeCookbookId.clear();
     g_activeCookbookName.clear();
     if (s_back_btn && lv_obj_is_valid(s_back_btn))

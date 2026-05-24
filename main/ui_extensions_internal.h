@@ -51,6 +51,7 @@ void ensure_back_button();
 
 // Cookbook navigation state
 enum class FavouritesViewMode {
+    ALL_FAVOURITES,
     COOKBOOK_LIST,
     COOKBOOK_DRILL
 };
