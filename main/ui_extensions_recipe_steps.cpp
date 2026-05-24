@@ -246,7 +246,7 @@ void UIExtensionsRecipeSteps::populatePhaseImages(const Recipe &recipe, int phas
 
     // Stop shimmer animations before cleaning — active animations on children
     // being deleted can cause use-after-free in the LVGL animation system.
-    stop_all_shimmer_animations();
+    // stop_all_shimmer_animations();  // DISABLED — shimmer caused crashes
 
     // Clear container and prepare layout
     lv_obj_clean(objects.recipe_phase_imgs);
@@ -272,10 +272,10 @@ void UIExtensionsRecipeSteps::populatePhaseImages(const Recipe &recipe, int phas
                 lv_obj_set_style_clip_corner(thumb, true, 0);
                 lv_obj_set_style_border_width(thumb, 0, 0);
 
-                lv_obj_t *shimmer = create_shimmer_overlay(thumb);
-                start_shimmer_animation(shimmer, thumb);
+                // lv_obj_t *shimmer = create_shimmer_overlay(thumb);  // DISABLED — shimmer caused crashes
+                // start_shimmer_animation(shimmer, thumb);
 
-                ThumbContext *tctx = new ThumbContext{thumb, shimmer, imgRef.url, 0, {}, 300, 200};
+                ThumbContext *tctx = new ThumbContext{thumb, imgRef.url, 0, {}, 300, 200};
                 lv_obj_add_event_cb(thumb, thumb_obj_deleted_cb, LV_EVENT_DELETE, tctx);
                 thumb_queue_push(tctx);
             }
@@ -472,7 +472,7 @@ void UIExtensionsRecipeSteps::clearCurrentRecipe()
     // Stop all shimmer animations before cleaning containers, otherwise
     // active animations on thumbnail children may access freed objects during
     // recursive deletion inside lv_obj_clean.
-    stop_all_shimmer_animations();
+    // stop_all_shimmer_animations();  // DISABLED — shimmer caused crashes
 
     // Clear UI containers
     if (objects.recipe_phase_title_txt && lv_obj_is_valid(objects.recipe_phase_title_txt))

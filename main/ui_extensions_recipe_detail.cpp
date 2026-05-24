@@ -733,10 +733,10 @@ static void fetch_recipe_detail_task(void *arg)
         lv_lock();
         if (ctx->header_img && lv_obj_is_valid(ctx->header_img))
         {
-            lv_obj_t *shimmer = create_shimmer_overlay(ctx->header_img);
-            start_shimmer_animation(shimmer, ctx->header_img);
+            // lv_obj_t *shimmer = create_shimmer_overlay(ctx->header_img);  // DISABLED — shimmer caused crashes
+            // start_shimmer_animation(shimmer, ctx->header_img);
 
-            ThumbContext *tctx = new ThumbContext{ctx->header_img, shimmer, thumbUrl, 0, {}, 800, 280};
+            ThumbContext *tctx = new ThumbContext{ctx->header_img, thumbUrl, 0, {}, 800, 280};
             lv_obj_add_event_cb(ctx->header_img, thumb_obj_deleted_cb, LV_EVENT_DELETE, tctx);
             lv_unlock();
 
@@ -760,7 +760,7 @@ void showRecipeDetailScreen(const RecipeSuggestion &recipe)
     // not on their children — so shimmer bars on cards would keep running
     // and can trigger invalidation-walk crashes (blur_walk_cb accessing
     // freed styles memory) during the transition.
-    stop_all_shimmer_animations();
+    // stop_all_shimmer_animations();  // DISABLED — shimmer caused crashes
 
     lv_obj_t *prev_screen = lv_scr_act();
 

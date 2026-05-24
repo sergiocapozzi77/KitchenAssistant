@@ -329,10 +329,10 @@ static lv_obj_t *createRecipeCardInternal(lv_obj_t *parent,
 
     if (!thumbUrl.empty())
     {
-        lv_obj_t *shimmer = create_shimmer_overlay(thumb);
-        start_shimmer_animation(shimmer, thumb);
+        // lv_obj_t *shimmer = create_shimmer_overlay(thumb);  // DISABLED — shimmer caused crashes
+        // start_shimmer_animation(shimmer, thumb);
 
-        ThumbContext *tctx = new ThumbContext{thumb, shimmer, thumbUrl, 0 /*set by push*/, {}};
+        ThumbContext *tctx = new ThumbContext{thumb, thumbUrl, 0 /*set by push*/, {}};
         tctx->cacheAllowed = useCache;
         lv_obj_add_event_cb(thumb, thumb_obj_deleted_cb, LV_EVENT_DELETE, tctx);
 

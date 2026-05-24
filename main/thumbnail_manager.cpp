@@ -69,40 +69,40 @@ std::atomic<uint32_t> s_thumb_generation{0};
 
 // Must be called with lv_lock held.
 // Safe to call even if ctx->shimmer is nullptr or already invalid.
-void delete_ctx_shimmer(ThumbContext *ctx)
-{
-    if (!ctx || !ctx->shimmer)
-        return;
-
-    // CRITICAL: Do NOT call lv_obj_del on ctx->shimmer here.
-    //
-    // The shimmer was created as a child of ctx->thumb
-    // (create_shimmer_overlay(thumb)).  If the shimmer was cascade-deleted
-    // (e.g. by a recipe-list rebuild or screen transition), its memory was
-    // freed and may have been reused by a different LVGL child of the same
-    // thumb.  In that case:
-    //
-    //   - lv_obj_is_valid(ctx->shimmer) returns true (the memory is valid LVGL)
-    //   - lv_obj_get_parent(ctx->shimmer) == ctx->thumb (the new child
-    //     belongs to the same parent)
-    //
-    // Both checks pass, but ctx->shimmer is an *imposter* — deleting it
-    // would corrupt the event system and crash (Load access fault with
-    // 0xa5a5a5a5 dead-canary in the freed event list).
-    //
-    // Instead: stop the animation and hide the shimmer.  It will be
-    // cascade-deleted when the parent thumb is cleaned up during a list
-    // rebuild or screen transition.
-    if (ctx->thumb &&
-        lv_obj_is_valid(ctx->thumb) &&
-        lv_obj_is_valid(ctx->shimmer) &&
-        lv_obj_get_parent(ctx->shimmer) == ctx->thumb)
-    {
-        stop_shimmer_animation(ctx->shimmer);
-        lv_obj_add_flag(ctx->shimmer, LV_OBJ_FLAG_HIDDEN);
-    }
-    ctx->shimmer = nullptr; // always sync, regardless of prior validity
-}
+// void delete_ctx_shimmer(ThumbContext *ctx)  // DISABLED — shimmer caused crashes
+// {
+//     if (!ctx || !ctx->shimmer)
+//         return;
+//
+//     // CRITICAL: Do NOT call lv_obj_del on ctx->shimmer here.
+//     //
+//     // The shimmer was created as a child of ctx->thumb
+//     // (create_shimmer_overlay(thumb)).  If the shimmer was cascade-deleted
+//     // (e.g. by a recipe-list rebuild or screen transition), its memory was
+//     // freed and may have been reused by a different LVGL child of the same
+//     // thumb.  In that case:
+//     //
+//     //   - lv_obj_is_valid(ctx->shimmer) returns true (the memory is valid LVGL)
+//     //   - lv_obj_get_parent(ctx->shimmer) == ctx->thumb (the new child
+//     //     belongs to the same parent)
+//     //
+//     // Both checks pass, but ctx->shimmer is an *imposter* — deleting it
+//     // would corrupt the event system and crash (Load access fault with
+//     // 0xa5a5a5a5 dead-canary in the freed event list).
+//     //
+//     // Instead: stop the animation and hide the shimmer.  It will be
+//     // cascade-deleted when the parent thumb is cleaned up during a list
+//     // rebuild or screen transition.
+//     if (ctx->thumb &&
+//         lv_obj_is_valid(ctx->thumb) &&
+//         lv_obj_is_valid(ctx->shimmer) &&
+//         lv_obj_get_parent(ctx->shimmer) == ctx->thumb)
+//     {
+//         stop_shimmer_animation(ctx->shimmer);
+//         lv_obj_add_flag(ctx->shimmer, LV_OBJ_FLAG_HIDDEN);
+//     }
+//     ctx->shimmer = nullptr; // always sync, regardless of prior validity
+// }
 
 // ── Init ────────────────────────────────────────────────────────────────────
 
@@ -152,7 +152,7 @@ void thumb_queue_push(ThumbContext *ctx)
         if (ctx->thumb && lv_obj_is_valid(ctx->thumb))
             lv_obj_remove_event_cb_with_user_data(ctx->thumb, thumb_obj_deleted_cb, ctx);
         // delete_ctx_shimmer handles nullptr / already-invalid shimmer safely.
-        delete_ctx_shimmer(ctx);
+        // delete_ctx_shimmer(ctx);  // DISABLED — shimmer caused crashes
         lv_unlock();
 
         delete ctx;
@@ -166,68 +166,68 @@ void thumb_queue_cancel_all()
 }
 
 // ── Shimmer ─────────────────────────────────────────────────────────────────
-
-static void shimmer_anim_cb(void *var, int32_t v)
-{
-    lv_obj_t *shimmer_bar = (lv_obj_t *)var;
-    if (!shimmer_bar || !lv_obj_is_valid(shimmer_bar))
-        return;
-    lv_obj_set_x(shimmer_bar, v);
-}
-
-lv_obj_t *create_shimmer_overlay(lv_obj_t *parent)
-{
-    lv_obj_t *shimmer = lv_obj_create(parent);
-    lv_obj_set_size(shimmer, 50, lv_obj_get_height(parent));
-    lv_obj_set_style_bg_color(shimmer, lv_color_white(), 0);
-    lv_obj_set_style_bg_opa(shimmer, LV_OPA_30, 0);
-    lv_obj_set_style_radius(shimmer, 0, 0);
-    lv_obj_set_style_border_width(shimmer, 0, 0);
-    lv_obj_set_style_shadow_width(shimmer, 0, 0);
-    lv_obj_set_style_bg_grad_color(shimmer, lv_color_white(), 0);
-    lv_obj_set_style_bg_grad_dir(shimmer, LV_GRAD_DIR_HOR, 0);
-    lv_obj_set_style_bg_grad_stop(shimmer, 255, 0);
-    lv_obj_set_style_bg_main_stop(shimmer, 0, 0);
-    lv_obj_set_x(shimmer, -lv_obj_get_width(shimmer));
-    lv_obj_set_y(shimmer, 0);
-    return shimmer;
-}
-
-void start_shimmer_animation(lv_obj_t *shimmer_bar, lv_obj_t *parent)
-{
-    int32_t start_x = -lv_obj_get_width(shimmer_bar);
-    int32_t end_x = lv_obj_get_width(parent);
-    lv_anim_t a;
-    lv_anim_init(&a);
-    lv_anim_set_var(&a, shimmer_bar);
-    lv_anim_set_exec_cb(&a, shimmer_anim_cb);
-    lv_anim_set_values(&a, start_x, end_x);
-    lv_anim_set_time(&a, 1500);
-    lv_anim_set_playback_time(&a, 1500);
-    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
-    lv_anim_start(&a);
-}
-
-void stop_shimmer_animation(lv_obj_t *shimmer_bar)
-{
-    lv_anim_delete(shimmer_bar, shimmer_anim_cb);
-}
-
-void stop_and_delete_shimmer(lv_obj_t *shimmer)
-{
-    if (!shimmer || !lv_obj_is_valid(shimmer))
-        return;
-    lv_anim_delete(shimmer, shimmer_anim_cb);
-    lv_obj_del(shimmer);
-}
-
-void stop_all_shimmer_animations()
-{
-    // Delete ALL animations whose exec_cb is shimmer_anim_cb,
-    // regardless of the animated object (var == NULL matches all).
-    // This prevents invalidation-walk crashes during screen transitions.
-    lv_anim_delete(NULL, shimmer_anim_cb);
-}
+//
+// static void shimmer_anim_cb(void *var, int32_t v)
+// {
+//     lv_obj_t *shimmer_bar = (lv_obj_t *)var;
+//     if (!shimmer_bar || !lv_obj_is_valid(shimmer_bar))
+//         return;
+//     lv_obj_set_x(shimmer_bar, v);
+// }
+//
+// lv_obj_t *create_shimmer_overlay(lv_obj_t *parent)
+// {
+//     lv_obj_t *shimmer = lv_obj_create(parent);
+//     lv_obj_set_size(shimmer, 50, lv_obj_get_height(parent));
+//     lv_obj_set_style_bg_color(shimmer, lv_color_white(), 0);
+//     lv_obj_set_style_bg_opa(shimmer, LV_OPA_30, 0);
+//     lv_obj_set_style_radius(shimmer, 0, 0);
+//     lv_obj_set_style_border_width(shimmer, 0, 0);
+//     lv_obj_set_style_shadow_width(shimmer, 0, 0);
+//     lv_obj_set_style_bg_grad_color(shimmer, lv_color_white(), 0);
+//     lv_obj_set_style_bg_grad_dir(shimmer, LV_GRAD_DIR_HOR, 0);
+//     lv_obj_set_style_bg_grad_stop(shimmer, 255, 0);
+//     lv_obj_set_style_bg_main_stop(shimmer, 0, 0);
+//     lv_obj_set_x(shimmer, -lv_obj_get_width(shimmer));
+//     lv_obj_set_y(shimmer, 0);
+//     return shimmer;
+// }
+//
+// void start_shimmer_animation(lv_obj_t *shimmer_bar, lv_obj_t *parent)
+// {
+//     int32_t start_x = -lv_obj_get_width(shimmer_bar);
+//     int32_t end_x = lv_obj_get_width(parent);
+//     lv_anim_t a;
+//     lv_anim_init(&a);
+//     lv_anim_set_var(&a, shimmer_bar);
+//     lv_anim_set_exec_cb(&a, shimmer_anim_cb);
+//     lv_anim_set_values(&a, start_x, end_x);
+//     lv_anim_set_time(&a, 1500);
+//     lv_anim_set_playback_time(&a, 1500);
+//     lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
+//     lv_anim_start(&a);
+// }
+//
+// void stop_shimmer_animation(lv_obj_t *shimmer_bar)
+// {
+//     lv_anim_delete(shimmer_bar, shimmer_anim_cb);
+// }
+//
+// void stop_and_delete_shimmer(lv_obj_t *shimmer)
+// {
+//     if (!shimmer || !lv_obj_is_valid(shimmer))
+//         return;
+//     lv_anim_delete(shimmer, shimmer_anim_cb);
+//     lv_obj_del(shimmer);
+// }
+//
+// void stop_all_shimmer_animations()
+// {
+//     // Delete ALL animations whose exec_cb is shimmer_anim_cb,
+//     // regardless of the animated object (var == NULL matches all).
+//     // This prevents invalidation-walk crashes during screen transitions.
+//     lv_anim_delete(NULL, shimmer_anim_cb);
+// }
 
 // ── Thumb lifecycle callbacks ───────────────────────────────────────────────
 
@@ -245,7 +245,7 @@ void thumb_obj_deleted_cb(lv_event_t *e)
     // Null ctx->shimmer now so delete_ctx_shimmer doesn't try to delete it.
     // Do NOT call lv_obj_is_valid on the shimmer pointer here — it's still
     // valid at this point but will be freed imminently.
-    ctx->shimmer = nullptr;
+    // ctx->shimmer = nullptr;  // DISABLED — shimmer field removed
 }
 
 void free_thumb_data_cb(lv_event_t *e)
@@ -667,7 +667,7 @@ void thumb_worker_task(void *)
                 // rebuild).  Deleting what looks like a valid child would corrupt
                 // the event system.  LVGL will cascade-delete the real shimmer
                 // when the thumb itself is cleaned up.
-                ctx->shimmer = nullptr;
+                // ctx->shimmer = nullptr;  // DISABLED — shimmer field removed
             }
             lv_unlock();
 
@@ -706,7 +706,7 @@ void thumb_worker_task(void *)
             // call delete_ctx_shimmer.  The shimmer is already gone or belongs
             // to a fresher context.  Just null the pointer and let LVGL handle
             // the shimmers of current-generation thumbs.
-            ctx->shimmer = nullptr;
+            // ctx->shimmer = nullptr;  // DISABLED — shimmer field removed
             // dsc / px were allocated by fetch_and_decode_jpeg — free them.
             if (ok) { heap_caps_free(px); px = nullptr; delete dsc; dsc = nullptr; }
             lv_unlock();
@@ -716,7 +716,7 @@ void thumb_worker_task(void *)
 
         // Always clean up shimmer first — regardless of fetch outcome.
         // FIX: delete_ctx_shimmer already nulls ctx->shimmer; don't repeat it.
-        delete_ctx_shimmer(ctx);
+        // delete_ctx_shimmer(ctx);  // DISABLED — shimmer caused crashes
 
         if (ok && !ctx->cancelled.load() &&
             ctx->thumb && lv_obj_is_valid(ctx->thumb))

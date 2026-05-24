@@ -330,6 +330,9 @@ static void keyboard_cancel_cb(lv_event_t *e)
 
 void keywords_textarea_focused_cb(lv_event_t *e)
 {
+    ESP_LOGI(TAG, "FOCUSED fired, keyboard valid: %d",
+             objects.keywords_keyboard && lv_obj_is_valid(objects.keywords_keyboard));
+
     // Get the textarea that was focused
     lv_obj_t *focused_textarea = (lv_obj_t *)lv_event_get_target(e);
 
@@ -342,13 +345,17 @@ void keywords_textarea_focused_cb(lv_event_t *e)
         // This keeps the keyboard at the correct position regardless of
         // screen dimensions, tab bar size, or list-rebuild layout changes.
         //      lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_FLOATING);
-        lv_obj_align(objects.keywords_keyboard, LV_ALIGN_BOTTOM_MID, 0, 0);
+        //  lv_obj_align(objects.keywords_keyboard, LV_ALIGN_BOTTOM_MID, 0, 0);
         lv_obj_clear_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
     }
+
+    ESP_LOGI(TAG, "Keyboard hidden after clear: %d",
+             lv_obj_has_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN));
 }
 
 void keywords_textarea_defocused_cb(lv_event_t *e)
 {
+    ESP_LOGI(TAG, "DEFOCUSED fired on: %p", lv_event_get_target(e));
     // Hide keyboard when textarea loses focus
     if (objects.keywords_keyboard && lv_obj_is_valid(objects.keywords_keyboard))
     {
@@ -408,7 +415,7 @@ static void tabview_tab_changed_cb(lv_event_t *e)
         // Switching TO Products tab — destroy recipe widgets to free PSRAM thumbnails
         // Cancel any in-flight thumbnail fetches first
         s_thumb_generation++; // defined extern in ui_extensions.h
-        stop_all_shimmer_animations();
+        // stop_all_shimmer_animations();  // DISABLED — shimmer caused crashes
         lv_obj_clean(objects.recipes_list);
         lv_obj_clean(objects.favourites_list);
     }
@@ -430,12 +437,12 @@ static void tabview_tab_changed_cb(lv_event_t *e)
         lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
         // Cancel any in-flight thumbnail fetches for favourites (disabled to allow background downloads)
         // s_thumb_generation++;
-        stop_all_shimmer_animations();
+        // stop_all_shimmer_animations();  // DISABLED — shimmer caused crashes
         lv_obj_clean(objects.favourites_list);
     }
     else if (tab == 2)
     {
-        stop_all_shimmer_animations();
+        // stop_all_shimmer_animations();  // DISABLED — shimmer caused crashes
         lv_obj_clean(objects.recipes_list);
         lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
         // Reset to cookbook list view when entering the tab
@@ -601,7 +608,7 @@ void action_products_reload_click(lv_event_t *e)
 void action_favourites_reload_click(lv_event_t *e)
 {
     lv_lock();
-    stop_all_shimmer_animations();
+    // stop_all_shimmer_animations();  // DISABLED — shimmer caused crashes
     lv_obj_clean(objects.favourites_list);
     lv_unlock();
     favouritesCurrentPage = 1;

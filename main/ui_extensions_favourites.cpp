@@ -129,7 +129,7 @@ void populateFavouritesList(lv_obj_t *root, const std::vector<Favorite> &favouri
     init_styles();
     // Stop shimmer animations before cleaning — active animations on children
     // being deleted can cause use-after-free in the LVGL animation system.
-    stop_all_shimmer_animations();
+    // stop_all_shimmer_animations();  // DISABLED — shimmer caused crashes
     // Capture scroll position before cleaning
     lv_coord_t scroll_y = lv_obj_get_scroll_y(root);
     lv_obj_clean(root);
@@ -280,7 +280,7 @@ void populateCookbooksList(lv_obj_t *root, const std::vector<Cookbook> &cookbook
 
     lv_lock();
     init_styles();
-    stop_all_shimmer_animations();
+    // stop_all_shimmer_animations();  // DISABLED — shimmer caused crashes
     lv_coord_t scroll_y = lv_obj_get_scroll_y(root);
     lv_obj_clean(root);
 

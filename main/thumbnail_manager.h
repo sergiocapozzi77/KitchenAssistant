@@ -11,7 +11,7 @@
 struct ThumbContext
 {
     lv_obj_t *thumb;
-    lv_obj_t *shimmer;
+    // lv_obj_t *shimmer;  // DISABLED — shimmer caused crashes
     std::string url;
     uint32_t generation;
     std::atomic<bool> cancelled{false};
@@ -64,13 +64,13 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
 std::string get_leonardo_cached_url(const std::string &url, uint16_t w, uint16_t h);
 
 // ── Shimmer ─────────────────────────────────────────────────────────────────
-lv_obj_t *create_shimmer_overlay(lv_obj_t *parent);
-void start_shimmer_animation(lv_obj_t *shimmer_bar, lv_obj_t *parent);
-void stop_shimmer_animation(lv_obj_t *shimmer_bar);
-void stop_and_delete_shimmer(lv_obj_t *shimmer);
-
-// Stop ALL shimmer animations globally (safe to call during screen transitions)
-void stop_all_shimmer_animations();
+// lv_obj_t *create_shimmer_overlay(lv_obj_t *parent);
+// void start_shimmer_animation(lv_obj_t *shimmer_bar, lv_obj_t *parent);
+// void stop_shimmer_animation(lv_obj_t *shimmer_bar);
+// void stop_and_delete_shimmer(lv_obj_t *shimmer);
+//
+// // Stop ALL shimmer animations globally (safe to call during screen transitions)
+// void stop_all_shimmer_animations();
 
 // ── Event callbacks (for use with lv_event_t) ───────────────────────────────
 void thumb_obj_deleted_cb(lv_event_t *e);
