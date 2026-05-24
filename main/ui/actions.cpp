@@ -119,63 +119,6 @@ void showCurrentPageFavourites(bool force)
         return;
     }
 
-    if (g_favouritesViewMode == FavouritesViewMode::ALL_FAVOURITES)
-    {
-        std::vector<Favorite> allFavourites = favouritesManager.getFavourites();
-
-        // Apply search filter
-        std::vector<Favorite> favourites;
-        if (s_favouritesSearchFilter.length() >= 3)
-        {
-            std::string filterLower = s_favouritesSearchFilter;
-            std::transform(filterLower.begin(), filterLower.end(), filterLower.begin(), ::tolower);
-            for (const auto &fav : allFavourites)
-            {
-                std::string nameLower = fav.name;
-                std::transform(nameLower.begin(), nameLower.end(), nameLower.begin(), ::tolower);
-                if (nameLower.find(filterLower) != std::string::npos)
-                    favourites.push_back(fav);
-            }
-        }
-        else
-        {
-            favourites = std::move(allFavourites);
-        }
-
-        int start = (favouritesCurrentPage - 1) * favouritesPageSize;
-        int end = std::min(start + favouritesPageSize, (int)favourites.size());
-
-        // If start is beyond the end of the vector, show empty page
-        if (start >= favourites.size() || start < 0)
-        {
-            ESP_LOGI("favourites", "No favourites to show for page %d", favouritesCurrentPage);
-            if (favouritesCurrentPage > 1)
-            {
-                favouritesCurrentPage = (favourites.size() + favouritesPageSize - 1) / favouritesPageSize;
-                if (favouritesCurrentPage < 1)
-                    favouritesCurrentPage = 1;
-                start = (favouritesCurrentPage - 1) * favouritesPageSize;
-                end = std::min(start + favouritesPageSize, (int)favourites.size());
-            }
-            else
-            {
-                populateFavouritesList(objects.favourites_list, {});
-                updateFavouritesPaginationButtons();
-                return;
-            }
-        }
-
-        std::vector<Favorite> pageItems(
-            favourites.begin() + start,
-            favourites.begin() + end);
-
-        ESP_LOGI("favourites", "Showing favourites page %d, items %d-%d of %d",
-                 favouritesCurrentPage, start, end, (int)favourites.size());
-        populateFavouritesList(objects.favourites_list, pageItems);
-        updateFavouritesPaginationButtons();
-        return;
-    }
-
     // ── COOKBOOK_DRILL: show favourites for the active cookbook ──
     ensure_back_button();
 

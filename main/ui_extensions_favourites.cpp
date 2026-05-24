@@ -18,7 +18,7 @@
 
 static const char *TAG = "UIEXTENSIONS";
 
-FavouritesViewMode g_favouritesViewMode = FavouritesViewMode::ALL_FAVOURITES;
+FavouritesViewMode g_favouritesViewMode = FavouritesViewMode::COOKBOOK_LIST;
 std::string g_activeCookbookId;
 std::string g_activeCookbookName;
 
@@ -35,7 +35,7 @@ static lv_obj_t *s_back_btn = nullptr;
 
 static void back_to_cookbooks_cb(lv_event_t *e)
 {
-    g_favouritesViewMode = FavouritesViewMode::ALL_FAVOURITES;
+    g_favouritesViewMode = FavouritesViewMode::COOKBOOK_LIST;
     g_activeCookbookId.clear();
     g_activeCookbookName.clear();
 
@@ -70,7 +70,7 @@ void ensure_back_button()
 
 void cleanupCookbookDrill()
 {
-    g_favouritesViewMode = FavouritesViewMode::ALL_FAVOURITES;
+    g_favouritesViewMode = FavouritesViewMode::COOKBOOK_LIST;
     g_activeCookbookId.clear();
     g_activeCookbookName.clear();
     if (s_back_btn && lv_obj_is_valid(s_back_btn))
@@ -178,50 +178,18 @@ static void cookbook_card_click_cb(lv_event_t *e)
     g_activeCookbookId = ctx->cookbookId;
     g_activeCookbookName = ctx->cookbookName;
 
-    // Show spinner while fetching
-    showSpinner();
-
-    // Fetch favourites in background and filter by cookbookId locally
-    // (server-side array query on cookbookIds returns 400, so we fetch all and filter)
-    struct DrillCtx
+    // Use cached favourites (loaded at startup) — filter by cookbookId locally
+    // (server-side array query on cookbookIds returns 400, so we filter client-side)
+    std::vector<Favorite> allFavs = favouritesManager.getFavourites();
+    std::vector<Favorite> filtered;
+    for (const auto &fav : allFavs)
     {
-        std::string cookbookId;
-    };
-    DrillCtx *dctx = new DrillCtx{ctx->cookbookId};
-    BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
-        [](void *param)
-        {
-            DrillCtx *d = static_cast<DrillCtx *>(param);
-
-            // Fetch all favourites and filter by cookbookId locally
-            std::vector<Favorite> allFavs = favouriteService.getFavourites();
-            std::vector<Favorite> filtered;
-            for (const auto &fav : allFavs)
-            {
-                if (std::find(fav.cookbookIds.begin(), fav.cookbookIds.end(), d->cookbookId) != fav.cookbookIds.end())
-                    filtered.push_back(fav);
-            }
-
-            // Update cache and show UI on LVGL thread
-            lv_async_call([](void *p)
-                          {
-                auto *f = static_cast<std::vector<Favorite> *>(p);
-                favouritesManager.setFavourites(*f);
-                hideSpinner();
-                showCurrentPageFavourites(true);
-                delete f; }, new std::vector<Favorite>(std::move(filtered)));
-
-            delete d;
-            vTaskDelete(nullptr);
-        },
-        "drillFav", 12288, dctx, 1, NULL, tskNO_AFFINITY,
-        MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-
-    if (ret != pdPASS)
-    {
-        delete dctx;
-        hideSpinner();
+        if (std::find(fav.cookbookIds.begin(), fav.cookbookIds.end(), ctx->cookbookId) != fav.cookbookIds.end())
+            filtered.push_back(fav);
     }
+
+    favouritesManager.setFavourites(filtered);
+    showCurrentPageFavourites(true);
 }
 
 static void free_cookbook_click_ctx_cb(lv_event_t *e)

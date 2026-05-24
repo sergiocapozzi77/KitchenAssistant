@@ -21,8 +21,8 @@ private:
     static constexpr int32_t SCREEN_H = 1280;
     static constexpr int32_t PANEL_H = 340;
     static constexpr int32_t EDGE_ZONE = 40;      // top px that start swipe tracking
-    static constexpr int32_t SHOW_THRESHOLD = 70; // downward dy needed to open
-    static constexpr int32_t SHOW_VELOCITY = 200; // min px/s to distinguish flick from slow drag
+    static constexpr int32_t SHOW_THRESHOLD = 150; // downward dy needed to open
+    static constexpr int32_t SHOW_VELOCITY = 300; // min px/s to distinguish flick from slow drag
     static constexpr int32_t DRAG_START_DY = 12;  // upward dy to enter drag mode
     static constexpr int32_t HIDE_COMMIT = 90;    // upward dy to commit close
 
