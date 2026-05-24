@@ -280,10 +280,12 @@ void keywords_textarea_focused_cb(lv_event_t *e)
     if (objects.keywords_keyboard && lv_obj_is_valid(objects.keywords_keyboard))
     {
         lv_keyboard_set_textarea(objects.keywords_keyboard, focused_textarea);
-        // Show keyboard and position at bottom of screen
-        // Screen height 1280, keyboard height 299, tab bar 60
-        // Calculate y position: 1280 - 299 - 60 = 921
-        /// lv_obj_set_pos(objects.keywords_keyboard, 0, 921);
+        // Remove from grid layout so the keyboard is positioned freely,
+        // then anchor to the bottom of the screen.
+        // This keeps the keyboard at the correct position regardless of
+        // screen dimensions, tab bar size, or list-rebuild layout changes.
+        //      lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_FLOATING);
+        lv_obj_align(objects.keywords_keyboard, LV_ALIGN_BOTTOM_MID, 0, 0);
         lv_obj_clear_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
     }
 }
