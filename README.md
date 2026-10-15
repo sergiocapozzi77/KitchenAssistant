@@ -42,8 +42,8 @@ Create `main/secrets.h` with the following defines (example values shown — rep
 #define APPWRITE_API_KEY "your-appwrite-api-key"
 #define APPWRITE_ENDPOINT "https://fra.cloud.appwrite.io/v1"
 #define APPWRITE_PROJECT_ID "your-project-id"
-#define FAVOURITES_COLLECTION_ID "favourites"
 #define RECIPES_COLLECTION_ID "recipes"
+#define STEPBYSTEP_COLLECTION_ID "stepbystep"
 #define APPWRITE_FUNCTION_ID "your-function-id"
 #define APPWRITE_IMAGE_RESIZE_FUNCTION_ID "your-image-resize-function-id"
 #define DEEPSEEK_API_KEY "your-deepseek-api-key"
@@ -79,30 +79,30 @@ ESP-IDF HTTP client + cJSON + FreeRTOS
 
 ### Key Source Files
 
-| File | Purpose |
-|------|---------|
-| `main/app.cpp` | Initialisation pipeline, main loop |
-| `main/ui_extensions.cpp` | UI styles, helpers, recipe card builder |
-| `main/ui_extensions_products.cpp` | Product list UI |
-| `main/ui_extensions_recipes.cpp` | Recipe list UI |
-| `main/ui_extensions_recipe_detail.cpp` | Recipe detail screen + heart button |
-| `main/ui_extensions_favourites.cpp` | Favourites list |
-| `main/ui_extensions_recipe_steps.cpp` | Step-by-step cooking mode |
-| `main/ProductService.cpp` | Appwrite CRUD for products |
-| `main/RecipeService.cpp` | Recipe fetch from GoodFood, Giallo Zafferano, Ania Gotuje |
-| `main/RecipeDetailService.cpp` | On-demand recipe detail scraping |
-| `main/RecipeAIDetailService.cpp` | AI-powered recipe generation (DeepSeek) |
-| `main/FavouriteService.cpp` | Appwrite favourites sync |
-| `main/FavouritesManager.cpp` | In-memory favourites cache with mutex |
-| `main/ProductsManager.cpp` | In-memory product cache with mutex |
-| `main/DeepSeekAIService.cpp` | DeepSeek AI integration |
-| `main/LeonardoImageGenerator.cpp` | AI image generation via Leonardo |
-| `main/thumbnail_cache.cpp` | SPIFFS-backed LRU thumbnail cache |
-| `main/thumbnail_manager.cpp` | Async thumbnail fetch, decode, and LVGL integration |
-| `main/HttpClientHelper.cpp` | Shared HTTP client for Appwrite functions |
-| `main/WiFiManager.cpp` | WiFi connection management |
-| `main/models.h` | `Product`, `RecipeSuggestion`, `Favorite` structs |
-| `main/secrets.h` | API keys (not committed) |
+| File                                   | Purpose                                                   |
+| -------------------------------------- | --------------------------------------------------------- |
+| `main/app.cpp`                         | Initialisation pipeline, main loop                        |
+| `main/ui_extensions.cpp`               | UI styles, helpers, recipe card builder                   |
+| `main/ui_extensions_products.cpp`      | Product list UI                                           |
+| `main/ui_extensions_recipes.cpp`       | Recipe list UI                                            |
+| `main/ui_extensions_recipe_detail.cpp` | Recipe detail screen + heart button                       |
+| `main/ui_extensions_favourites.cpp`    | Favourites list                                           |
+| `main/ui_extensions_recipe_steps.cpp`  | Step-by-step cooking mode                                 |
+| `main/ProductService.cpp`              | Appwrite CRUD for products                                |
+| `main/RecipeService.cpp`               | Recipe fetch from GoodFood, Giallo Zafferano, Ania Gotuje |
+| `main/RecipeDetailService.cpp`         | On-demand recipe detail scraping                          |
+| `main/RecipeAIDetailService.cpp`       | AI-powered recipe generation (DeepSeek)                   |
+| `main/FavouriteService.cpp`            | Appwrite favourites sync                                  |
+| `main/FavouritesManager.cpp`           | In-memory favourites cache with mutex                     |
+| `main/ProductsManager.cpp`             | In-memory product cache with mutex                        |
+| `main/DeepSeekAIService.cpp`           | DeepSeek AI integration                                   |
+| `main/LeonardoImageGenerator.cpp`      | AI image generation via Leonardo                          |
+| `main/thumbnail_cache.cpp`             | SPIFFS-backed LRU thumbnail cache                         |
+| `main/thumbnail_manager.cpp`           | Async thumbnail fetch, decode, and LVGL integration       |
+| `main/HttpClientHelper.cpp`            | Shared HTTP client for Appwrite functions                 |
+| `main/WiFiManager.cpp`                 | WiFi connection management                                |
+| `main/models.h`                        | `Product`, `RecipeSuggestion`, `Favorite` structs         |
+| `main/secrets.h`                       | API keys (not committed)                                  |
 
 ### EEZ Studio UI (`main/ui/`)
 
@@ -118,11 +118,11 @@ The UI screens are designed in [EEZ Studio](https://www.envox.eu/eez-studio/eez-
 
 ### Flash Partitions
 
-| Name | Size | Purpose |
-|------|------|---------|
-| NVS | 24 KB | Key-value storage |
-| factory | 8 MB | Application binary |
-| storage | 7 MB | SPIFFS filesystem |
+| Name    | Size  | Purpose            |
+| ------- | ----- | ------------------ |
+| NVS     | 24 KB | Key-value storage  |
+| factory | 8 MB  | Application binary |
+| storage | 7 MB  | SPIFFS filesystem  |
 
 ## Components
 

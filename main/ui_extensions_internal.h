@@ -48,6 +48,7 @@ extern bool styles_initialized;
 // Cookbook navigation helpers
 void cleanupCookbookDrill();
 void ensure_back_button();
+void resetFavouritesPage();
 
 // Cookbook navigation state
 enum class FavouritesViewMode {

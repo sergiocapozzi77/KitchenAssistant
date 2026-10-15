@@ -13,6 +13,7 @@
 ### Task 1: Data model & build config
 
 **Files:**
+
 - Modify: `main/models.h`
 - Modify: `main/secrets.h`
 - Modify: `main/CMakeLists.txt`
@@ -37,7 +38,7 @@ Inside the `Favorite` struct, after `methodSteps` (around line 54), add:
 
 - [ ] **Step 2: Add cookbook collection ID to `main/secrets.h`**
 
-After line 7 (`#define RECIPES_COLLECTION_ID "recipes"`), add:
+After line 7 (`#define STEPBYSTEP_COLLECTION_ID "recipes"`), add:
 
 ```cpp
 #define COOKBOOKS_COLLECTION_ID "cookbooks"
@@ -64,6 +65,7 @@ git commit -m "feat: add Cookbook struct and build config for cookbooks"
 ### Task 2: Create `CookbookService`
 
 **Files:**
+
 - Create: `main/CookbookService.h`
 - Create: `main/CookbookService.cpp`
 
@@ -341,6 +343,7 @@ git commit -m "feat: add CookbookService for Appwrite CRUD"
 ### Task 3: Create `CookbookManager`
 
 **Files:**
+
 - Create: `main/CookbookManager.h`
 - Create: `main/CookbookManager.cpp`
 
@@ -434,6 +437,7 @@ git commit -m "feat: add CookbookManager for in-memory cookbook cache"
 ### Task 4: Extend `FavouriteService` with cookbook-aware methods
 
 **Files:**
+
 - Modify: `main/FavouriteService.h`
 - Modify: `main/FavouriteService.cpp`
 
@@ -531,6 +535,7 @@ git commit -m "feat: add cookbook-aware methods to FavouriteService"
 ### Task 5: Wire cookbook deletion through `FavouritesManager`
 
 **Files:**
+
 - Modify: `main/FavouritesManager.h`
 - Modify: `main/FavouritesManager.cpp`
 
@@ -574,6 +579,7 @@ git commit -m "feat: add removeFavouritesByCookbook to FavouritesManager"
 ### Task 6: Wire cookbook fetching into initialization
 
 **Files:**
+
 - Modify: `main/app.cpp`
 
 - [ ] **Step 1: Add include for `CookbookManager.h`**
@@ -604,6 +610,7 @@ git commit -m "feat: fetch cookbooks on startup"
 ### Task 7: Cookbook list view in favourites panel
 
 **Files:**
+
 - Modify: `main/ui_extensions.h`
 - Modify: `main/ui_extensions_favourites.cpp`
 - Modify: `main/ui_extensions_internal.h`
@@ -814,6 +821,7 @@ git commit -m "feat: add cookbook grid view to favourites panel"
 ### Task 8: Drill-in navigation (back button, favourites per cookbook)
 
 **Files:**
+
 - Modify: `main/ui_extensions_favourites.cpp`
 - Modify: `main/ui/actions.cpp`
 
@@ -903,11 +911,13 @@ void showCurrentPageFavourites(bool force)
 Also add includes at the top of `main/ui/actions.cpp`:
 
 After line 10 (`#include "ui_extensions.h"`), add:
+
 ```cpp
 #include "ui_extensions_internal.h"
 ```
 
 After line 11 (`#include "FavouritesManager.h"`), add:
+
 ```cpp
 #include "CookbookManager.h"
 ```
@@ -948,11 +958,13 @@ This requires the `s_back_btn` variable to be accessible from `actions.cpp`. Eit
 Actually, simpler: add a function `cleanupCookbookDrill()` to `ui_extensions_internal.h` and implement it in `ui_extensions_favourites.cpp`:
 
 In `ui_extensions_internal.h`, add:
+
 ```cpp
 void cleanupCookbookDrill();
 ```
 
 In `ui_extensions_favourites.cpp`:
+
 ```cpp
 void cleanupCookbookDrill()
 {
@@ -968,6 +980,7 @@ void cleanupCookbookDrill()
 ```
 
 Then in `actions.cpp`, replace the tab reset logic with:
+
 ```cpp
         cleanupCookbookDrill();
         showCurrentPageFavourites();
@@ -985,6 +998,7 @@ git commit -m "feat: add cookbook drill-in navigation with back button"
 ### Task 9: Cookbook selection modal on add to favourites
 
 **Files:**
+
 - Modify: `main/ui_extensions_recipe_detail.cpp`
 
 This is the most complex UI task. The heart button currently adds directly. We change it to show a modal overlay with cookbook selection.
@@ -1331,6 +1345,7 @@ git commit -m "feat: add cookbook selection modal on add to favourites"
 ### Task 10: Delete cookbook with confirmation
 
 **Files:**
+
 - Modify: `main/ui_extensions_favourites.cpp`
 - Modify: `main/ui/actions.cpp`
 
@@ -1393,6 +1408,7 @@ static void delete_cookbook_with_confirmation(const std::string &cookbookId, con
 Then update the delete button callback in `populateCookbooksList` to call this function instead of showing placeholder snackbar:
 
 The delete button lambda changes from:
+
 ```cpp
         lv_obj_add_event_cb(del_btn, [](lv_event_t *e) {
             std::string *cookbookId = static_cast<std::string *>(lv_event_get_user_data(e));
@@ -1405,6 +1421,7 @@ The delete button lambda changes from:
 ```
 
 To:
+
 ```cpp
         lv_obj_add_event_cb(del_btn, [](lv_event_t *e) {
             std::string *cookbookId = static_cast<std::string *>(lv_event_get_user_data(e));

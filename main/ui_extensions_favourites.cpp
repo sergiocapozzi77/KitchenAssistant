@@ -178,17 +178,8 @@ static void cookbook_card_click_cb(lv_event_t *e)
     g_activeCookbookId = ctx->cookbookId;
     g_activeCookbookName = ctx->cookbookName;
 
-    // Use cached favourites (loaded at startup) — filter by cookbookId locally
-    // (server-side array query on cookbookIds returns 400, so we filter client-side)
-    std::vector<Favorite> allFavs = favouritesManager.getFavourites();
-    std::vector<Favorite> filtered;
-    for (const auto &fav : allFavs)
-    {
-        if (std::find(fav.cookbookIds.begin(), fav.cookbookIds.end(), ctx->cookbookId) != fav.cookbookIds.end())
-            filtered.push_back(fav);
-    }
+    resetFavouritesPage();
 
-    favouritesManager.setFavourites(filtered);
     showCurrentPageFavourites(true);
 }
 

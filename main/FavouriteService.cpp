@@ -576,7 +576,7 @@ std::vector<Favorite> FavouriteService::getFavourites(const std::vector<std::str
     int total = 2147483647;
     int safetyCounter = 0; // Prevent infinite loops
 
-    std::string baseUrl = Endpoint + "/tablesdb/" + DatabaseId + "/tables/" + FavouritesCollectionId + "/rows";
+    std::string baseUrl = Endpoint + "/tablesdb/" + DatabaseId + "/tables/" + RecipesCollectionId + "/rows";
 
     while ((int)allFavourites.size() < total && safetyCounter++ < 40)
     {
@@ -681,7 +681,7 @@ bool FavouriteService::addFavourite(const Favorite &recipe)
     }
 
     // Build URL for creating favourite
-    std::string url = Endpoint + "/tablesdb/" + DatabaseId + "/tables/" + FavouritesCollectionId + "/rows";
+    std::string url = Endpoint + "/tablesdb/" + DatabaseId + "/tables/" + RecipesCollectionId + "/rows";
     ESP_LOGD(TAG, "POST URL: %s", url.c_str());
 
     // Build JSON body
@@ -724,7 +724,7 @@ bool FavouriteService::removeFavourite(const std::string &url)
     // Build query URL with proper indexed parameter format
     std::string query = "{\"method\":\"equal\",\"attribute\":\"url\",\"values\":[\"" + url + "\"]}";
     std::string encodedQuery = urlEncode(query);
-    std::string listUrl = Endpoint + "/tablesdb/" + DatabaseId + "/tables/" + FavouritesCollectionId + "/rows?queries[0]=" + encodedQuery;
+    std::string listUrl = Endpoint + "/tablesdb/" + DatabaseId + "/tables/" + RecipesCollectionId + "/rows?queries[0]=" + encodedQuery;
 
     int status = 0;
     std::string response = httpGet(listUrl, status);
@@ -765,7 +765,7 @@ bool FavouriteService::removeFavourite(const std::string &url)
     cJSON_Delete(root);
 
     // Now delete the document
-    std::string deleteUrl = Endpoint + "/tablesdb/" + DatabaseId + "/tables/" + FavouritesCollectionId + "/rows/" + docId;
+    std::string deleteUrl = Endpoint + "/tablesdb/" + DatabaseId + "/tables/" + RecipesCollectionId + "/rows/" + docId;
     int deleteStatus = httpDelete(deleteUrl);
 
     bool success = (deleteStatus == 200 || deleteStatus == 204);
@@ -788,7 +788,7 @@ bool FavouriteService::removeFavourite(const std::string &url)
 bool FavouriteService::addFavouriteToCookbook(const std::string &favouriteId, const std::string &cookbookId)
 {
     // PATCH the favourite to append cookbookId to its cookbookIds array
-    std::string url = Endpoint + "/tablesdb/" + DatabaseId + "/tables/" + FavouritesCollectionId + "/rows/" + favouriteId;
+    std::string url = Endpoint + "/tablesdb/" + DatabaseId + "/tables/" + RecipesCollectionId + "/rows/" + favouriteId;
 
     // Build patch body: append cookbookId to cookbookIds
     cJSON *root = cJSON_CreateObject();
@@ -842,7 +842,7 @@ bool FavouriteService::isFavourite(const std::string &url)
     // Build query URL with proper indexed parameter format
     std::string query = "{\"method\":\"equal\",\"attribute\":\"url\",\"values\":[\"" + url + "\"]}";
     std::string encodedQuery = urlEncode(query);
-    std::string listUrl = Endpoint + "/tablesdb/" + DatabaseId + "/tables/" + FavouritesCollectionId + "/rows?queries[0]=" + encodedQuery;
+    std::string listUrl = Endpoint + "/tablesdb/" + DatabaseId + "/tables/" + RecipesCollectionId + "/rows?queries[0]=" + encodedQuery;
 
     int status = 0;
     std::string response = httpGet(listUrl, status);

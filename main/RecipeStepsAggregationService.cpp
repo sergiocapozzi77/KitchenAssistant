@@ -422,7 +422,7 @@ bool RecipeStepsAggregationService::getRecipeFromDatabase(const std::string &url
     ESP_LOGI(TAG, "Fetching recipe from database for URL: %s", url.c_str());
 
     // Build base URL for recipes collection
-    std::string baseUrl = endpoint + "/tablesdb/" + DatabaseId + "/tables/" + RecipesCollectionId + "/rows";
+    std::string baseUrl = endpoint + "/tablesdb/" + DatabaseId + "/tables/" + StepByStepCollectionId + "/rows";
 
     // Build equality query for sourceUrl column using cJSON for proper escaping
     cJSON *query = cJSON_CreateObject();

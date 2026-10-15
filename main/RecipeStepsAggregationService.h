@@ -78,7 +78,7 @@ private:
     const std::string DatabaseId = "695404ac0021bf7d9707";
     const std::string CollectionId = "products";
     const std::string BarcodeCollectionId = "barcodes";
-    const std::string RecipesCollectionId = RECIPES_COLLECTION_ID;
+    const std::string StepByStepCollectionId = STEPBYSTEP_COLLECTION_ID;
     const std::string RecipeDataColumn = "data"; // column in Recipes collection that holds the recipe JSON
     const std::string SourceUrlColumn = "sourceUrl";
     const std::string functionId = APPWRITE_FUNCTION_ID;

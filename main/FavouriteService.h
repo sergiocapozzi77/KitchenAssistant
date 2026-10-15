@@ -21,7 +21,7 @@ public:
     const std::string Endpoint = "https://fra.cloud.appwrite.io/v1";
     const std::string ProjectId = APPWRITE_PROJECT_ID;
     const std::string DatabaseId = "695404ac0021bf7d9707";
-    const std::string FavouritesCollectionId = FAVOURITES_COLLECTION_ID;
+    const std::string RecipesCollectionId = RECIPES_COLLECTION_ID;
 
     // Public API
     std::vector<Favorite> getFavourites();                                                       // Simple version (backwards compatible)
