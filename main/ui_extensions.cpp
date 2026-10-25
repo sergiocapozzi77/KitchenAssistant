@@ -4,7 +4,6 @@
 
 #include "screens.h"
 #include "thumbnail_manager.h"
-#include "ui_theme.h"
 
 #include "esp_log.h"
 

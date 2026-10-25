@@ -12,13 +12,11 @@
 #include "bsp/display.h"
 #include "bsp_board_extra.h"
 #include "bsp/esp32_p4_function_ev_board.h"
-#include "lv_demos.h"
 #include "ui.h"
 #include "WiFiManager.h"
 #include "ui_extensions.h"
 #include "ProductsManager.h"
 #include "cJSON.h"
-#include <cstdio>
 #include "display_sleep.h"
 #include "quick_panel.h"
 #include "battery.h"

@@ -1,7 +1,6 @@
 #include "screens.h"
 
 #include "actions.h"
-#include "ui_extensions.h"
 #include "ui_theme.h"
 
 #include <cstdint>

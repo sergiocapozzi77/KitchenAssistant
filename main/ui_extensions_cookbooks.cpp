@@ -11,7 +11,6 @@
 
 #include "esp_log.h"
 
-#include <cstdio>
 #include <string>
 #include <vector>
 
