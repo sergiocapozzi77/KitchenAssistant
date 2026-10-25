@@ -37,6 +37,7 @@ cookbook detail page, and recipe detail. The device mirrors one account
 | 12 | Cookbook covers show **the first recipe's image**, not a photo mosaic | Explicit instruction. The mosaic is the one place the device deliberately departs from the app's card design. |
 | 13 | Cookbooks and recipes are **read-only** on the device | Every recipe already belongs to a cookbook, so the device never needs to create, import, move, or delete recipes. Cookbook management stays on the phone. |
 | 14 | The Inventory list is a **single column of collapsible category groups**, replacing the category sidebar | Matches the app. On an 800 px-wide screen the sidebar's fast switching is no longer worth the width it consumes, and keeping it would be the one structural difference on the page the user asked to mirror. |
+| 15 | Recipe **bodies load when a cookbook is opened**, not up front. The cookbook grid is built from one light metadata query (`id`, `image_url`, `cookbook_ids`) | The device never shows a recipe outside a cookbook, so holding all 119 kB of recipe text (39 rows, ingredient and method JSON included) serves no screen. The metadata query is ~10 kB and still yields every count and cover in a single request; full rows are fetched per cookbook, 1–7 rows at a time, and cached. |
 
 ## Verified backend facts
 
@@ -104,7 +105,7 @@ Measured on RoastedMaple, 2026-10-25:
 | Cookbooks | 12 | All non-empty; recipe counts 1–7 |
 | Recipes | 39 | **All 39 belong to at least one cookbook**, so dropping the Recipes tab loses nothing |
 | Recipe images | all 39 have `image_url` | A cookbook cover always resolves |
-| Recipe payload size | 119 kB of text across all rows, largest section JSON 6.1 kB | All recipes are fetched once into PSRAM; no per-recipe detail request |
+| Recipe payload size | 9.7 kB as metadata (`id`, `name`, `image_url`, `cookbook_ids`); 119 kB with bodies, largest section JSON 6.1 kB | The cookbook grid fetches metadata only; bodies load per cookbook (decision 15) |
 
 ## Architecture
 
@@ -230,19 +231,25 @@ barcode-to-category mapping.
 
 ### Cookbooks and recipes
 
-The device fetches the whole recipe table once and derives cookbook membership,
-counts and covers in memory. 119 kB of text and 39 rows make per-cookbook
-requests pointless, and it gives the cookbook detail page an instant open.
+The cookbook grid needs counts and covers; the cookbook detail page needs full
+recipe rows. They are two different queries, and the device asks for each only
+when the screen that needs it is shown.
 
 | Device operation | Supabase |
 |---|---|
 | `CookbooksManager::fetch()` | `GET /rest/v1/cookbooks?select=id,name&order=name.asc` |
-| `RecipesManager::fetch()` | `GET /rest/v1/recipes?select=*&order=name.asc` |
-| Cookbook recipe count | `cookbook_ids` contains the cookbook id, counted in memory |
-| Cookbook cover | `image_url` of the **first** recipe (name ascending) whose `cookbook_ids` contains the cookbook id |
-| Recipes in a cookbook | filtered from the in-memory list; no request |
+| `RecipesManager::fetchSummaries()` | `GET /rest/v1/recipes?select=id,image_url,cookbook_ids&order=name.asc` (~10 kB) |
+| Cookbook recipe count | count of summaries whose `cookbook_ids` contains the cookbook id |
+| Cookbook cover | `image_url` of the **first** summary (name ascending) containing the cookbook id |
+| `RecipesManager::fetchForCookbook(id)` | `GET /rest/v1/recipes?cookbook_ids=cs.{<uuid>}&select=*&order=name.asc` |
+| Recipes in a cookbook | the full rows from that fetch, cached per cookbook id |
+| Refresh (header button) | clears the summary list and every cached cookbook |
 | `updateProduct(product)` | `PATCH /rest/v1/products?id=eq.<uuid>` with the flat row |
 | `deleteProduct(id)` | `DELETE /rest/v1/products?id=eq.<uuid>` |
+
+`order=name.asc` on the summary query is what makes the cover deterministic:
+filtering the ordered summaries per cookbook preserves name order, so "first"
+means the same thing on every load.
 
 `createCookbook`, `deleteCookbook`, `getFavouritesByCookbook`, `isFavourite`,
 `addFavourite`, `removeFavourite`, `addFavouriteToCookbook` and
@@ -250,8 +257,10 @@ requests pointless, and it gives the cookbook detail page an instant open.
 them (decision 13). `removeCookbookFromFavourites`' select-then-patch loop
 disappears with them.
 
-Recipe detail is served entirely from the row the list already fetched — no
-second request, and no `detailsFetched` lazy-load.
+Recipe detail is served entirely from the cached cookbook rows — no second
+request, and no `detailsFetched` lazy-load. A recipe that belongs to two
+cookbooks is fetched and held twice; there are none in the current data, and
+the cache is cleared on refresh.
 
 ### Thumbnails
 
@@ -278,8 +287,14 @@ struct Product {
 
 struct Cookbook {
     std::string id, name;
-    std::string coverImageUrl;   // first recipe by name, empty if none
-    int recipeCount = 0;         // derived in memory, not a request per card
+    std::string coverImageUrl;   // from the summary list, empty if none
+    int recipeCount = 0;         // from the summary list, not a request per card
+};
+
+// Light row for the cookbook grid. No ingredients, no method, no description.
+struct RecipeSummary {
+    std::string id, imageUrl;
+    std::vector<std::string> cookbookIds;
 };
 
 struct Ingredient {
@@ -425,6 +440,8 @@ Cookbooks                                     36 px title, reload 72×72
 ```
 
 - Grid: `LV_FLEX_FLOW_ROW_WRAP`, padding 24, gap 20, giving 366-wide cards.
+- Counts and covers come from the summary list, so the grid renders without
+  fetching any recipe body.
 - Cover is the first recipe's image (decision 12). A cookbook with no recipe
   shows a `SURFACE_HIGH` block with "No recipes" instead. No mosaic.
 - Tap opens `COOKBOOK_DETAIL`.
@@ -433,13 +450,18 @@ Cookbooks                                     36 px title, reload 72×72
 ### Screen: COOKBOOK_DETAIL
 
 - Top bar: back button 72×72 (`LV_SYMBOL_LEFT`, `SURFACE_HIGH`), cookbook name
-  at 36, "N recipes" at 18 muted underneath.
+  at 36, "N recipes" at 18 muted underneath. The count is known from the
+  summary list, so it shows immediately.
+- On open, if this cookbook has no cached rows, the body shows a centred
+  spinner while `fetchForCookbook(id)` runs. Back stays enabled; a result that
+  arrives after leaving is discarded.
 - Scrollable list of recipe cards, 752×200, radius 24, `SURFACE_HIGH`
   background, 1 px `CARD_BORDER`: image 260×200 on the left; name at 26
   (2 lines, ellipsis), `recipe_source` at 18 muted, then the time / difficulty /
   cuisine badges at 44 high, 18 font.
 - Tap opens `RECIPE_DETAIL`.
-- Empty state: "No recipes in this cookbook".
+- Empty state: "No recipes in this cookbook". Failure state: "Couldn't load
+  recipes" with a Retry button; the cached entry is left unset so Retry refetches.
 
 ### Screen: RECIPE_DETAIL
 
@@ -580,11 +602,16 @@ status 200 and the expected JSON before any firmware depends on it:
 ```
 GET    /rest/v1/products?user_id=eq.<uuid>&order=name.asc&limit=1000
 GET    /rest/v1/cookbooks?user_id=eq.<uuid>&select=id,name&order=name.asc
-GET    /rest/v1/recipes?user_id=eq.<uuid>&select=*&order=name.asc
+GET    /rest/v1/recipes?user_id=eq.<uuid>&select=id,image_url,cookbook_ids&order=name.asc
+GET    /rest/v1/recipes?user_id=eq.<uuid>&cookbook_ids=cs.%7B<uuid>%7D&select=*&order=name.asc
 GET    /rest/v1/barcodes?user_id=eq.<uuid>&barcode=eq.<value>
 PATCH  /rest/v1/products?id=eq.<uuid>&user_id=eq.<uuid>
 DELETE /rest/v1/products?id=eq.<uuid>&user_id=eq.<uuid>
 ```
+
+The `cs.{}` filter must be percent-encoded in the URL (`%7B`, `%7D`) or
+`esp_http_client` truncates it; the check confirms the encoded form returns the
+same 1–7 rows per cookbook as the SQL query.
 
 Each write check runs against a throwaway row that is deleted in the same
 session, so no real inventory is touched. The delete is then confirmed with a
@@ -606,8 +633,11 @@ select that must return zero rows.
 7. Deleting a product removes it and shows the snackbar.
 8. Saving a product with a barcode upserts `barcodes`.
 9. Cookbooks shows 12 cards in two columns with a distinct cover each, name and
-   "N recipes"; counts match the database.
-10. Opening a cookbook shows exactly its recipes and the count in its header.
+   "N recipes"; counts match the database, and the tab renders without any
+   recipe body having been fetched.
+10. Opening a cookbook fetches its recipes (spinner first), then shows exactly
+    those recipes and the count in its header; reopening it does not refetch.
+    Killing WiFi before opening shows the failure state and a working Retry.
 11. Opening a recipe shows hero, title, total time, difficulty, and populated
     Ingredients and Method tabs.
 12. Back from recipe detail returns to the cookbook; back from the cookbook
@@ -627,7 +657,8 @@ select that must return zero rows.
 | The device and phone write the same rows concurrently | Both write whole-row values, so last-write-wins is the same behaviour the Appwrite version had. No new conflict class. |
 | Recipe image URLs may be larger than the old resized payloads | Response-size guard plus the existing SPIFFS thumbnail cache. |
 | Rows written by older app versions may hold a different `ingredients` shape | Parser accepts the single-element JSON string, a plain array, and a bare string, mirroring the app. |
-| Loading 39 full recipe rows costs ~119 kB of text plus parsed vectors | Accepted: it buys instant cookbook and detail rendering and replaces today's equivalent favourites cache. If PSRAM proves tight, the fallback is to fetch light columns for lists and the full row on detail open. |
+| Opening a cookbook now costs a request, so the list appears after a spinner rather than instantly | The fetch is 1–7 rows; the result is cached per cookbook so a revisit is instant, and the header count is already known from the summary list. |
+| The summary list can go stale if the phone edits cookbook membership while the device runs | The reload button clears the summary list and every cached cookbook. The all-recipes cache had the same staleness window. |
 | LVGL has no Material icon font, so icons differ from the app | Accepted; symbol glyphs are positioned and sized like the app's icons. |
 
 ## Out of scope

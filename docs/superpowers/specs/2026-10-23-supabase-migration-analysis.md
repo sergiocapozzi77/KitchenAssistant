@@ -316,3 +316,8 @@ Three app behaviours the firmware must copy rather than keep its own version of:
 - Read-only cookbooks and no product creation (decision 13 and the matching
   non-goal): the phone owns authoring, the device owns display and expiry
   editing. This deletes six service methods rather than porting them.
+- Recipe loading (decision 15): the app fetches every recipe row for the
+  cookbook grid (`getAllFavourites()` → `select('*')`, grouped in memory) and
+  then queries again per cookbook. The device keeps the per-cookbook query but
+  replaces the grid's full-row load with a 9.7 kB metadata query, so it never
+  holds 119 kB of recipe text that no screen displays.
