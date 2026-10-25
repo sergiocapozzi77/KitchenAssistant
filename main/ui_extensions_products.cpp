@@ -1,808 +1,601 @@
-#include <vector>
-#include <string>
-#include <algorithm>
-#include <map>
-#include <set>
-#include <ctime>
-#include <cctype>
-#include <cstring>
-#include "lvgl.h"
-#include "esp_log.h"
-#include "ProductService.h"
 #include "ui_extensions.h"
-#include "ui_extensions_internal.h"
-#include "ui.h"
-#include "fonts.h"
+
+#include "actions.h"
 #include "ProductsManager.h"
-#include "models.h"
+#include "screens.h"
+#include "ui_theme.h"
+
+#include "esp_log.h"
 #include "images.h"
 
-static const char *TAG = "UIEXTENSIONS";
-static bool s_populating = false;
-static std::string s_productSearchFilter;
-static std::string s_selectedCategory;
-static std::map<std::string, int> s_categoryExpiringCount;
+#include <algorithm>
+#include <cctype>
+#include <cmath>
+#include <cstdio>
+#include <ctime>
+#include <map>
+#include <set>
+#include <string>
 
-static void update_selection_ui();
-static void category_button_cb(lv_event_t *e);
+static const char *TAG = "PRODUCT_UI";
 
-// === STRUCTS ===
-
-struct QtyContext
+namespace
 {
-    lv_obj_t *qty_val;
-    lv_obj_t *row;
-    std::string rowId;
-    int quantity;
-};
 
-struct GroupUI
-{
-    lv_obj_t *content;
-    lv_obj_t *arrow;
-    bool collapsed;
-};
+const char *const kCategories[] = {
+    "Baby", "Bakery", "Beverages", "Breakfast & Cereal", "Condiments & Dressing",
+    "Cooking & Baking", "Dairy", "Deli", "Frozen Foods", "Grains",
+    "Pasta & Sides", "Health & Personal Care", "Household & Cleaning", "Meat",
+    "Pet Supplies", "Produce", "Seafood", "Snacks", "Soups & Canned Food",
+    "Wine, Beer & Spirit", "Other"};
+constexpr int kCategoryCount = 21;
 
-struct DeleteCtx
-{
-    lv_obj_t *obj;
-};
+ProductFilter s_filter = ProductFilter::All;
+ProductSort s_sort = ProductSort::Name;
+std::string s_search;
+std::set<std::string> s_collapsed;
 
-struct RowClickCtx
+struct ModalState
 {
     Product product;
-    lv_obj_t *img = nullptr;
-    bool selected = false;
+    int quantity = 0;
 };
 
-// === CLEANUP CALLBACKS ===
+ModalState *s_modal = nullptr;
 
-static void free_row_click_ctx_cb(lv_event_t *e)
+struct GroupCtx
 {
-    delete (RowClickCtx *)lv_event_get_user_data(e);
+    lv_obj_t *content = nullptr;
+    lv_obj_t *chevron = nullptr;
+    std::string key;
+};
+
+std::string lower_copy(const std::string &value)
+{
+    std::string out = value;
+    std::transform(out.begin(), out.end(), out.begin(),
+                   [](unsigned char c)
+                   { return (char)std::tolower(c); });
+    return out;
 }
 
-static void free_qty_ctx_cb(lv_event_t *e)
+std::string trim_copy(const std::string &value)
 {
-    delete (QtyContext *)lv_event_get_user_data(e);
+    size_t first = value.find_first_not_of(" \t\r\n");
+    if (first == std::string::npos)
+        return "";
+    size_t last = value.find_last_not_of(" \t\r\n");
+    return value.substr(first, last - first + 1);
 }
 
-static void free_group_cb(lv_event_t *e)
+int days_until_expiry(const std::string &iso_date, bool frozen)
 {
-    delete (GroupUI *)lv_event_get_user_data(e);
+    if (iso_date.empty())
+        return 9999;
+
+    int year = 0, month = 0, day = 0;
+    if (std::sscanf(iso_date.c_str(), "%d-%d-%d", &year, &month, &day) != 3)
+        return 9999;
+    if (year < 1900 || year > 3000 || month < 1 || month > 12 ||
+        day < 1 || day > 31)
+        return 9999;
+
+    std::tm expiry = {};
+    expiry.tm_year = year - 1900;
+    expiry.tm_mon = month - 1;
+    expiry.tm_mday = day;
+
+    if (frozen)
+    {
+        expiry.tm_mon += 4;
+        if (expiry.tm_mon > 11)
+        {
+            expiry.tm_year += expiry.tm_mon / 12;
+            expiry.tm_mon %= 12;
+        }
+    }
+
+    std::time_t expiry_time = std::mktime(&expiry);
+    if (expiry_time == (std::time_t)-1)
+        return 9999;
+
+    std::time_t now = std::time(nullptr);
+    std::tm today = {};
+    localtime_r(&now, &today);
+    today.tm_hour = today.tm_min = today.tm_sec = 0;
+    std::time_t midnight = std::mktime(&today);
+    if (midnight == (std::time_t)-1)
+        return 9999;
+
+    return (int)std::round(std::difftime(expiry_time, midnight) / 86400.0);
 }
 
-static void free_rowid_cb(lv_event_t *e)
+bool valid_date(const std::string &value)
 {
-    delete (std::string *)lv_event_get_user_data(e);
+    if (value.size() != 10 || value[4] != '-' || value[7] != '-')
+        return false;
+    for (size_t i = 0; i < value.size(); ++i)
+    {
+        if (i == 4 || i == 7)
+            continue;
+        if (!std::isdigit((unsigned char)value[i]))
+            return false;
+    }
+
+    int year = std::stoi(value.substr(0, 4));
+    int month = std::stoi(value.substr(5, 2));
+    int day = std::stoi(value.substr(8, 2));
+    if (year < 1900 || year > 3000 || month < 1 || month > 12 ||
+        day < 1 || day > 31)
+        return false;
+
+    std::tm tm_value = {};
+    tm_value.tm_year = year - 1900;
+    tm_value.tm_mon = month - 1;
+    tm_value.tm_mday = day;
+    std::time_t time_value = std::mktime(&tm_value);
+    if (time_value == (std::time_t)-1)
+        return false;
+
+    std::tm round_trip = {};
+    localtime_r(&time_value, &round_trip);
+    return round_trip.tm_year == year - 1900 &&
+           round_trip.tm_mon == month - 1 &&
+           round_trip.tm_mday == day;
 }
 
-// === PUBLIC API ===
+void add_expiry_badge(lv_obj_t *row, int days)
+{
+    if (days > 3)
+        return;
+
+    std::string text;
+    uint32_t background = UI_COLOR_ERROR_SURFACE;
+    uint32_t foreground = UI_COLOR_ERROR_TEXT;
+
+    if (days < 0)
+    {
+        text = "Expired " + std::to_string(-days) + "d";
+    }
+    else if (days == 0)
+    {
+        text = "Today";
+        background = UI_COLOR_TODAY_SURFACE;
+        foreground = UI_COLOR_TODAY_TEXT;
+    }
+    else
+    {
+        text = std::to_string(days) + "d left";
+        background = UI_COLOR_DAYSLEFT_SURFACE;
+        foreground = UI_COLOR_DAYSLEFT_TEXT;
+    }
+
+    ui_theme::make_badge(row, text.c_str(), background, foreground);
+}
+
+void free_product_cb(lv_event_t *event)
+{
+    delete static_cast<Product *>(lv_event_get_user_data(event));
+}
+
+void free_string_cb(lv_event_t *event)
+{
+    delete static_cast<std::string *>(lv_event_get_user_data(event));
+}
+
+void edit_product_cb(lv_event_t *event)
+{
+    auto *product = static_cast<Product *>(lv_event_get_user_data(event));
+    if (product)
+        open_product_edit_modal(*product);
+}
+
+void delete_product_cb(lv_event_t *event)
+{
+    auto *id = static_cast<std::string *>(lv_event_get_user_data(event));
+    if (id)
+        request_product_delete(*id);
+}
+
+void group_toggle_cb(lv_event_t *event)
+{
+    auto *ctx = static_cast<GroupCtx *>(lv_event_get_user_data(event));
+    if (!ctx || !ctx->content || !lv_obj_is_valid(ctx->content))
+        return;
+
+    bool is_collapsed = lv_obj_has_flag(ctx->content, LV_OBJ_FLAG_HIDDEN);
+    if (is_collapsed)
+    {
+        lv_obj_clear_flag(ctx->content, LV_OBJ_FLAG_HIDDEN);
+        s_collapsed.erase(ctx->key);
+        if (ctx->chevron)
+            lv_label_set_text(ctx->chevron, LV_SYMBOL_UP);
+    }
+    else
+    {
+        lv_obj_add_flag(ctx->content, LV_OBJ_FLAG_HIDDEN);
+        s_collapsed.insert(ctx->key);
+        if (ctx->chevron)
+            lv_label_set_text(ctx->chevron, LV_SYMBOL_DOWN);
+    }
+}
+
+void free_group_cb(lv_event_t *event)
+{
+    delete static_cast<GroupCtx *>(lv_event_get_user_data(event));
+}
+
+void add_empty_state(lv_obj_t *root, bool no_products)
+{
+    lv_obj_t *empty = lv_obj_create(root);
+    lv_obj_set_width(empty, LV_PCT(100));
+    lv_obj_set_height(empty, 320);
+    lv_obj_set_style_bg_opa(empty, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(empty, 0, 0);
+    lv_obj_set_style_pad_all(empty, 0, 0);
+    lv_obj_set_style_pad_row(empty, 12, 0);
+    lv_obj_set_flex_flow(empty, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(empty, LV_FLEX_ALIGN_CENTER,
+                          LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+
+    ui_theme::make_label(empty,
+                         no_products ? "No products yet" : "No matching products",
+                         ui_theme::font_title, UI_COLOR_TEXT_PRIMARY);
+    ui_theme::make_label(empty,
+                         no_products
+                             ? "Add items from the Kitchen Assistant app"
+                             : "Change the filter or search text",
+                         ui_theme::font_body, UI_COLOR_TEXT_MUTED);
+}
+
+lv_obj_t *make_product_row(lv_obj_t *parent, const Product &product, int days)
+{
+    lv_obj_t *row = lv_obj_create(parent);
+    lv_obj_set_width(row, LV_PCT(100));
+    lv_obj_set_height(row, 96);
+    lv_obj_set_style_bg_color(row, lv_color_hex(UI_COLOR_PRODUCT_ROW), 0);
+    lv_obj_set_style_bg_opa(row, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(row, 16, 0);
+    lv_obj_set_style_border_width(row, 0, 0);
+    lv_obj_set_style_pad_all(row, 16, 0);
+    lv_obj_set_style_pad_column(row, 12, 0);
+    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START,
+                          LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE);
+
+    Product *row_product = new Product(product);
+    lv_obj_add_event_cb(row, edit_product_cb, LV_EVENT_CLICKED, row_product);
+    lv_obj_add_event_cb(row, free_product_cb, LV_EVENT_DELETE, row_product);
+
+    lv_obj_t *name = ui_theme::make_label(
+        row, product.name.c_str(), ui_theme::font_title, UI_COLOR_TEXT_PRIMARY);
+    lv_obj_set_flex_grow(name, 1);
+    lv_label_set_long_mode(name, LV_LABEL_LONG_MODE_DOTS);
+
+    if (product.frozen)
+    {
+        lv_obj_t *snowflake = lv_image_create(row);
+        lv_obj_set_size(snowflake, 40, 40);
+        lv_image_set_src(snowflake, &img_snowflake);
+        lv_obj_set_style_bg_opa(snowflake, LV_OPA_TRANSP, 0);
+    }
+
+    add_expiry_badge(row, days);
+
+    lv_obj_t *edit = ui_theme::make_icon_button(row, LV_SYMBOL_EDIT, 56);
+    Product *edit_product = new Product(product);
+    lv_obj_add_event_cb(edit, edit_product_cb, LV_EVENT_CLICKED, edit_product);
+    lv_obj_add_event_cb(edit, free_product_cb, LV_EVENT_DELETE, edit_product);
+
+    lv_obj_t *remove = ui_theme::make_icon_button(
+        row, LV_SYMBOL_TRASH, 56, UI_COLOR_ERROR_SURFACE);
+    lv_obj_t *remove_icon = lv_obj_get_child(remove, 0);
+    if (remove_icon)
+        lv_obj_set_style_text_color(remove_icon,
+                                    lv_color_hex(UI_COLOR_ERROR_TEXT), 0);
+    std::string *delete_id = new std::string(product.id);
+    lv_obj_add_event_cb(remove, delete_product_cb, LV_EVENT_CLICKED, delete_id);
+    lv_obj_add_event_cb(remove, free_string_cb, LV_EVENT_DELETE, delete_id);
+
+    return row;
+}
+
+void add_group(lv_obj_t *root, const std::string &category,
+               const std::vector<Product> &products)
+{
+    std::string upper = category;
+    std::transform(upper.begin(), upper.end(), upper.begin(),
+                   [](unsigned char c)
+                   { return (char)std::toupper(c); });
+
+    lv_obj_t *header = lv_obj_create(root);
+    lv_obj_set_width(header, LV_PCT(100));
+    lv_obj_set_height(header, 56);
+    lv_obj_set_style_bg_opa(header, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(header, 0, 0);
+    lv_obj_set_style_pad_all(header, 0, 0);
+    lv_obj_set_flex_flow(header, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(header, LV_FLEX_ALIGN_SPACE_BETWEEN,
+                          LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_add_flag(header, LV_OBJ_FLAG_CLICKABLE);
+
+    std::string title = upper + "  " LV_SYMBOL_BULLET "  " +
+                        std::to_string(products.size()) +
+                        (products.size() == 1 ? " item" : " items");
+    ui_theme::make_label(header, title.c_str(), ui_theme::font_body,
+                         UI_COLOR_TEXT_SECONDARY);
+
+    lv_obj_t *chevron = ui_theme::make_label(
+        header, LV_SYMBOL_UP, ui_theme::font_icon_small, UI_COLOR_TEXT_MUTED);
+
+    lv_obj_t *content = lv_obj_create(root);
+    lv_obj_set_width(content, LV_PCT(100));
+    lv_obj_set_height(content, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(content, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(content, 0, 0);
+    lv_obj_set_style_pad_all(content, 0, 0);
+    lv_obj_set_style_pad_row(content, 12, 0);
+    lv_obj_set_flex_flow(content, LV_FLEX_FLOW_COLUMN);
+
+    bool collapsed = s_collapsed.count(category) > 0;
+    if (collapsed)
+    {
+        lv_obj_add_flag(content, LV_OBJ_FLAG_HIDDEN);
+        lv_label_set_text(chevron, LV_SYMBOL_DOWN);
+    }
+
+    auto *ctx = new GroupCtx{content, chevron, category};
+    lv_obj_add_event_cb(header, group_toggle_cb, LV_EVENT_CLICKED, ctx);
+    lv_obj_add_event_cb(header, free_group_cb, LV_EVENT_DELETE, ctx);
+
+    for (const auto &product : products)
+        make_product_row(content, product, days_until_expiry(product.expiry,
+                                                             product.frozen));
+}
+
+void sync_filter_controls()
+{
+    if (!objects.product_filter_lbl || !lv_obj_is_valid(objects.product_filter_lbl))
+        return;
+
+    const char *filter_name = "All";
+    if (s_filter == ProductFilter::ExpiringSoon)
+        filter_name = "Expiring soon";
+    else if (s_filter == ProductFilter::Expired)
+        filter_name = "Expired";
+
+    std::string filter_text = std::string("Filter: ") + filter_name;
+    bool filter_active = s_filter != ProductFilter::All;
+    if (filter_active)
+        filter_text += "  " LV_SYMBOL_BULLET;
+    lv_label_set_text(objects.product_filter_lbl, filter_text.c_str());
+    lv_obj_set_style_text_color(
+        objects.product_filter_lbl,
+        lv_color_hex(filter_active ? UI_COLOR_ACCENT : UI_COLOR_TEXT_SECONDARY), 0);
+    lv_obj_set_style_border_width(objects.product_filter_pill,
+                                  filter_active ? 2 : 0, 0);
+    lv_obj_set_style_border_color(objects.product_filter_pill,
+                                  lv_color_hex(UI_COLOR_ACCENT), 0);
+
+    lv_label_set_text(objects.product_sort_lbl,
+                      s_sort == ProductSort::Name ? "Sort: A-Z"
+                                                  : "Sort: By expiry");
+
+    ui_theme::set_chip_active(objects.product_chip_all,
+                              s_filter == ProductFilter::All);
+    ui_theme::set_chip_active(objects.product_chip_expiring,
+                              s_filter == ProductFilter::ExpiringSoon);
+    ui_theme::set_chip_active(objects.product_chip_expired,
+                              s_filter == ProductFilter::Expired);
+    ui_theme::set_chip_active(objects.product_sort_chip_az,
+                              s_sort == ProductSort::Name);
+    ui_theme::set_chip_active(objects.product_sort_chip_expiry,
+                              s_sort == ProductSort::Expiry);
+}
+
+} // namespace
+
+void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
+{
+    if (!root || !lv_obj_is_valid(root))
+        return;
+
+    lv_obj_clean(root);
+    sync_filter_controls();
+
+    std::string needle = lower_copy(s_search);
+    bool use_search = s_search.size() >= 3;
+    std::vector<Product> filtered;
+    filtered.reserve(products.size());
+
+    for (const auto &product : products)
+    {
+        int days = days_until_expiry(product.expiry, product.frozen);
+        if (s_filter == ProductFilter::ExpiringSoon && !(days >= 0 && days <= 3))
+            continue;
+        if (s_filter == ProductFilter::Expired && !(days < 0))
+            continue;
+        if (use_search && lower_copy(product.name).find(needle) == std::string::npos)
+            continue;
+
+        Product copy = product;
+        filtered.push_back(std::move(copy));
+    }
+
+    if (s_sort == ProductSort::Name)
+    {
+        std::stable_sort(filtered.begin(), filtered.end(),
+                         [](const Product &a, const Product &b)
+                         { return lower_copy(a.name) < lower_copy(b.name); });
+    }
+    else
+    {
+        std::stable_sort(filtered.begin(), filtered.end(),
+                         [](const Product &a, const Product &b)
+                         {
+                             int da = days_until_expiry(a.expiry, a.frozen);
+                             int db = days_until_expiry(b.expiry, b.frozen);
+                             if (da != db)
+                                 return da < db;
+                             return lower_copy(a.name) < lower_copy(b.name);
+                         });
+    }
+
+    if (filtered.empty())
+    {
+        add_empty_state(root, products.empty());
+        return;
+    }
+
+    std::map<std::string, std::vector<Product>> groups;
+    for (const auto &product : filtered)
+        groups[product.category.empty() ? "Other" : product.category]
+            .push_back(product);
+
+    for (const auto &entry : groups)
+        add_group(root, entry.first, entry.second);
+}
 
 void setProductSearchFilter(const std::string &filter)
 {
-    s_productSearchFilter = filter;
-    if (filter.length() >= 3)
-        ESP_LOGI(TAG, "Search filter set: '%.80s' (%zu chars)", filter.c_str(), filter.length());
+    s_search = filter;
 }
 
-// === EVENT CALLBACKS ===
-
-static void group_toggle_cb(lv_event_t *e)
+void setProductFilter(ProductFilter filter)
 {
-    GroupUI *group = (GroupUI *)lv_event_get_user_data(e);
-    if (!group || !group->content || !group->arrow)
-        return;
-
-    group->collapsed = !group->collapsed;
-
-    if (group->collapsed)
-    {
-        lv_obj_add_flag(group->content, LV_OBJ_FLAG_HIDDEN);
-        lv_label_set_text(group->arrow, LV_SYMBOL_RIGHT);
-    }
-    else
-    {
-        lv_obj_clear_flag(group->content, LV_OBJ_FLAG_HIDDEN);
-        lv_label_set_text(group->arrow, LV_SYMBOL_DOWN);
-    }
+    s_filter = filter;
+    sync_filter_controls();
+    productsManager.populateProductList();
 }
 
-static void row_prod_click_cb(lv_event_t *e)
+void setProductSort(ProductSort sort)
 {
-    lv_obj_t *row = static_cast<lv_obj_t *>(lv_event_get_target(e));
-    if (!row)
-        return;
+    s_sort = sort;
+    sync_filter_controls();
+    productsManager.populateProductList();
+}
 
-    RowClickCtx *ctx = (RowClickCtx *)lv_event_get_user_data(e);
-    if (!ctx)
-        return;
-
-    ctx->selected = !ctx->selected;
-
-    if (ctx->img && lv_obj_is_valid(ctx->img))
+const char *product_category_options()
+{
+    static std::string options;
+    if (options.empty())
     {
-        if (ctx->selected)
-            lv_obj_clear_flag(ctx->img, LV_OBJ_FLAG_HIDDEN);
+        for (int i = 0; i < kCategoryCount; ++i)
+        {
+            if (i > 0)
+                options += "\n";
+            options += kCategories[i];
+        }
+    }
+    return options.c_str();
+}
+
+int product_category_index(const std::string &category)
+{
+    for (int i = 0; i < kCategoryCount; ++i)
+    {
+        if (category == kCategories[i])
+            return i;
+    }
+    return kCategoryCount - 1;
+}
+
+std::string product_category_at(int index)
+{
+    if (index < 0 || index >= kCategoryCount)
+        index = kCategoryCount - 1;
+    return kCategories[index];
+}
+
+void open_product_edit_modal(const Product &product)
+{
+    delete s_modal;
+    s_modal = new ModalState{product, product.quantity};
+
+    if (!objects.product_edit_modal || !lv_obj_is_valid(objects.product_edit_modal))
+        return;
+
+    lv_textarea_set_text(objects.product_edit_name_ta, product.name.c_str());
+    lv_textarea_set_text(objects.product_edit_expiry_ta, product.expiry.c_str());
+    lv_dropdown_set_selected(objects.product_edit_category_dd,
+                             product_category_index(product.category));
+    if (objects.product_edit_frozen_cb)
+    {
+        if (product.frozen)
+            lv_obj_add_state(objects.product_edit_frozen_cb, LV_STATE_CHECKED);
         else
-            lv_obj_add_flag(ctx->img, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_clear_state(objects.product_edit_frozen_cb, LV_STATE_CHECKED);
     }
+    adjust_product_modal_quantity(0);
 
-    if (ctx->selected)
-        productsManager.addSelectedProduct(ctx->product);
-    else
-        productsManager.removeSelectedProduct(ctx->product.rowId);
-
-    update_selection_ui();
-}
-
-static void update_selection_ui()
-{
-    int selected_count = productsManager.getSelectedCount();
-
-    char buf[64];
-    if (selected_count == 1)
-        snprintf(buf, sizeof(buf), "1 product selected");
-    else
-        snprintf(buf, sizeof(buf), "%d products selected", selected_count);
-
-    lv_label_set_text(objects.products_filters_panel__product_selected_lbl, buf);
-    lv_label_set_text(objects.recipes_filters_panel__product_selected_lbl, buf);
-
-    ESP_LOGI(TAG, "Selection updated: %d products selected", selected_count);
-
-    if (objects.create_recipe_pnl && lv_obj_is_valid(objects.create_recipe_pnl))
-    {
-        if (selected_count > 0)
-            lv_obj_clear_flag(objects.create_recipe_pnl, LV_OBJ_FLAG_HIDDEN);
-        else
-            lv_obj_add_flag(objects.create_recipe_pnl, LV_OBJ_FLAG_HIDDEN);
-    }
-    else
-    {
-        ESP_LOGW(TAG, "create_recipe_pnl is NULL or invalid, skipping visibility update");
-    }
+    if (objects.keyboard)
+        lv_obj_add_flag(objects.keyboard, LV_OBJ_FLAG_HIDDEN);
+    if (objects.product_edit_save_btn)
+        lv_obj_clear_state(objects.product_edit_save_btn, LV_STATE_DISABLED);
+    lv_obj_clear_flag(objects.product_edit_modal, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_move_foreground(objects.product_edit_modal);
 }
 
 void close_product_edit_modal()
 {
-    lv_obj_add_flag(objects.product_edit_modal, LV_OBJ_FLAG_HIDDEN);
+    if (objects.product_edit_modal && lv_obj_is_valid(objects.product_edit_modal))
+        lv_obj_add_flag(objects.product_edit_modal, LV_OBJ_FLAG_HIDDEN);
+    if (objects.keyboard)
+        lv_obj_add_flag(objects.keyboard, LV_OBJ_FLAG_HIDDEN);
+    delete s_modal;
+    s_modal = nullptr;
 }
 
-void show_product_edit_modal()
+bool get_product_modal_values(Product &out)
 {
-    lv_obj_clear_flag(objects.product_edit_modal, LV_OBJ_FLAG_HIDDEN);
-}
+    if (!s_modal)
+        return false;
 
-static int category_to_index(const std::string &category)
-{
-    static const char *categories[] = {
-        "Baby", "Bakery", "Beverages", "Breakfast & Cereal", "Condiments & Dressing",
-        "Cooking & Baking", "Dairy", "Deli", "Frozen Foods", "Grains",
-        "Pasta & Sides", "Health & Personal Care", "Household & Cleaning", "Meat",
-        "Pet Supplies", "Produce", "Seafood", "Snacks", "Soups & Canned Food",
-        "Wine, Beer & Spirit", "Other"};
-    for (int i = 0; i < 21; ++i)
+    std::string name = trim_copy(lv_textarea_get_text(objects.product_edit_name_ta));
+    if (name.empty())
     {
-        if (category == categories[i])
-            return i;
+        showSnackbar("Name is required", 3000);
+        return false;
     }
-    return 20;
+
+    std::string expiry = trim_copy(lv_textarea_get_text(objects.product_edit_expiry_ta));
+    if (!expiry.empty() && !valid_date(expiry))
+    {
+        showSnackbar("Use expiry YYYY-MM-DD", 3000);
+        return false;
+    }
+
+    out = s_modal->product;
+    out.name = name;
+    out.expiry = expiry;
+    out.category = product_category_at(lv_dropdown_get_selected(
+        objects.product_edit_category_dd));
+    out.quantity = s_modal->quantity;
+    out.frozen = objects.product_edit_frozen_cb &&
+                 lv_obj_has_state(objects.product_edit_frozen_cb, LV_STATE_CHECKED);
+    return true;
 }
 
-static void free_panel_rowid_cb(lv_event_t *e)
+bool product_modal_id(std::string &out)
 {
-    std::string *data = static_cast<std::string *>(lv_event_get_user_data(e));
-    delete data;
+    if (!s_modal)
+        return false;
+    out = s_modal->product.id;
+    return !out.empty();
 }
 
-static void edit_btn_cb(lv_event_t *e)
+void adjust_product_modal_quantity(int delta)
 {
-    std::string *rowId = static_cast<std::string *>(lv_event_get_user_data(e));
-    if (!rowId)
+    if (!s_modal)
         return;
-
-    show_product_edit_modal();
-
-    auto products = productsManager.getAllProducts();
-    auto it = std::find_if(products.begin(), products.end(),
-                           [&rowId](const Product &p)
-                           { return p.rowId == *rowId; });
-    if (it == products.end())
-    {
-        ESP_LOGE(TAG, "Product with rowId %s not found", rowId->c_str());
-        return;
-    }
-    const Product &product = *it;
-
-    ESP_LOGI(TAG, "Opening edit modal for '%s' (rowId=%s)", product.name.c_str(), product.rowId.c_str());
-
-    lv_obj_t *name_ta = objects.product_edit__product_edit_name_ta;
-    lv_obj_t *expiry_ta = objects.product_edit__product_edit_expiry_ta;
-    lv_obj_t *category_dd = objects.product_edit__product_edit_category_dd;
-    lv_obj_t *frozen_cb = objects.product_edit__product_edit_frozen_cb;
-
-    if (name_ta && lv_obj_is_valid(name_ta))
-        lv_textarea_set_text(name_ta, product.name.c_str());
-
-    if (expiry_ta && lv_obj_is_valid(expiry_ta))
-        lv_textarea_set_text(expiry_ta, product.expiry.c_str());
-
-    if (category_dd && lv_obj_is_valid(category_dd))
-        lv_dropdown_set_selected(category_dd, category_to_index(product.category));
-
-    if (frozen_cb && lv_obj_is_valid(frozen_cb))
-    {
-        if (product.frozen)
-            lv_obj_add_state(frozen_cb, LV_STATE_CHECKED);
-        else
-            lv_obj_clear_state(frozen_cb, LV_STATE_CHECKED);
-    }
-
-    lv_obj_t *panel = objects.product_edit__product_edit_panel;
-    if (panel && lv_obj_is_valid(panel))
-    {
-        // Remove any previously attached free callback to avoid double-free
-        // if the modal is reused without the panel being deleted first.
-        lv_obj_remove_event_cb_with_user_data(panel, free_panel_rowid_cb,
-                                              lv_obj_get_user_data(panel));
-        std::string *old = static_cast<std::string *>(lv_obj_get_user_data(panel));
-        delete old;
-
-        std::string *rowIdCopy = new std::string(*rowId);
-        lv_obj_set_user_data(panel, rowIdCopy);
-        lv_obj_add_event_cb(panel, free_panel_rowid_cb, LV_EVENT_DELETE, rowIdCopy);
-    }
-}
-
-static void category_button_cb(lv_event_t *e)
-{
-    // user_data is a heap-allocated std::string* owned by the event itself
-    const std::string *category = static_cast<const std::string *>(lv_event_get_user_data(e));
-    if (!category)
-    {
-        ESP_LOGW(TAG, "category_button_cb: no category data");
-        return;
-    }
-    ESP_LOGI(TAG, "Category button clicked: '%s'", category->c_str());
-    s_selectedCategory = *category;
-    productsManager.populateProductList();
-}
-
-// ---------------------------------------------------------------------------
-// Helper: set the category image on an lv_image widget
-// ---------------------------------------------------------------------------
-static void set_category_image(lv_obj_t *img, const std::string &category)
-{
-    if (category == "Baby")
-        lv_image_set_src(img, &img_baby);
-    else if (category == "Wine, Beer & Spirit")
-        lv_image_set_src(img, &img_wine);
-    else if (category == "Produce")
-        lv_image_set_src(img, &img_produce);
-    else if (category == "Meat")
-        lv_image_set_src(img, &img_meat);
-    else if (category == "Dairy")
-        lv_image_set_src(img, &img_dairy);
-    else if (category == "Bakery")
-        lv_image_set_src(img, &img_bakery);
-    else if (category == "Snacks")
-        lv_image_set_src(img, &img_snacks);
-    else if (category == "Condiments & Dressing")
-        lv_image_set_src(img, &img_condiment);
-    else
-        lv_image_set_src(img, &img_other);
-    // Categories with no dedicated image fall through to img_other.
-    // Add further cases here as assets become available.
-
-    /*
-      if (category == "Baby")
-        {
-            lv_image_set_src(img, &img_baby);
-        }
-        else if (category == "Pet Supplies")
-        {
-            // ...
-        }
-        else if (category == "Wine, Beer & Spirit")
-        {
-            lv_image_set_src(img, &img_wine);
-        }
-        else if (category == "Produce")
-        {
-            lv_image_set_src(img, &img_produce);
-        }
-        else if (category == "Meat")
-        {
-            lv_image_set_src(img, &img_meat);
-        }
-        else if (category == "Seafood")
-        {
-            // ...
-        }
-        else if (category == "Deli")
-        {
-            // ...
-        }
-        else if (category == "Dairy")
-        {
-            lv_image_set_src(img, &img_dairy);
-        }
-        else if (category == "Bakery")
-        {
-            lv_image_set_src(img, &img_bakery);
-        }
-        else if (category == "Frozen Foods")
-        {
-            // ...
-        }
-        else if (category == "Beverages")
-        {
-            // ...
-        }
-        else if (category == "Snacks")
-        {
-            lv_image_set_src(img, &img_snacks);
-        }
-        else if (category == "Breakfast & Cereal")
-        {
-            // ...
-        }
-        else if (category == "Soups & Canned Food")
-        {
-            // ...
-        }
-        else if (category == "Grains, Pasta & Sides")
-        {
-            // ...
-        }
-        else if (category == "Cooking & Baking")
-        {
-            // ...
-        }
-        else if (category == "Condiments & Dressing")
-        {
-            lv_image_set_src(img, &img_condiment);
-        }
-        else if (category == "Health & Personal Care")
-        {
-            // ...
-        }
-        else if (category == "Household & Cleaning")
-        {
-            // ...
-        }
-        else
-        {
-            lv_image_set_src(img, &img_other);
-        }
-
-    */
-}
-
-// ---------------------------------------------------------------------------
-// Sidebar builder – called while holding lv_lock()
-// ---------------------------------------------------------------------------
-static void build_sidebar(lv_obj_t *sidebar,
-                          const std::set<std::string> &uniqueCategories,
-                          const std::map<std::string, int> &expiringCount)
-{
-    lv_obj_clean(sidebar);
-
-    ESP_LOGI(TAG, "Building sidebar (%zu categories)", uniqueCategories.size());
-    int yield_count = 0;
-    int cat_idx = 0;
-    for (const std::string &category : uniqueCategories)
-    {
-        // Yield periodically so the LP core doesn't stall
-        if (cat_idx > 0 && (cat_idx % 5) == 0)
-        {
-            lv_unlock();
-            taskYIELD();
-            lv_lock();
-
-            if (!lv_obj_is_valid(sidebar))
-            {
-                ESP_LOGW(TAG, "sidebar invalidated during population, aborting");
-                return;
-            }
-            yield_count++;
-        }
-        cat_idx++;
-        lv_obj_t *btn = lv_btn_create(sidebar);
-        lv_obj_set_width(btn, lv_pct(100));
-        lv_obj_set_height(btn, 120);
-        lv_obj_set_style_bg_color(btn, lv_color_hex(0xFFFFFF), 0);
-        lv_obj_set_style_bg_color(btn, lv_color_hex(0xE9ECEF), LV_STATE_PRESSED);
-        lv_obj_set_style_border_width(btn, 1, 0);
-        lv_obj_set_style_border_color(btn, lv_color_hex(0xDEE2E6), 0);
-        lv_obj_set_style_radius(btn, 6, 0);
-        lv_obj_set_style_pad_all(btn, 8, 0);
-
-        if (category == s_selectedCategory)
-        {
-            lv_obj_set_style_bg_color(btn, lv_color_hex(0xE3F2FD), 0);
-            lv_obj_set_style_border_color(btn, lv_color_hex(0x007AFF), 0);
-            lv_obj_set_style_border_width(btn, 2, 0);
-        }
-
-        // Icon + label container
-        lv_obj_t *container = lv_obj_create(btn);
-        lv_obj_remove_style_all(container);
-        lv_obj_clear_flag(container, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_set_size(container, lv_pct(100), LV_SIZE_CONTENT);
-        lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
-        lv_obj_set_flex_align(container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-        lv_obj_set_style_pad_row(container, 6, 0);
-        lv_obj_center(container);
-
-        lv_obj_t *img = lv_image_create(container);
-        lv_obj_clear_flag(img, LV_OBJ_FLAG_CLICKABLE);
-        set_category_image(img, category);
-        lv_obj_set_size(img, 60, 60);
-
-        lv_obj_t *label = lv_label_create(container);
-        lv_obj_clear_flag(label, LV_OBJ_FLAG_CLICKABLE);
-        lv_label_set_text(label, category.c_str());
-        lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
-        lv_obj_set_width(label, lv_pct(100));
-        lv_obj_set_style_text_color(label, lv_color_hex(0x495057), 0);
-        lv_obj_set_style_text_font(label, &lv_font_montserrat_16, 0);
-        lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
-
-        // Expiry badge
-        auto it = expiringCount.find(category);
-        if (it != expiringCount.end() && it->second > 0)
-        {
-            lv_obj_t *badge = lv_label_create(btn);
-            lv_obj_clear_flag(badge, LV_OBJ_FLAG_CLICKABLE);
-            char buf[16];
-            snprintf(buf, sizeof(buf), "%d", it->second);
-            lv_label_set_text(badge, buf);
-            lv_obj_set_style_bg_color(badge, lv_color_hex(0xE74C3C), 0);
-            lv_obj_set_style_text_color(badge, lv_color_hex(0xFFFFFF), 0);
-            lv_obj_set_style_pad_hor(badge, 8, 0);
-            lv_obj_set_style_pad_ver(badge, 4, 0);
-            lv_obj_set_style_radius(badge, 20, 0);
-            lv_obj_set_style_text_font(badge, &lv_font_montserrat_14, 0);
-            lv_obj_set_style_bg_opa(badge, LV_OPA_COVER, 0);
-            lv_obj_add_flag(badge, LV_OBJ_FLAG_FLOATING);
-            lv_obj_align(badge, LV_ALIGN_TOP_RIGHT, -5, 5);
-            lv_obj_move_foreground(badge);
-
-            ESP_LOGI(TAG, "Category '%s' has %d expiring products", category.c_str(), it->second);
-        }
-
-        // Attach category as heap std::string – freed on DELETE, passed to callback
-        std::string *cat_str = new std::string(category);
-        lv_obj_add_event_cb(btn, category_button_cb, LV_EVENT_CLICKED, cat_str);
-        lv_obj_add_event_cb(btn, [](lv_event_t *e)
-                            { delete static_cast<std::string *>(lv_event_get_user_data(e)); }, LV_EVENT_DELETE, cat_str);
-        // NOTE: lv_obj_set_user_data is intentionally NOT used here so that
-        //       nothing else can clobber cat_str before DELETE fires.
-    }
-
-    if (yield_count > 0)
-        ESP_LOGI(TAG, "Sidebar yields: %d", yield_count);
-}
-
-// ---------------------------------------------------------------------------
-// Content row builder – called while holding lv_lock()
-// Yields the lock every YIELD_INTERVAL rows so LVGL can render between batches.
-// ---------------------------------------------------------------------------
-static constexpr int ROW_YIELD_INTERVAL = 8;
-
-static void build_content_rows(lv_obj_t *content_container,
-                               const std::vector<const Product *> &category_filtered,
-                               const std::set<std::string> &selectedRowIds)
-{
-    lv_obj_clean(content_container);
-
-    ESP_LOGI(TAG, "Building content rows: %d products", (int)category_filtered.size());
-    int yield_count = 0;
-    int row_index = 0;
-    for (const Product *p : category_filtered)
-    {
-        // Yield every N rows so LVGL can render and other tasks can run.
-        // We re-validate the container after re-acquiring the lock.
-        if (row_index > 0 && (row_index % ROW_YIELD_INTERVAL) == 0)
-        {
-            lv_unlock();
-            taskYIELD();
-            lv_lock();
-
-            if (!lv_obj_is_valid(content_container))
-            {
-                ESP_LOGW(TAG, "content_container invalidated during population, aborting");
-                return;
-            }
-            yield_count++;
-        }
-        row_index++;
-
-        lv_obj_t *row = lv_obj_create(content_container);
-        lv_obj_add_style(row, &style_row, 0);
-        lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_set_width(row, lv_pct(100));
-        lv_obj_set_height(row, 60);
-        lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
-        lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-
-        // Selection indicator image
-        lv_obj_t *sel_img = lv_image_create(row);
-        lv_obj_clear_flag(sel_img, LV_OBJ_FLAG_CLICKABLE);
-        lv_image_set_src(sel_img, &img_restaurant);
-        bool isSelected = selectedRowIds.find(p->rowId) != selectedRowIds.end();
-        if (!isSelected)
-            lv_obj_add_flag(sel_img, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_set_style_translate_y(sel_img, 5, 0);
-
-        // Product name
-        lv_obj_t *name = lv_label_create(row);
-        lv_obj_clear_flag(name, LV_OBJ_FLAG_CLICKABLE);
-        lv_label_set_text(name, p->name.c_str());
-        lv_obj_set_flex_grow(name, 1);
-        lv_obj_set_style_text_color(name, lv_color_hex(0x495057), 0);
-        lv_obj_set_style_text_font(name, &ui_font_ext_font_montserrat_18, 0);
-        lv_obj_set_style_translate_y(name, 5, 0);
-
-        // Row click context – owns the selected state and image reference
-        RowClickCtx *row_ctx = new RowClickCtx{*p, sel_img, isSelected};
-        lv_obj_add_event_cb(row, row_prod_click_cb, LV_EVENT_CLICKED, row_ctx);
-        lv_obj_add_event_cb(row, free_row_click_ctx_cb, LV_EVENT_DELETE, row_ctx);
-
-        // Frozen indicator
-        if (p->frozen)
-        {
-            lv_obj_t *frozen_img = lv_image_create(row);
-            lv_obj_clear_flag(frozen_img, LV_OBJ_FLAG_CLICKABLE);
-            lv_image_set_src(frozen_img, &img_snowflake);
-            lv_obj_set_style_translate_y(frozen_img, 5, 0);
-        }
-
-        // Expiry badge
-        int days = days_until_expiry(p->expiry, p->frozen);
-        if (days != 9999)
-        {
-            lv_obj_t *expiry = lv_label_create(row);
-            lv_obj_clear_flag(expiry, LV_OBJ_FLAG_CLICKABLE);
-            lv_obj_add_style(expiry, &style_expiry_badge, 0);
-
-            char buf[32];
-            if (days < 0)
-                snprintf(buf, sizeof(buf), "Expired");
-            else if (days == 0)
-                snprintf(buf, sizeof(buf), "Today");
-            else if (days < 7)
-                snprintf(buf, sizeof(buf), "%dd left", days);
-            else
-                lv_obj_add_flag(expiry, LV_OBJ_FLAG_HIDDEN);
-
-            lv_label_set_text(expiry, buf);
-            lv_obj_set_style_bg_color(expiry, get_expiry_color(days), 0);
-            lv_obj_set_style_translate_y(expiry, 5, 0);
-        }
-
-        // Edit button
-        lv_obj_t *btn_edit = lv_btn_create(row);
-        lv_obj_add_style(btn_edit, &style_del_btn, 0);
-        lv_obj_set_size(btn_edit, 50, 50);
-        lv_obj_set_style_translate_y(btn_edit, 5, 0);
-
-        lv_obj_t *lbl_edit = lv_label_create(btn_edit);
-        lv_obj_clear_flag(lbl_edit, LV_OBJ_FLAG_CLICKABLE);
-        lv_label_set_text(lbl_edit, LV_SYMBOL_EDIT);
-        lv_obj_set_style_text_color(lbl_edit, lv_color_hex(theme_colors[active_theme_index][0]), 0);
-        lv_obj_center(lbl_edit);
-
-        std::string *edit_id = new std::string(p->rowId);
-        lv_obj_add_event_cb(btn_edit, edit_btn_cb, LV_EVENT_CLICKED, edit_id);
-        lv_obj_add_event_cb(btn_edit, free_rowid_cb, LV_EVENT_DELETE, edit_id);
-    }
-
-    if (yield_count > 0)
-        ESP_LOGI(TAG, "Content-row yields: %d", yield_count);
-}
-
-// === MAIN POPULATE FUNCTION ===
-
-void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products)
-{
-    if (!root)
-    {
-        ESP_LOGE(TAG, "Root object is NULL");
-        return;
-    }
-
-    // ------------------------------------------------------------------
-    // Phase 1: ALL data preparation – no LVGL lock held.
-    // This is the bulk of the CPU work; let other tasks run freely.
-    // ------------------------------------------------------------------
-
-    // Read UI state (dropdown indices).  These widgets are written only from
-    // the LVGL task so a brief lock window is enough.
-    uint32_t filter_idx = 0;
-    uint32_t sort_idx = 0;
-    {
-        lv_lock();
-        if (objects.product_filter_dropdown && lv_obj_is_valid(objects.product_filter_dropdown))
-            filter_idx = lv_dropdown_get_selected(objects.product_filter_dropdown);
-        if (objects.product_sort_dropdown && lv_obj_is_valid(objects.product_sort_dropdown))
-            sort_idx = lv_dropdown_get_selected(objects.product_sort_dropdown);
-        lv_unlock();
-    }
-
-    // Filter by expiry
-    std::vector<const Product *> filtered;
-    filtered.reserve(products.size());
-    for (const auto &p : products)
-        filtered.push_back(&p);
-
-    if (filter_idx == 1)
-    {
-        filtered.erase(
-            std::remove_if(filtered.begin(), filtered.end(), [](const Product *p)
-                           {
-                int d = days_until_expiry(p->expiry, p->frozen);
-                return d == 9999 || d >= 7; }),
-            filtered.end());
-    }
-
-    // Filter by search text
-    if (s_productSearchFilter.length() >= 3)
-    {
-        std::string filterLower = s_productSearchFilter;
-        std::transform(filterLower.begin(), filterLower.end(), filterLower.begin(), ::tolower);
-
-        filtered.erase(
-            std::remove_if(filtered.begin(), filtered.end(), [&filterLower](const Product *p)
-                           {
-                std::string nameLower = p->name;
-                std::transform(nameLower.begin(), nameLower.end(), nameLower.begin(), ::tolower);
-                return nameLower.find(filterLower) == std::string::npos; }),
-            filtered.end());
-    }
-
-    // Compute categories and expiring counts
-    std::map<std::string, int> categoryExpiringCount;
-    std::set<std::string> uniqueCategories;
-    for (const Product *p : filtered)
-    {
-        uniqueCategories.insert(p->category);
-        int d = days_until_expiry(p->expiry, p->frozen);
-        if (d != 9999 && d < 7)
-            categoryExpiringCount[p->category]++;
-    }
-
-    ESP_LOGI(TAG, "Filtered products: %d, Categories: %d",
-             (int)filtered.size(), (int)uniqueCategories.size());
-    ESP_LOGI(TAG, "Expiring counts by category:");
-    for (const auto &entry : categoryExpiringCount)
-        ESP_LOGI(TAG, "  %s: %d", entry.first.c_str(), entry.second);
-
-    // Resolve selected category
-    std::string selectedCategory = s_selectedCategory;
-    if (!uniqueCategories.empty())
-    {
-        if (selectedCategory.empty() ||
-            uniqueCategories.find(selectedCategory) == uniqueCategories.end())
-        {
-            selectedCategory = *uniqueCategories.begin();
-        }
-    }
-    else
-    {
-        selectedCategory.clear();
-    }
-
-    // Filter + sort products for the selected category
-    std::vector<const Product *> category_filtered;
-    for (const Product *p : filtered)
-    {
-        if (p->category == selectedCategory)
-            category_filtered.push_back(p);
-    }
-
-    std::sort(category_filtered.begin(), category_filtered.end(),
-              [sort_idx](const Product *a, const Product *b)
-              {
-                  if (a->category != b->category)
-                      return a->category < b->category;
-                  if (sort_idx == 1)
-                  {
-                      bool av = days_until_expiry(a->expiry, a->frozen) != 9999;
-                      bool bv = days_until_expiry(b->expiry, b->frozen) != 9999;
-                      if (av != bv)
-                          return av > bv;
-                      return a->expiry < b->expiry;
-                  }
-                  return a->name < b->name;
-              });
-
-    // Snapshot selected row IDs (productsManager may be accessed from other tasks)
-    std::set<std::string> selectedRowIds;
-    {
-        auto sel = productsManager.getSelectedProducts();
-        for (const auto &p : sel)
-            selectedRowIds.insert(p.rowId);
-    }
-
-    // ------------------------------------------------------------------
-    // Phase 2: commit state and check for re-entrancy under the lock.
-    // ------------------------------------------------------------------
-    ESP_LOGI(TAG, "Populate start: %d products, filter_idx=%lu, sort_idx=%lu",
-             (int)category_filtered.size(), (unsigned long)filter_idx, (unsigned long)sort_idx);
-    lv_lock();
-
-    if (!lv_obj_is_valid(root))
-    {
-        ESP_LOGE(TAG, "Root became invalid before UI update");
-        lv_unlock();
-        return;
-    }
-
-    if (s_populating)
-    {
-        ESP_LOGW(TAG, "populateProductList already in progress, skipping");
-        lv_unlock();
-        return;
-    }
-    s_populating = true;
-
-    // Commit resolved state
-    s_selectedCategory = selectedCategory;
-    s_categoryExpiringCount = categoryExpiringCount;
-
-    init_styles();
-
-    // ------------------------------------------------------------------
-    // Phase 3: build sidebar (brief lock window).
-    // ------------------------------------------------------------------
-    lv_obj_t *sidebar = objects.products_sidebar;
-    if (!sidebar || !lv_obj_is_valid(sidebar))
-    {
-        ESP_LOGE(TAG, "products_sidebar is NULL or invalid");
-        s_populating = false;
-        lv_unlock();
-        return;
-    }
-
-    build_sidebar(sidebar, uniqueCategories, categoryExpiringCount);
-
-    lv_unlock();
-    taskYIELD(); // let LVGL render the sidebar before we build rows
-    ESP_LOGI(TAG, "Sidebar built (%d categories)", (int)uniqueCategories.size());
-
-    // ------------------------------------------------------------------
-    // Phase 4: build content rows (yields internally every N rows).
-    // ------------------------------------------------------------------
-    lv_lock();
-
-    lv_obj_t *content_container = objects.products_container;
-    if (!content_container || !lv_obj_is_valid(content_container))
-    {
-        ESP_LOGE(TAG, "products_container is NULL or invalid");
-        s_populating = false;
-        lv_unlock();
-        return;
-    }
-
-    // build_content_rows takes ownership of the lock and may release/re-acquire
-    // it internally; see ROW_YIELD_INTERVAL above.
-    build_content_rows(content_container, category_filtered, selectedRowIds);
-
-    // ------------------------------------------------------------------
-    // Phase 5: finalise (scroll restore, selection UI).
-    // ------------------------------------------------------------------
-    if (lv_obj_is_valid(content_container))
-        lv_obj_scroll_to_y(content_container, 0, LV_ANIM_OFF);
-
-    update_selection_ui();
-
-    ESP_LOGI(TAG, "Populate done: %d rows in category '%s'",
-             (int)category_filtered.size(), selectedCategory.c_str());
-
-    s_populating = false;
-    lv_unlock();
+    s_modal->quantity += delta;
+    if (s_modal->quantity < 0)
+        s_modal->quantity = 0;
+    if (s_modal->quantity > 999)
+        s_modal->quantity = 999;
+    if (objects.product_edit_qty_lbl &&
+        lv_obj_is_valid(objects.product_edit_qty_lbl))
+        lv_label_set_text(objects.product_edit_qty_lbl,
+                          std::to_string(s_modal->quantity).c_str());
 }
