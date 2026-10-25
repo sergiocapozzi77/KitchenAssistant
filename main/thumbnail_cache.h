@@ -39,7 +39,7 @@ namespace thumbnail_cache
      * Returns immediately without blocking on flash I/O.
      *
      * The index is saved to flash either:
-     * - After INDEX_SAVE_BATCH_SIZE consecutive puts (default: 5)
+     * - After INDEX_SAVE_BATCH_SIZE new entries (default: 4)
      * - After INDEX_SAVE_INTERVAL_MS has elapsed (default: 30 seconds)
      *
      * This batching strategy eliminates UI flickering caused by frequent flash writes.

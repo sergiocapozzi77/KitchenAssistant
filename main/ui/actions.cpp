@@ -4,6 +4,7 @@
 #include "ProductService.h"
 #include "ProductsManager.h"
 #include "RecipesManager.h"
+#include "WiFiManager.h"
 #include "WiFiSettingsUI.h"
 #include "screens.h"
 #include "thumbnail_manager.h"
@@ -157,6 +158,14 @@ void cookbooks_reload_task(void *arg)
     auto *ctx = static_cast<CookbooksLoadCtx *>(arg);
     bool refresh = ctx->refresh;
     delete ctx;
+
+    // Cookbooks is the startup tab, so this task can be spawned before the
+    // network is up. Wait for WiFi and SNTP before hitting TLS (same gates as
+    // combinedFetchTask). Both are no-ops once the network is ready.
+    while (!wifiManager.isConnected())
+        vTaskDelay(pdMS_TO_TICKS(500));
+    while (!wifiManager.isSntpSynced())
+        vTaskDelay(pdMS_TO_TICKS(250));
 
     bool ok = refresh ? cookbooksManager.refreshSync()
                       : cookbooksManager.fetchSync();
@@ -391,6 +400,16 @@ void action_cookbooks_reload(lv_event_t *)
     }
 }
 
+void action_cookbooks_prev(lv_event_t *)
+{
+    shiftCookbookPage(-1);
+}
+
+void action_cookbooks_next(lv_event_t *)
+{
+    shiftCookbookPage(1);
+}
+
 void action_cookbook_open(lv_event_t *event)
 {
     auto *id = static_cast<std::string *>(lv_event_get_user_data(event));
@@ -420,6 +439,16 @@ void action_cookbook_retry(lv_event_t *)
 
     retryCookbookDetail();
     request_cookbook_recipes(id);
+}
+
+void action_cookbook_recipes_prev(lv_event_t *)
+{
+    shiftCookbookRecipesPage(-1);
+}
+
+void action_cookbook_recipes_next(lv_event_t *)
+{
+    shiftCookbookRecipesPage(1);
 }
 
 void action_recipe_open(lv_event_t *event)

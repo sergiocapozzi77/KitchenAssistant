@@ -3,6 +3,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/queue.h"
+#include "freertos/task.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "esp_heap_caps.h"
@@ -13,7 +14,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <cstring>
-#include <atomic>
 #include <algorithm>
 #include <vector>
 #include <string>
@@ -26,12 +26,26 @@ static const char *TAG = "THUMBCACHE";
 #define CACHE_BASE_DIR CONFIG_BSP_SPIFFS_MOUNT_POINT
 #define INDEX_FILE CONFIG_BSP_SPIFFS_MOUNT_POINT "/thumb_index.json"
 #define INDEX_FILE_TMP INDEX_FILE ".tmp"
+// Bump when cached bytes can no longer be trusted (URL encoding, image format).
+// An index with a different version is wiped on boot, so stale entries never
+// serve a progressive JPEG that tjpgd cannot decode.
+// v2: cache keys are now 16 hex chars instead of 8.
+#define CACHE_INDEX_VERSION 2
 #define MAX_CACHE_ITEMS 100
-#define IO_QUEUE_DEPTH 8
-#define IO_TASK_STACK 8192
+// Deep enough for a full 3×3 page of PUTs plus the matching GETs; at 8 the
+// queue rejected writes while a page was loading, so those images were never
+// cached and got downloaded again on the next visit.
+#define IO_QUEUE_DEPTH 24
+// save_index_internal() builds the whole index with cJSON on this stack. At
+// 8 KB the deep cJSON/number-formatting call chain overflowed right when the
+// first timed save ran, which is the Core 0 panic seen ~30 s after boot.
+#define IO_TASK_STACK 20480
+#define MAX_CACHE_FILE_BYTES (2 * 1024 * 1024)
 
-// Save index every N puts or every INDEX_SAVE_INTERVAL_MS, whichever comes first
-#define INDEX_SAVE_BATCH_SIZE 10
+// Save index every N puts or every INDEX_SAVE_INTERVAL_MS, whichever comes first.
+// Keep the batch small: one 3×3 cookbook page is nine images and must survive a
+// reboot even if the 30 s timer has not fired yet.
+#define INDEX_SAVE_BATCH_SIZE 4
 #define INDEX_SAVE_INTERVAL_MS 30000 // 30 seconds
 
 namespace thumbnail_cache
@@ -58,26 +72,17 @@ namespace thumbnail_cache
 
     // ─── GET context ─────────────────────────────────────────────────────────────
     //
-    // Heap-allocated so it outlives the get() stack frame in the timeout case.
-    // Ownership rules:
-    //   • get() allocates it and sends it to the IO task via IoJob::ctx.
-    //   • If get() times out it sets cancelled=true and walks away — the IO task
-    //     then owns the struct and is responsible for freeing it.
-    //   • If get() succeeds (semaphore taken in time) it reads the result and
-    //     frees the struct itself; the IO task must NOT touch it after giving the
-    //     semaphore.
-    //
-    // The cancelled flag is std::atomic<bool> so the write in get() and the read
-    // in cache_io_task are race-free on dual-core ESP32-P4.
+    // Heap-allocated and handed to the IO task. get() waits for done_sem without
+    // a timeout, so the IO task may safely write into the caller's output vector;
+    // ownership of the context passes back to get() when it returns.
     //
     struct GetContext
     {
-        std::vector<uint8_t> *out_jpeg; // caller's buffer — only valid while !cancelled
+        std::vector<uint8_t> *out_jpeg;
         bool result;
-        std::atomic<bool> cancelled;
         SemaphoreHandle_t done_sem;
 
-        GetContext() : out_jpeg(nullptr), result(false), cancelled(false), done_sem(nullptr) {}
+        GetContext() : out_jpeg(nullptr), result(false), done_sem(nullptr) {}
     };
 
     // ─── IO job ──────────────────────────────────────────────────────────────────
@@ -116,17 +121,42 @@ namespace thumbnail_cache
 
     static std::string make_hash(const std::string &url, uint16_t w, uint16_t h)
     {
-        std::ostringstream oss;
-        oss << url << "|" << w << "|" << h;
+        std::ostringstream key;
+        key << url << "|" << w << "|" << h;
+        const std::string text = key.str();
+
+        // Two independent 32-bit hashes give a 16-char filename, matching the
+        // length is_cache_filename() expects (an 8-char name used to slip past
+        // every purge path, so stale files were never cleaned up).
         std::hash<std::string> hasher;
-        size_t hv = hasher(oss.str());
-        oss.str("");
-        // size_t is 32-bit on ESP32 — pad to 8 hex chars
-        oss << std::hex << std::setfill('0') << std::setw(sizeof(size_t) * 2) << hv;
+        uint32_t a = (uint32_t)hasher(text);
+        uint32_t b = (uint32_t)hasher(text + "#thumb");
+
+        std::ostringstream oss;
+        oss << std::hex << std::setfill('0')
+            << std::setw(8) << a << std::setw(8) << b;
         return oss.str();
     }
 
     // ─── Index helpers (called ONLY from cache_io_task — internal RAM stack) ──────
+
+    static void purge_all_internal(); // defined below
+
+    // Drops the index and every cached file. Used when the on-disk format is
+    // older than CACHE_INDEX_VERSION so no stale entry survives the upgrade.
+    static void reset_cache_internal()
+    {
+        unlink(INDEX_FILE);
+        unlink(INDEX_FILE_TMP);
+        purge_all_internal();
+        // Nothing needs saving: the index file is gone and the cache is empty.
+        // Leaving the index dirty would trigger a pointless write at the first
+        // timed-save tick.
+        s_index_dirty = false;
+        s_puts_since_save = 0;
+        ESP_LOGW(TAG, "Cleared thumbnail cache for index format v%d",
+                 CACHE_INDEX_VERSION);
+    }
 
     static bool load_index_internal()
     {
@@ -140,28 +170,68 @@ namespace thumbnail_cache
         fseek(f, 0, SEEK_END);
         long len = ftell(f);
         fseek(f, 0, SEEK_SET);
+        ESP_LOGI(TAG, "[io] index file size: %ld bytes", len);
+        if (len <= 0 || len > MAX_CACHE_FILE_BYTES)
+        {
+            ESP_LOGE(TAG, "Index has invalid length (%ld)", len);
+            fclose(f);
+            unlink(INDEX_FILE);
+            return true;
+        }
         std::vector<char> buf(len + 1);
         size_t rd = fread(buf.data(), 1, len, f);
         fclose(f);
         if (rd != (size_t)len)
         {
             ESP_LOGE(TAG, "Index read failed");
-            return false;
+            unlink(INDEX_FILE);
+            return true;
         }
         buf[len] = '\0';
+        ESP_LOGI(TAG, "[io] index read %zu bytes", rd);
 
         cJSON *root = cJSON_Parse(buf.data());
-        if (!root || !cJSON_IsArray(root))
+        if (!root)
         {
-            ESP_LOGE(TAG, "Index JSON invalid");
-            if (root)
-                cJSON_Delete(root);
-            return false;
+            ESP_LOGE(TAG, "Index JSON invalid, discarding it");
+            unlink(INDEX_FILE);
+            return true;
         }
-        int count = cJSON_GetArraySize(root);
+
+        cJSON *entries = root;
+        if (cJSON_IsObject(root))
+        {
+            cJSON *version = cJSON_GetObjectItem(root, "version");
+            entries = cJSON_GetObjectItem(root, "entries");
+            if (!cJSON_IsNumber(version) ||
+                version->valueint != CACHE_INDEX_VERSION ||
+                !cJSON_IsArray(entries))
+            {
+                cJSON_Delete(root);
+                reset_cache_internal();
+                return true;
+            }
+        }
+        else if (cJSON_IsArray(root))
+        {
+            // Written before the index carried a format version: start over.
+            cJSON_Delete(root);
+            reset_cache_internal();
+            return true;
+        }
+        else
+        {
+            ESP_LOGE(TAG, "Index JSON has an unknown shape, discarding it");
+            cJSON_Delete(root);
+            unlink(INDEX_FILE);
+            return true;
+        }
+
+        int count = cJSON_GetArraySize(entries);
+        ESP_LOGI(TAG, "[io] index parsed, %d entries", count);
         for (int i = 0; i < count; ++i)
         {
-            cJSON *item = cJSON_GetArrayItem(root, i);
+            cJSON *item = cJSON_GetArrayItem(entries, i);
             if (!cJSON_IsObject(item))
                 continue;
             cJSON *jh = cJSON_GetObjectItem(item, "hash");
@@ -178,7 +248,11 @@ namespace thumbnail_cache
             e.url = ju->valuestring;
             e.width = (uint16_t)jw->valueint;
             e.height = (uint16_t)jht->valueint;
-            e.timestamp = (uint64_t)cJSON_GetNumberValue(jts);
+            // esp_timer_get_time() restarts at zero on every boot, so stored
+            // timestamps from an older session would look newer than anything
+            // added now and fresh entries would be evicted first. Index order
+            // is insertion order, so use it as the age instead.
+            e.timestamp = (uint64_t)i;
             e.file_size = (size_t)cJSON_GetNumberValue(jsz);
 
             std::string path = std::string(CACHE_BASE_DIR) + "/" + e.hash + ".jpg";
@@ -205,7 +279,9 @@ namespace thumbnail_cache
 
     static bool save_index_internal()
     {
-        cJSON *root = cJSON_CreateArray();
+        cJSON *root = cJSON_CreateObject();
+        cJSON_AddNumberToObject(root, "version", CACHE_INDEX_VERSION);
+        cJSON *entries = cJSON_CreateArray();
         for (const auto &e : s_cache)
         {
             cJSON *item = cJSON_CreateObject();
@@ -215,8 +291,9 @@ namespace thumbnail_cache
             cJSON_AddNumberToObject(item, "height", e.height);
             cJSON_AddNumberToObject(item, "timestamp", (double)e.timestamp);
             cJSON_AddNumberToObject(item, "file_size", (double)e.file_size);
-            cJSON_AddItemToArray(root, item);
+            cJSON_AddItemToArray(entries, item);
         }
+        cJSON_AddItemToObject(root, "entries", entries);
         char *json = cJSON_PrintUnformatted(root);
         cJSON_Delete(root);
         if (!json)
@@ -254,7 +331,8 @@ namespace thumbnail_cache
         s_index_dirty = false;
         s_puts_since_save = 0;
         s_last_save_time = esp_timer_get_time();
-        ESP_LOGI(TAG, "Index saved (%zu entries)", s_cache.size());
+        ESP_LOGI(TAG, "Index saved (%zu entries), cache_io stack free: %u bytes",
+                 s_cache.size(), (unsigned)uxTaskGetStackHighWaterMark(NULL));
         return true;
     }
 
@@ -275,19 +353,27 @@ namespace thumbnail_cache
         s_index_dirty = true;
     }
 
-    // Cache files are named <16 hex chars>.jpg so they can be told apart from
-    // other files on the SPIFFS partition (WiFi credentials, the index, ...).
+    // Cache files are named <8 or 16 hex chars>.jpg so they can be told apart
+    // from other files on the SPIFFS partition (WiFi credentials, the index, ...).
+    // 8-char names are the pre-v2 format; still recognising them lets the version
+    // reset delete them instead of leaving them to fill the partition forever.
     static bool is_cache_filename(const char *name)
     {
-        if (!name || strlen(name) != 20)
+        if (!name)
             return false;
-        for (int i = 0; i < 16; ++i)
+        size_t len = strlen(name);
+        if (len < 4 + 8 || len > 4 + 16)
+            return false;
+        size_t stem = len - 4;
+        if (strcmp(name + stem, ".jpg") != 0)
+            return false;
+        for (size_t i = 0; i < stem; ++i)
         {
             char c = name[i];
             if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')))
                 return false;
         }
-        return strcmp(name + 16, ".jpg") == 0;
+        return true;
     }
 
     // The budget is based on the file sizes we track, not on esp_spiffs_info():
@@ -336,6 +422,7 @@ namespace thumbnail_cache
                                : 0;
             s_cache.erase(s_cache.begin());
             s_index_dirty = true;
+            vTaskDelay(1); // keep IDLE0 alive across a burst of evictions
         }
     }
 
@@ -346,7 +433,11 @@ namespace thumbnail_cache
     {
         DIR *dir = opendir(CACHE_BASE_DIR);
         if (!dir)
+        {
+            ESP_LOGW(TAG, "[io] purge dir open failed");
             return;
+        }
+        ESP_LOGI(TAG, "[io] purge dir open");
 
         std::vector<std::string> orphans;
         struct dirent *ent;
@@ -354,7 +445,7 @@ namespace thumbnail_cache
         {
             if (!is_cache_filename(ent->d_name))
                 continue;
-            std::string hash(ent->d_name, 16);
+            std::string hash(ent->d_name, strlen(ent->d_name) - 4);
             bool indexed = std::any_of(s_cache.begin(), s_cache.end(),
                                        [&hash](const CacheEntry &e)
                                        { return e.hash == hash; });
@@ -362,6 +453,7 @@ namespace thumbnail_cache
                 orphans.emplace_back(ent->d_name);
         }
         closedir(dir);
+        ESP_LOGI(TAG, "[io] purge scan done, %zu orphans", orphans.size());
 
         for (const auto &name : orphans)
         {
@@ -370,6 +462,7 @@ namespace thumbnail_cache
                 ESP_LOGW(TAG, "Removed orphaned cache file: %s", name.c_str());
             vTaskDelay(1);
         }
+        ESP_LOGI(TAG, "[io] purge unlink done");
     }
 
     // Drops every cache file so a full partition can recover, regardless of what
@@ -391,6 +484,9 @@ namespace thumbnail_cache
         {
             std::string path = std::string(CACHE_BASE_DIR) + "/" + name;
             unlink(path.c_str());
+            // Each unlink disables the flash cache; yield so IDLE0 on this core
+            // can feed the task watchdog during a large purge.
+            vTaskDelay(1);
         }
         s_cache.clear();
         s_index_dirty = true;
@@ -405,14 +501,26 @@ namespace thumbnail_cache
     //
     static void cache_io_task(void *arg)
     {
+        ESP_LOGI(TAG, "[io] task started (core %d)", (int)xPortGetCoreID());
+
         // Load index here — safe because this task has an internal-RAM stack
+        int64_t t0 = esp_timer_get_time();
         xSemaphoreTake(s_mutex, portMAX_DELAY);
         load_index_internal();
+        int64_t t1 = esp_timer_get_time();
         purge_orphans_internal();
+        int64_t t2 = esp_timer_get_time();
+        s_last_save_time = esp_timer_get_time();
         xSemaphoreGive(s_mutex);
+
+        ESP_LOGI(TAG, "[io] index load took %lld ms, purge took %lld ms",
+                 (long long)((t1 - t0) / 1000), (long long)((t2 - t1) / 1000));
+        ESP_LOGI(TAG, "cache_io stack free after index load: %u bytes",
+                 (unsigned)uxTaskGetStackHighWaterMark(NULL));
 
         // Signal init() that the index is ready; get()/put() may now proceed
         xSemaphoreGive(s_ready);
+        ESP_LOGI(TAG, "[io] ready");
 
         IoJob job;
         TickType_t check_interval = pdMS_TO_TICKS(5000); // check every 5 seconds for timed saves
@@ -519,7 +627,7 @@ namespace thumbnail_cache
 
                 std::string path = std::string(CACHE_BASE_DIR) + "/" + job.hash + ".jpg";
                 bool ok = false;
-                std::vector<uint8_t> local_buf; // read into local first, copy only if not cancelled
+                std::vector<uint8_t> local_buf;
 
                 FILE *f = fopen(path.c_str(), "rb");
                 if (f)
@@ -527,10 +635,18 @@ namespace thumbnail_cache
                     fseek(f, 0, SEEK_END);
                     long len = ftell(f);
                     fseek(f, 0, SEEK_SET);
-                    local_buf.resize(len);
-                    size_t rd = fread(local_buf.data(), 1, len, f);
+                    if (len > 0 && len <= MAX_CACHE_FILE_BYTES)
+                    {
+                        local_buf.resize(len);
+                        size_t rd = fread(local_buf.data(), 1, len, f);
+                        ok = (rd == (size_t)len);
+                    }
+                    else
+                    {
+                        ESP_LOGE(TAG, "Cached file has invalid length (%ld): %s",
+                                 len, job.hash);
+                    }
                     fclose(f);
-                    ok = (rd == (size_t)len);
                     if (!ok)
                         local_buf.clear();
                 }
@@ -539,33 +655,19 @@ namespace thumbnail_cache
                     ESP_LOGE(TAG, "fopen failed for read: %s (errno=%d)", path.c_str(), errno);
                 }
 
-                // Check cancelled *after* the slow fread, before touching ctx->out_jpeg.
-                // cancelled is std::atomic<bool> — safe on dual-core without a mutex.
-                if (ctx->cancelled.load(std::memory_order_acquire))
-                {
-                    // get() already returned to the caller — the stack frame is gone.
-                    // We own ctx; clean it up and move on.
-                    ESP_LOGW(TAG, "GET timed out, discarding result for %s", job.hash);
-                    vSemaphoreDelete(ctx->done_sem);
-                    delete ctx;
-                }
-                else
-                {
-                    // get() is still blocking on the semaphore — safe to write results.
-                    // NOTE: we deliberately do NOT update the LRU timestamp here.
-                    // Reads are FIFO-neutral: only writes (PUT) age the entries.
-                    // This keeps the index clean — a cache hit never dirties the index.
-                    if (ok)
-                        *ctx->out_jpeg = std::move(local_buf);
-                    ctx->result = ok;
+                // get() blocks until this semaphore is given, so ctx (and the
+                // caller's output vector) are guaranteed to still be alive here.
+                // Deliberately no LRU update on reads: only PUT ages entries, so
+                // a cache hit never dirties the index.
+                if (ok)
+                    *ctx->out_jpeg = std::move(local_buf);
+                ctx->result = ok;
 
-                    // Signal get() that the result is ready.
-                    // After this line we must NOT touch ctx — get() owns it now.
-                    xSemaphoreGive(ctx->done_sem);
+                // After this line we must NOT touch ctx — get() owns it now.
+                xSemaphoreGive(ctx->done_sem);
 
-                    if (ok)
-                        ESP_LOGI(TAG, "Cache hit: %s", job.hash);
-                }
+                if (ok)
+                    ESP_LOGI(TAG, "Cache hit: %s", job.hash);
             }
 
             // ── FLUSH_INDEX ──────────────────────────────────────────────────────
@@ -651,8 +753,8 @@ namespace thumbnail_cache
         if (!exists)
             return false;
 
-        // Allocate the GET context on the heap so it outlives our stack frame
-        // in the (unlikely) case that the IO task doesn't process it before our timeout.
+        // Heap-allocated because the IO task writes its result through this
+        // context after get() has queued the job.
         GetContext *ctx = new GetContext{};
         ctx->out_jpeg = &out_jpeg;
         ctx->done_sem = xSemaphoreCreateBinary();
@@ -677,16 +779,10 @@ namespace thumbnail_cache
             return false;
         }
 
-        // Wait for the IO task to signal completion
-        if (xSemaphoreTake(ctx->done_sem, pdMS_TO_TICKS(5000)) != pdTRUE)
-        {
-            // Timeout — signal the IO task to discard this job's results and
-            // free ctx itself (we must not touch ctx after this store).
-            ESP_LOGW(TAG, "Cache IO timeout for %s", hash.c_str());
-            ctx->cancelled.store(true, std::memory_order_release);
-            // ctx and done_sem are now owned by the IO task — do not free here.
-            return false;
-        }
+        // Wait until the IO task has read the file. Waiting without a timeout is
+        // required for memory safety: returning early would destroy out_jpeg
+        // while the IO task can still be writing into it.
+        xSemaphoreTake(ctx->done_sem, portMAX_DELAY);
 
         // Semaphore taken — IO task has finished and will not touch ctx again.
         bool result = ctx->result;

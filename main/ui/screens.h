@@ -62,12 +62,20 @@ typedef struct objects_t
     lv_obj_t *cookbooks_list;
     lv_obj_t *cookbooks_title_lbl;
     lv_obj_t *cookbooks_reload_btn;
+    lv_obj_t *cookbooks_pager;
+    lv_obj_t *cookbooks_prev_btn;
+    lv_obj_t *cookbooks_page_lbl;
+    lv_obj_t *cookbooks_next_btn;
 
     // Cookbook detail
     lv_obj_t *cookbook_detail_back_btn;
     lv_obj_t *cookbook_detail_title_lbl;
     lv_obj_t *cookbook_detail_count_lbl;
     lv_obj_t *cookbook_detail_list;
+    lv_obj_t *cookbook_detail_pager;
+    lv_obj_t *cookbook_detail_prev_btn;
+    lv_obj_t *cookbook_detail_page_lbl;
+    lv_obj_t *cookbook_detail_next_btn;
     lv_obj_t *cookbook_detail_spinner;
     lv_obj_t *cookbook_detail_state_lbl;
     lv_obj_t *cookbook_detail_retry_btn;
@@ -97,6 +105,10 @@ typedef struct objects_t
 extern objects_t objects;
 
 void create_screens(void);
+
+// Switches the main tabview to Settings and refreshes the tab bar. Used at
+// boot when no WiFi credentials are stored, overriding the Cookbooks default.
+void show_main_settings_tab(void);
 
 #ifdef __cplusplus
 }

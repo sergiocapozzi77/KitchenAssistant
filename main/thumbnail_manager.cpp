@@ -347,6 +347,53 @@ bool download_jpeg(const std::string &url, PsramBuffer &out)
     return ok;
 }
 
+std::string url_encode(const std::string &in)
+{
+    static const char kHex[] = "0123456789ABCDEF";
+    std::string out;
+    out.reserve(in.size() * 3);
+    for (unsigned char c : in)
+    {
+        if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+            (c >= '0' && c <= '9') || c == '-' || c == '_' || c == '.' ||
+            c == '~')
+        {
+            out += static_cast<char>(c);
+        }
+        else
+        {
+            out += '%';
+            out += kHex[c >> 4];
+            out += kHex[c & 0x0F];
+        }
+    }
+    return out;
+}
+
+bool is_allrecipes_url(const std::string &url)
+{
+    static const std::string kHost = "allrecipes.com";
+
+    size_t scheme = url.find("://");
+    if (scheme == std::string::npos)
+        return false;
+
+    size_t start = scheme + 3;
+    size_t end = url.find('/', start);
+    std::string host = url.substr(
+        start, end == std::string::npos ? std::string::npos : end - start);
+
+    size_t colon = host.find(':');
+    if (colon != std::string::npos)
+        host.resize(colon);
+
+    if (host == kHost)
+        return true;
+    return host.size() > kHost.size() &&
+           host[host.size() - kHost.size() - 1] == '.' &&
+           host.compare(host.size() - kHost.size(), kHost.size(), kHost) == 0;
+}
+
 } // namespace
 
 // ── URL rewriting ───────────────────────────────────────────────────────────
@@ -358,19 +405,47 @@ std::string thumbnail_url(const std::string &url, uint16_t width,
 {
     static const std::string kObject = "/storage/v1/object/public/";
     static const std::string kRender = "/storage/v1/render/image/public/";
+    static const std::string kWsrv = "https://wsrv.nl/";
 
-    if (url.find(kRender) != std::string::npos || width == 0 || height == 0)
+    if (width == 0 || height == 0)
         return url;
 
-    size_t at = url.find(kObject);
-    if (at == std::string::npos)
+    // wsrv is always the last hop. Skip an already-proxied URL so a thumbnail
+    // that is queued twice does not get wrapped again.
+    if (url.rfind(kWsrv, 0) == 0)
         return url;
 
-    std::string out = url.substr(0, at) + kRender +
-                      url.substr(at + kObject.size());
-    out += (out.find('?') == std::string::npos) ? '?' : '&';
-    out += "width=" + std::to_string(width) + "&height=" +
-           std::to_string(height) + "&resize=cover";
+    std::string source = url;
+
+    size_t object_at = url.find(kObject);
+    if (object_at != std::string::npos)
+    {
+        // Ask the Storage renderer for the target size first so the proxy only
+        // has to pull a few KB instead of the original (often multi-MB) file.
+        // Rendering does not help with the decode problem on its own: Supabase
+        // emits progressive JPEGs, which tjpgd rejects with JDR_FMT3. The wsrv
+        // hop below re-encodes the small render to baseline.
+        source = url.substr(0, object_at) + kRender +
+                 url.substr(object_at + kObject.size());
+        source += (source.find('?') == std::string::npos) ? '?' : '&';
+        source += "width=" + std::to_string(width) + "&height=" +
+                  std::to_string(height) + "&resize=cover";
+    }
+    else if (url.find(kRender) == std::string::npos &&
+             is_allrecipes_url(url))
+    {
+        // allrecipes.com rejects wsrv's fetches with 403. DuckDuckGo's image
+        // proxy is allowed to fetch the same URL, so put it in front of wsrv.
+        source = "https://external-content.duckduckgo.com/iu/?u=" +
+                 url_encode(url) + "&f=1&nofb=1";
+    }
+
+    // wsrv resizes server-side and re-encodes to baseline JPEG. Several recipe
+    // sources serve progressive JPEGs, and originals are often hundreds of KB;
+    // the proxy turns both into a few-KB, decodable thumbnail.
+    std::string out = kWsrv + "?url=" + url_encode(source);
+    out += "&w=" + std::to_string(width) + "&h=" + std::to_string(height);
+    out += "&fit=cover&output=jpg&q=70";
     return out;
 }
 
@@ -490,13 +565,6 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
         return false;
     }
 
-    SemaphoreGuard semGuard(s_http_concurrency_sem);
-    if (!semGuard.acquired())
-    {
-        ESP_LOGE(TAG, "HTTP semaphore unavailable: %.60s", url.c_str());
-        return false;
-    }
-
     PsramBuffer jpeg;
     bool loaded = false;
 
@@ -509,19 +577,32 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
             loaded = true;
             ESP_LOGI(TAG, "cache hit %ux%u: %.60s", W, H, url.c_str());
         }
+        else
+        {
+            ESP_LOGI(TAG, "cache miss %ux%u: %.60s", W, H, url.c_str());
+        }
     }
 
     if (!loaded)
     {
-        if (!download_jpeg(url, jpeg))
-            return false;
+        // Hold an HTTP slot only for the download. Cache hits and decoding must
+        // not consume one, otherwise a page of nine images queues up behind two
+        // slots even when every thumbnail is already on disk.
+        {
+            SemaphoreGuard semGuard(s_http_concurrency_sem);
+            if (!semGuard.acquired())
+            {
+                ESP_LOGE(TAG, "HTTP semaphore unavailable: %.60s", url.c_str());
+                return false;
+            }
+
+            if (!download_jpeg(url, jpeg))
+                return false;
+        }
 
         if (useCache && s_cache_ready)
             thumbnail_cache::put(url, W, H, jpeg.data(), jpeg.size());
     }
-
-    // Decode is CPU-bound; release the HTTP slot first.
-    semGuard.release();
 
     return decode_jpeg_buffer(jpeg.data(), jpeg.size(), W, H, out_dsc, out_px);
 }

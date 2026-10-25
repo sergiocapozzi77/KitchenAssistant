@@ -4,6 +4,7 @@
 
 #include "esp_log.h"
 
+#include <algorithm>
 #include <utility>
 
 static const char *TAG = "RECIPE_MGR";
@@ -83,6 +84,31 @@ std::vector<Recipe> RecipesManager::getCookbookRecipes(
     if (it == _cookbooks.end() || !it->second.loaded)
         return {};
     return it->second.recipes;
+}
+
+size_t RecipesManager::loadedRecipeCount(const std::string &cookbookId) const
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+    auto it = _cookbooks.find(cookbookId);
+    if (it == _cookbooks.end() || !it->second.loaded)
+        return 0;
+    return it->second.recipes.size();
+}
+
+std::vector<Recipe> RecipesManager::getCookbookRecipePage(
+    const std::string &cookbookId, size_t first, size_t count) const
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+    auto it = _cookbooks.find(cookbookId);
+    if (it == _cookbooks.end() || !it->second.loaded)
+        return {};
+
+    const std::vector<Recipe> &all = it->second.recipes;
+    if (first >= all.size())
+        return {};
+
+    const size_t last = std::min(all.size(), first + count);
+    return std::vector<Recipe>(all.begin() + first, all.begin() + last);
 }
 
 bool RecipesManager::getRecipe(const std::string &recipeId, Recipe &out) const

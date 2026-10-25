@@ -42,8 +42,12 @@ void adjust_product_modal_quantity(int delta);
 
 // ── Cookbooks and recipes (Checkpoint B) ────────────────────────────────────
 void populateCookbooksUi();
+// Moves the cookbook grid by one page (-1 or +1) and re-renders it.
+void shiftCookbookPage(int delta);
 void showCookbookDetail(const std::string &cookbookId);
 void populateCookbookRecipesUi(const std::string &cookbookId);
+// Moves the open cookbook's recipe list by one page (-1 or +1).
+void shiftCookbookRecipesPage(int delta);
 void retryCookbookDetail();
 void showRecipeDetailScreen(const Recipe &recipe);
 // Shows the failure state when a cookbook fetch could not be started.

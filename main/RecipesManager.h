@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <map>
 #include <mutex>
 #include <string>
@@ -19,6 +20,12 @@ public:
     bool hasCookbook(const std::string &cookbookId) const;
     bool cookbookFailed(const std::string &cookbookId) const;
     std::vector<Recipe> getCookbookRecipes(const std::string &cookbookId) const;
+    // Number of loaded recipes for a cookbook (0 while loading or on failure).
+    size_t loadedRecipeCount(const std::string &cookbookId) const;
+    // Copies only the requested slice, so paging does not duplicate the whole
+    // cached cookbook (recipes carry every ingredient and method string).
+    std::vector<Recipe> getCookbookRecipePage(const std::string &cookbookId,
+                                              size_t first, size_t count) const;
     bool getRecipe(const std::string &recipeId, Recipe &out) const;
 
     int recipeCountFor(const std::string &cookbookId) const;

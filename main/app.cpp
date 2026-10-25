@@ -78,10 +78,10 @@ void Application::initQueues()
     //     abort();
     // }
     // ESP_LOGI(TAG, "Queues created");
-    // Thumbnail caching is disabled for now: the 7 MB SPIFFS partition fills up
-    // and cache writes start failing. Images still download and decode into
-    // PSRAM on demand, they are just not persisted across boots.
-    ui_extensions_init(112, 112, false);
+    // DIAGNOSTIC (temporary): cache back on, with phase logging in cache_io.
+    // Tests whether the boot-time SPIFFS index load/purge triggers the silent
+    // INT-WDT reset; the last "[io] ..." line before a reset names the phase.
+    ui_extensions_init(112, 112, true);
 }
 
 static void combinedFetchTask(void *param)
@@ -235,15 +235,9 @@ void Application::initHardware()
     bsp_display_unlock();
 
     // If no saved WiFi credentials, navigate to the settings tab so the user
-    // can configure WiFi
+    // can configure WiFi (overrides the Cookbooks startup tab).
     if (!m_wifiCredsFound)
-    {
-        lv_async_call([](void *)
-                      {
-            if (objects.tabview && lv_obj_is_valid(objects.tabview)) {
-                lv_tabview_set_active(objects.tabview, 2, LV_ANIM_OFF);
-            } }, nullptr);
-    }
+        lv_async_call([](void *) { show_main_settings_tab(); }, nullptr);
 
     ESP_LOGI(TAG, "Hardware initialized");
 }

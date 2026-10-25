@@ -20,9 +20,13 @@ void action_settings_wifi(lv_event_t *e);
 
 // Cookbooks and recipes
 void action_cookbooks_reload(lv_event_t *e);
+void action_cookbooks_prev(lv_event_t *e);
+void action_cookbooks_next(lv_event_t *e);
 void action_cookbook_open(lv_event_t *e);
 void action_cookbook_back(lv_event_t *e);
 void action_cookbook_retry(lv_event_t *e);
+void action_cookbook_recipes_prev(lv_event_t *e);
+void action_cookbook_recipes_next(lv_event_t *e);
 void action_recipe_open(lv_event_t *e);
 void action_recipe_back(lv_event_t *e);
 

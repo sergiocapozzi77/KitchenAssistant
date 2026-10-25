@@ -39,8 +39,10 @@ void thumb_queue_cancel_all();
 void thumb_queue_push(ThumbContext *ctx);
 
 // ── Image download and decode ───────────────────────────────────────────────
-// Rewrites Supabase Storage public-object URLs to the render endpoint sized to
-// W×H; any other URL is returned unchanged.
+// Rewrites Supabase Storage public-object URLs to a sized render endpoint, then
+// passes every source through the wsrv.nl image proxy so the result is a
+// baseline JPEG (which tjpgd can decode). Allrecipes URLs go through
+// DuckDuckGo's image proxy first because Allrecipes returns 403 to wsrv.
 std::string thumbnail_url(const std::string &url, uint16_t width,
                           uint16_t height);
 

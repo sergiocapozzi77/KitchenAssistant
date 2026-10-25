@@ -264,6 +264,42 @@ static void create_cookbooks_tab(lv_obj_t *tab)
     lv_obj_set_flex_flow(objects.cookbooks_list, LV_FLEX_FLOW_ROW_WRAP);
     lv_obj_set_flex_align(objects.cookbooks_list, LV_FLEX_ALIGN_START,
                           LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+    lv_obj_clear_flag(objects.cookbooks_list, LV_OBJ_FLAG_SCROLLABLE);
+
+    objects.cookbooks_pager = lv_obj_create(tab);
+    lv_obj_set_width(objects.cookbooks_pager, LV_PCT(100));
+    lv_obj_set_height(objects.cookbooks_pager, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(objects.cookbooks_pager, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(objects.cookbooks_pager, 0, 0);
+    lv_obj_set_style_pad_all(objects.cookbooks_pager, 0, 0);
+    lv_obj_set_style_pad_bottom(objects.cookbooks_pager, 24, 0);
+    lv_obj_set_style_pad_column(objects.cookbooks_pager, 24, 0);
+    lv_obj_set_flex_flow(objects.cookbooks_pager, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(objects.cookbooks_pager, LV_FLEX_ALIGN_CENTER,
+                          LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_clear_flag(objects.cookbooks_pager, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(objects.cookbooks_pager, LV_OBJ_FLAG_HIDDEN);
+
+    objects.cookbooks_prev_btn = ui_theme::make_icon_button(
+        objects.cookbooks_pager, LV_SYMBOL_LEFT, 64);
+    lv_obj_set_style_opa(objects.cookbooks_prev_btn, LV_OPA_40,
+                         LV_STATE_DISABLED);
+    lv_obj_add_event_cb(objects.cookbooks_prev_btn, action_cookbooks_prev,
+                        LV_EVENT_CLICKED, NULL);
+
+    objects.cookbooks_page_lbl = ui_theme::make_label(
+        objects.cookbooks_pager, "Page 1 of 1", ui_theme::font_body,
+        UI_COLOR_TEXT_MUTED);
+    lv_obj_set_width(objects.cookbooks_page_lbl, 180);
+    lv_obj_set_style_text_align(objects.cookbooks_page_lbl,
+                                LV_TEXT_ALIGN_CENTER, 0);
+
+    objects.cookbooks_next_btn = ui_theme::make_icon_button(
+        objects.cookbooks_pager, LV_SYMBOL_RIGHT, 64);
+    lv_obj_set_style_opa(objects.cookbooks_next_btn, LV_OPA_40,
+                         LV_STATE_DISABLED);
+    lv_obj_add_event_cb(objects.cookbooks_next_btn, action_cookbooks_next,
+                        LV_EVENT_CLICKED, NULL);
 }
 
 static void create_settings_tab(lv_obj_t *tab)
@@ -364,9 +400,49 @@ static void create_cookbook_detail_screen()
     lv_obj_set_style_pad_left(objects.cookbook_detail_list, 24, 0);
     lv_obj_set_style_pad_right(objects.cookbook_detail_list, 24, 0);
     lv_obj_set_style_pad_top(objects.cookbook_detail_list, 8, 0);
-    lv_obj_set_style_pad_bottom(objects.cookbook_detail_list, 24, 0);
-    lv_obj_set_style_pad_row(objects.cookbook_detail_list, 16, 0);
+    lv_obj_set_style_pad_bottom(objects.cookbook_detail_list, 8, 0);
+    lv_obj_set_style_pad_row(objects.cookbook_detail_list, 12, 0);
     lv_obj_set_flex_flow(objects.cookbook_detail_list, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(objects.cookbook_detail_list, LV_FLEX_ALIGN_START,
+                          LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+    // One fixed page of recipe cards is shown at a time; the pager below
+    // replaces scrolling.
+    lv_obj_clear_flag(objects.cookbook_detail_list, LV_OBJ_FLAG_SCROLLABLE);
+
+    objects.cookbook_detail_pager = lv_obj_create(objects.cookbook_detail);
+    lv_obj_set_width(objects.cookbook_detail_pager, LV_PCT(100));
+    lv_obj_set_height(objects.cookbook_detail_pager, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(objects.cookbook_detail_pager, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(objects.cookbook_detail_pager, 0, 0);
+    lv_obj_set_style_pad_all(objects.cookbook_detail_pager, 0, 0);
+    lv_obj_set_style_pad_bottom(objects.cookbook_detail_pager, 24, 0);
+    lv_obj_set_style_pad_column(objects.cookbook_detail_pager, 24, 0);
+    lv_obj_set_flex_flow(objects.cookbook_detail_pager, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(objects.cookbook_detail_pager, LV_FLEX_ALIGN_CENTER,
+                          LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_clear_flag(objects.cookbook_detail_pager, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(objects.cookbook_detail_pager, LV_OBJ_FLAG_HIDDEN);
+
+    objects.cookbook_detail_prev_btn = ui_theme::make_icon_button(
+        objects.cookbook_detail_pager, LV_SYMBOL_LEFT, 64);
+    lv_obj_set_style_opa(objects.cookbook_detail_prev_btn, LV_OPA_40,
+                         LV_STATE_DISABLED);
+    lv_obj_add_event_cb(objects.cookbook_detail_prev_btn,
+                        action_cookbook_recipes_prev, LV_EVENT_CLICKED, NULL);
+
+    objects.cookbook_detail_page_lbl = ui_theme::make_label(
+        objects.cookbook_detail_pager, "Page 1 of 1", ui_theme::font_body,
+        UI_COLOR_TEXT_MUTED);
+    lv_obj_set_width(objects.cookbook_detail_page_lbl, 180);
+    lv_obj_set_style_text_align(objects.cookbook_detail_page_lbl,
+                                LV_TEXT_ALIGN_CENTER, 0);
+
+    objects.cookbook_detail_next_btn = ui_theme::make_icon_button(
+        objects.cookbook_detail_pager, LV_SYMBOL_RIGHT, 64);
+    lv_obj_set_style_opa(objects.cookbook_detail_next_btn, LV_OPA_40,
+                         LV_STATE_DISABLED);
+    lv_obj_add_event_cb(objects.cookbook_detail_next_btn,
+                        action_cookbook_recipes_next, LV_EVENT_CLICKED, NULL);
 
     objects.cookbook_detail_spinner = lv_spinner_create(objects.cookbook_detail);
     lv_obj_set_size(objects.cookbook_detail_spinner, 80, 80);
@@ -401,24 +477,72 @@ static void create_recipe_detail_screen()
     lv_obj_set_style_pad_row(objects.recipe_detail, 0, 0);
     lv_obj_set_flex_flow(objects.recipe_detail, LV_FLEX_FLOW_COLUMN);
 
-    lv_obj_t *hero = lv_obj_create(objects.recipe_detail);
-    lv_obj_set_size(hero, 800, 420);
+    // Compact header: the thumbnail sits top-left with the name and source to
+    // its right, leaving the vertical space to the ingredients and method.
+    lv_obj_t *header = lv_obj_create(objects.recipe_detail);
+    lv_obj_set_width(header, LV_PCT(100));
+    lv_obj_set_height(header, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(header, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(header, 0, 0);
+    lv_obj_set_style_pad_left(header, 24, 0);
+    lv_obj_set_style_pad_right(header, 24, 0);
+    lv_obj_set_style_pad_top(header, 24, 0);
+    lv_obj_set_style_pad_bottom(header, 12, 0);
+    lv_obj_set_style_pad_column(header, 24, 0);
+    lv_obj_set_flex_flow(header, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(header, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
+                          LV_FLEX_ALIGN_CENTER);
+    lv_obj_clear_flag(header, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t *hero = lv_obj_create(header);
+    lv_obj_set_size(hero, 260, 200);
     lv_obj_set_style_bg_color(hero, lv_color_hex(UI_COLOR_SURFACE_HIGH), 0);
     lv_obj_set_style_bg_opa(hero, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(hero, 0, 0);
-    lv_obj_set_style_radius(hero, 0, 0);
+    lv_obj_set_style_radius(hero, 16, 0);
+    lv_obj_set_style_clip_corner(hero, true, 0);
     lv_obj_set_style_pad_all(hero, 0, 0);
     lv_obj_clear_flag(hero, LV_OBJ_FLAG_SCROLLABLE);
 
     objects.recipe_detail_hero = lv_image_create(hero);
-    lv_obj_set_size(objects.recipe_detail_hero, 800, 420);
+    lv_obj_set_size(objects.recipe_detail_hero, 260, 200);
     lv_obj_set_style_bg_opa(objects.recipe_detail_hero, LV_OPA_TRANSP, 0);
 
     objects.recipe_detail_back_btn = ui_theme::make_icon_button(
-        hero, LV_SYMBOL_LEFT, 72);
-    lv_obj_align(objects.recipe_detail_back_btn, LV_ALIGN_TOP_LEFT, 24, 24);
+        hero, LV_SYMBOL_LEFT, 56);
+    lv_obj_align(objects.recipe_detail_back_btn, LV_ALIGN_TOP_LEFT, 10, 10);
     lv_obj_add_event_cb(objects.recipe_detail_back_btn, action_recipe_back,
                         LV_EVENT_CLICKED, NULL);
+
+    lv_obj_t *info = lv_obj_create(header);
+    lv_obj_set_flex_grow(info, 1);
+    lv_obj_set_height(info, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(info, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(info, 0, 0);
+    lv_obj_set_style_pad_all(info, 0, 0);
+    lv_obj_set_style_pad_row(info, 10, 0);
+    lv_obj_set_flex_flow(info, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(info, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START,
+                          LV_FLEX_ALIGN_START);
+    lv_obj_clear_flag(info, LV_OBJ_FLAG_SCROLLABLE);
+
+    objects.recipe_detail_title_lbl = ui_theme::make_label(
+        info, "", ui_theme::font_display, UI_COLOR_TEXT_PRIMARY);
+    lv_obj_set_width(objects.recipe_detail_title_lbl, LV_PCT(100));
+    lv_obj_set_height(objects.recipe_detail_title_lbl, LV_SIZE_CONTENT);
+    lv_obj_set_style_max_height(
+        objects.recipe_detail_title_lbl,
+        lv_font_get_line_height(ui_theme::font_display) * 2, 0);
+    lv_label_set_long_mode(objects.recipe_detail_title_lbl,
+                           LV_LABEL_LONG_MODE_DOTS);
+
+    objects.recipe_detail_source_lbl = ui_theme::make_label(
+        info, "", ui_theme::font_body, UI_COLOR_TEXT_MUTED);
+    lv_obj_set_width(objects.recipe_detail_source_lbl, LV_PCT(100));
+    lv_obj_set_height(objects.recipe_detail_source_lbl,
+                      lv_font_get_line_height(ui_theme::font_body));
+    lv_label_set_long_mode(objects.recipe_detail_source_lbl,
+                           LV_LABEL_LONG_MODE_DOTS);
 
     lv_obj_t *content = lv_obj_create(objects.recipe_detail);
     lv_obj_set_width(content, LV_PCT(100));
@@ -429,15 +553,6 @@ static void create_recipe_detail_screen()
     lv_obj_set_style_pad_row(content, 12, 0);
     lv_obj_set_flex_flow(content, LV_FLEX_FLOW_COLUMN);
     lv_obj_clear_flag(content, LV_OBJ_FLAG_SCROLLABLE);
-
-    objects.recipe_detail_title_lbl = ui_theme::make_label(
-        content, "", ui_theme::font_display, UI_COLOR_TEXT_PRIMARY);
-    lv_obj_set_width(objects.recipe_detail_title_lbl, LV_PCT(100));
-    lv_label_set_long_mode(objects.recipe_detail_title_lbl,
-                           LV_LABEL_LONG_MODE_DOTS);
-
-    objects.recipe_detail_source_lbl = ui_theme::make_label(
-        content, "", ui_theme::font_body, UI_COLOR_TEXT_MUTED);
 
     lv_obj_t *meta = lv_obj_create(content);
     lv_obj_set_width(meta, LV_PCT(100));
@@ -642,6 +757,13 @@ static void create_main_screen()
 
     lv_obj_add_event_cb(objects.tabview, tab_changed_cb,
                         LV_EVENT_VALUE_CHANGED, NULL);
+
+    // Cookbooks is the primary screen, so open there on startup.
+    // lv_tabview_set_active() does not emit VALUE_CHANGED, so start the lazy
+    // load explicitly; its task waits for WiFi/SNTP before fetching.
+    lv_tabview_set_active(objects.tabview, 1, LV_ANIM_OFF);
+    request_cookbooks_load();
+
     style_tab_bar_for(objects.tabview);
 
     create_product_edit_modal();
@@ -654,4 +776,12 @@ void create_screens()
     create_main_screen();
     create_cookbook_detail_screen();
     create_recipe_detail_screen();
+}
+
+void show_main_settings_tab()
+{
+    if (!objects.tabview || !lv_obj_is_valid(objects.tabview))
+        return;
+    lv_tabview_set_active(objects.tabview, 2, LV_ANIM_OFF);
+    style_tab_bar_for(objects.tabview);
 }

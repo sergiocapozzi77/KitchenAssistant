@@ -23,6 +23,23 @@ namespace
 
 std::string s_open_cookbook_id;
 
+// Recipe cards and the recipe detail header render the image at the same size,
+// so the detail reuses the card's cached thumbnail (same source URL, same
+// target dimensions = same cache key) instead of downloading it again.
+constexpr uint16_t kRecipeImageW = 260;
+constexpr uint16_t kRecipeImageH = 200;
+
+// The grid shows a fixed 3×3 page instead of scrolling.
+constexpr int kCookbookColumns = 3;
+constexpr int kCookbookRows = 3;
+constexpr int kCookbooksPerPage = kCookbookColumns * kCookbookRows;
+int s_cookbook_page = 0;
+
+// The cookbook detail screen shows five 200 px recipe cards per page, which is
+// what fits below the header once the pager row is added.
+constexpr int kRecipesPerPage = 5;
+int s_cookbook_detail_page = 0;
+
 struct CheckRowState
 {
     lv_obj_t *box = nullptr;
@@ -74,7 +91,12 @@ void add_image(lv_obj_t *image, const std::string &url, uint16_t width,
 {
     if (!url.empty())
     {
-        push_thumbnail(image, url, width, height, true);
+        // Fetch at half the displayed resolution and let LVGL scale it up:
+        // a quarter of the pixels to download and decode, at the cost of a
+        // little softness.
+        const uint16_t fetch_w = width > 1 ? width / 2 : width;
+        const uint16_t fetch_h = height > 1 ? height / 2 : height;
+        push_thumbnail(image, url, fetch_w, fetch_h, true);
         return;
     }
     lv_obj_t *placeholder = ui_theme::make_label(
@@ -114,7 +136,7 @@ void add_badge_if_present(lv_obj_t *row, const std::string &text, uint32_t bg,
 void add_cookbook_card(lv_obj_t *parent, const Cookbook &cookbook)
 {
     lv_obj_t *card = lv_obj_create(parent);
-    lv_obj_set_size(card, 366, 404);
+    lv_obj_set_size(card, 237, 252);
     ui_theme::style_card(card);
     lv_obj_set_style_pad_all(card, 0, 0);
     lv_obj_set_style_clip_corner(card, true, 0);
@@ -122,19 +144,21 @@ void add_cookbook_card(lv_obj_t *parent, const Cookbook &cookbook)
     lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(card, LV_OBJ_FLAG_CLICKABLE);
 
+    // The cover size doubles as the Supabase render size, so a smaller card
+    // also downloads a smaller image.
     lv_obj_t *cover = lv_image_create(card);
-    lv_obj_set_size(cover, 366, 280);
+    lv_obj_set_size(cover, 237, 160);
     lv_obj_set_style_bg_color(cover, lv_color_hex(UI_COLOR_SURFACE_HIGH), 0);
     lv_obj_set_style_bg_opa(cover, LV_OPA_COVER, 0);
-    add_image(cover, cookbook.coverImageUrl, 366, 280);
+    add_image(cover, cookbook.coverImageUrl, 237, 160);
 
     lv_obj_t *info = lv_obj_create(card);
     lv_obj_set_width(info, LV_PCT(100));
     lv_obj_set_flex_grow(info, 1);
     lv_obj_set_style_bg_opa(info, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(info, 0, 0);
-    lv_obj_set_style_pad_all(info, 16, 0);
-    lv_obj_set_style_pad_row(info, 8, 0);
+    lv_obj_set_style_pad_all(info, 12, 0);
+    lv_obj_set_style_pad_row(info, 6, 0);
     lv_obj_set_flex_flow(info, LV_FLEX_FLOW_COLUMN);
     lv_obj_clear_flag(info, LV_OBJ_FLAG_SCROLLABLE);
 
@@ -142,6 +166,9 @@ void add_cookbook_card(lv_obj_t *parent, const Cookbook &cookbook)
         info, cookbook.name.c_str(), ui_theme::font_title,
         UI_COLOR_TEXT_PRIMARY);
     lv_obj_set_width(name, LV_PCT(100));
+    // One line only: a wrapped title would overflow the short info area, so
+    // let DOTS truncate instead.
+    lv_obj_set_height(name, lv_font_get_line_height(ui_theme::font_title));
     lv_label_set_long_mode(name, LV_LABEL_LONG_MODE_DOTS);
 
     ui_theme::make_label(info,
@@ -170,10 +197,10 @@ void add_recipe_card(lv_obj_t *parent, const Recipe &recipe)
     lv_obj_add_flag(card, LV_OBJ_FLAG_CLICKABLE);
 
     lv_obj_t *image = lv_image_create(card);
-    lv_obj_set_size(image, 260, 200);
+    lv_obj_set_size(image, kRecipeImageW, kRecipeImageH);
     lv_obj_set_style_bg_color(image, lv_color_hex(UI_COLOR_SURFACE_HIGH), 0);
     lv_obj_set_style_bg_opa(image, LV_OPA_COVER, 0);
-    add_image(image, recipe.imageUrl, 260, 200);
+    add_image(image, recipe.imageUrl, kRecipeImageW, kRecipeImageH);
 
     lv_obj_t *info = lv_obj_create(card);
     lv_obj_set_flex_grow(info, 1);
@@ -423,16 +450,18 @@ void reset_hero_image(const Recipe &recipe)
         return;
 
     lv_obj_t *hero = lv_image_create(parent);
-    lv_obj_set_size(hero, 800, 420);
+    lv_obj_set_size(hero, kRecipeImageW, kRecipeImageH);
     lv_obj_set_style_bg_color(hero, lv_color_hex(UI_COLOR_SURFACE_HIGH), 0);
     lv_obj_set_style_bg_opa(hero, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(hero, 0, 0);
     lv_obj_move_to_index(hero, 0);
     objects.recipe_detail_hero = hero;
 
+    // Same URL and size as the recipe card, so this is a cache hit when the
+    // card that opened this screen already downloaded its thumbnail.
     const std::string &url =
-        recipe.imageUrlBig.empty() ? recipe.imageUrl : recipe.imageUrlBig;
-    add_image(hero, url, 800, 420);
+        recipe.imageUrl.empty() ? recipe.imageUrlBig : recipe.imageUrl;
+    add_image(hero, url, kRecipeImageW, kRecipeImageH);
 }
 
 void set_spinner_visible(bool visible)
@@ -448,12 +477,19 @@ void set_spinner_visible(bool visible)
 
 void set_detail_list_visible(bool visible)
 {
-    if (!valid(objects.cookbook_detail_list))
-        return;
-    if (visible)
-        lv_obj_remove_flag(objects.cookbook_detail_list, LV_OBJ_FLAG_HIDDEN);
-    else
-        lv_obj_add_flag(objects.cookbook_detail_list, LV_OBJ_FLAG_HIDDEN);
+    if (valid(objects.cookbook_detail_list))
+    {
+        if (visible)
+            lv_obj_remove_flag(objects.cookbook_detail_list,
+                               LV_OBJ_FLAG_HIDDEN);
+        else
+            lv_obj_add_flag(objects.cookbook_detail_list, LV_OBJ_FLAG_HIDDEN);
+    }
+
+    // The pager only makes sense alongside the list; update_recipe_pager()
+    // re-shows it when the loaded cookbook spans more than one page.
+    if (!visible && valid(objects.cookbook_detail_pager))
+        lv_obj_add_flag(objects.cookbook_detail_pager, LV_OBJ_FLAG_HIDDEN);
 }
 
 void set_detail_state(const char *text, bool show_retry)
@@ -484,6 +520,63 @@ void set_detail_state(const char *text, bool show_retry)
     }
 }
 
+void set_pager_button_enabled(lv_obj_t *button, bool enabled)
+{
+    if (!valid(button))
+        return;
+    if (enabled)
+        lv_obj_remove_state(button, LV_STATE_DISABLED);
+    else
+        lv_obj_add_state(button, LV_STATE_DISABLED);
+}
+
+void update_cookbook_pager(int page_count)
+{
+    if (valid(objects.cookbooks_pager))
+    {
+        if (page_count > 1)
+            lv_obj_remove_flag(objects.cookbooks_pager, LV_OBJ_FLAG_HIDDEN);
+        else
+            lv_obj_add_flag(objects.cookbooks_pager, LV_OBJ_FLAG_HIDDEN);
+    }
+
+    if (valid(objects.cookbooks_page_lbl))
+    {
+        std::string text = "Page " + std::to_string(s_cookbook_page + 1) +
+                           " of " + std::to_string(page_count);
+        lv_label_set_text(objects.cookbooks_page_lbl, text.c_str());
+    }
+
+    set_pager_button_enabled(objects.cookbooks_prev_btn, s_cookbook_page > 0);
+    set_pager_button_enabled(objects.cookbooks_next_btn,
+                             s_cookbook_page + 1 < page_count);
+}
+
+void update_recipe_pager(int page_count)
+{
+    if (valid(objects.cookbook_detail_pager))
+    {
+        if (page_count > 1)
+            lv_obj_remove_flag(objects.cookbook_detail_pager,
+                               LV_OBJ_FLAG_HIDDEN);
+        else
+            lv_obj_add_flag(objects.cookbook_detail_pager,
+                            LV_OBJ_FLAG_HIDDEN);
+    }
+
+    if (valid(objects.cookbook_detail_page_lbl))
+    {
+        std::string text = "Page " + std::to_string(s_cookbook_detail_page + 1) +
+                           " of " + std::to_string(page_count);
+        lv_label_set_text(objects.cookbook_detail_page_lbl, text.c_str());
+    }
+
+    set_pager_button_enabled(objects.cookbook_detail_prev_btn,
+                             s_cookbook_detail_page > 0);
+    set_pager_button_enabled(objects.cookbook_detail_next_btn,
+                             s_cookbook_detail_page + 1 < page_count);
+}
+
 } // namespace
 
 void populateCookbooksUi()
@@ -497,21 +590,51 @@ void populateCookbooksUi()
     std::vector<Cookbook> cookbooks = cookbooksManager.snapshot();
     if (cookbooks.empty())
     {
+        s_cookbook_page = 0;
+        update_cookbook_pager(0);
         add_empty_state(objects.cookbooks_list, "No cookbooks yet",
                         "Create cookbooks in the Kitchen Assistant app");
         return;
     }
 
-    for (const auto &cookbook : cookbooks)
-        add_cookbook_card(objects.cookbooks_list, cookbook);
+    const int page_count =
+        (static_cast<int>(cookbooks.size()) + kCookbooksPerPage - 1) /
+        kCookbooksPerPage;
+    if (s_cookbook_page >= page_count)
+        s_cookbook_page = page_count - 1;
+    if (s_cookbook_page < 0)
+        s_cookbook_page = 0;
 
-    ESP_LOGI(TAG, "Cookbook grid rendered (%u rows)",
-             (unsigned)cookbooks.size());
+    const size_t first =
+        static_cast<size_t>(s_cookbook_page) * kCookbooksPerPage;
+    size_t last = first + kCookbooksPerPage;
+    if (last > cookbooks.size())
+        last = cookbooks.size();
+
+    for (size_t i = first; i < last; ++i)
+        add_cookbook_card(objects.cookbooks_list, cookbooks[i]);
+
+    update_cookbook_pager(page_count);
+
+    ESP_LOGI(TAG, "Cookbook grid rendered (page %d/%d, %u cards)",
+             s_cookbook_page + 1, page_count, (unsigned)(last - first));
+}
+
+void shiftCookbookPage(int delta)
+{
+    s_cookbook_page += delta;
+    if (s_cookbook_page < 0)
+        s_cookbook_page = 0;
+    populateCookbooksUi();
 }
 
 void showCookbookDetail(const std::string &cookbookId)
 {
     s_open_cookbook_id = cookbookId;
+    s_cookbook_detail_page = 0;
+
+    if (valid(objects.cookbook_detail_pager))
+        lv_obj_add_flag(objects.cookbook_detail_pager, LV_OBJ_FLAG_HIDDEN);
 
     Cookbook cookbook;
     const bool known = cookbooksManager.getCookbook(cookbookId, cookbook);
@@ -564,11 +687,11 @@ void populateCookbookRecipesUi(const std::string &cookbookId)
         return;
     }
 
-    std::vector<Recipe> recipes = recipesManager.getCookbookRecipes(cookbookId);
+    const size_t total = recipesManager.loadedRecipeCount(cookbookId);
     thumb_queue_cancel_all();
     lv_obj_clean(list);
 
-    if (recipes.empty())
+    if (total == 0)
     {
         set_spinner_visible(false);
         set_detail_list_visible(false);
@@ -583,10 +706,49 @@ void populateCookbookRecipesUi(const std::string &cookbookId)
     if (valid(objects.cookbook_detail_count_lbl))
         lv_label_set_text(
             objects.cookbook_detail_count_lbl,
-            plural_count((int)recipes.size(), "recipe", "recipes").c_str());
+            plural_count((int)total, "recipe", "recipes").c_str());
+
+    const int page_count =
+        (static_cast<int>(total) + kRecipesPerPage - 1) / kRecipesPerPage;
+    if (s_cookbook_detail_page >= page_count)
+        s_cookbook_detail_page = page_count - 1;
+    if (s_cookbook_detail_page < 0)
+        s_cookbook_detail_page = 0;
+
+    const size_t first =
+        static_cast<size_t>(s_cookbook_detail_page) * kRecipesPerPage;
+    // Only this page's recipes are copied; the full cookbook stays in the
+    // manager so flipping pages does not duplicate every ingredient string.
+    std::vector<Recipe> recipes =
+        recipesManager.getCookbookRecipePage(cookbookId, first, kRecipesPerPage);
+
+    if (recipes.empty())
+    {
+        set_spinner_visible(false);
+        set_detail_list_visible(false);
+        set_detail_state("No recipes in this cookbook", false);
+        return;
+    }
 
     for (const auto &recipe : recipes)
         add_recipe_card(list, recipe);
+
+    update_recipe_pager(page_count);
+
+    ESP_LOGI(TAG, "Recipe list rendered (page %d/%d, %u cards)",
+             s_cookbook_detail_page + 1, page_count,
+             (unsigned)recipes.size());
+}
+
+void shiftCookbookRecipesPage(int delta)
+{
+    if (s_open_cookbook_id.empty())
+        return;
+    s_cookbook_detail_page += delta;
+    if (s_cookbook_detail_page < 0)
+        s_cookbook_detail_page = 0;
+    // Re-renders from the cached recipe list and clamps the page to its range.
+    populateCookbookRecipesUi(s_open_cookbook_id);
 }
 
 void retryCookbookDetail()
