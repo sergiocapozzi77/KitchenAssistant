@@ -6,6 +6,7 @@
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "esp_heap_caps.h"
+#include "esp_spiffs.h"
 #include "cJSON.h"
 #include <sys/stat.h>
 #include <unistd.h>
@@ -252,6 +253,36 @@ namespace thumbnail_cache
         s_index_dirty = true;
     }
 
+    // SPIFFS can fill up well before MAX_CACHE_ITEMS if the cached images are
+    // large, so evict oldest entries until this write plus a reserve will fit.
+    static void ensure_space_internal(size_t needed)
+    {
+        size_t total = 0;
+        size_t used = 0;
+        if (esp_spiffs_info(CONFIG_BSP_SPIFFS_PARTITION_LABEL, &total, &used) != ESP_OK)
+            return;
+
+        constexpr size_t kReserve = 64 * 1024;
+        if (used + needed + kReserve <= total)
+            return;
+
+        size_t deficit = used + needed + kReserve - total;
+        std::sort(s_cache.begin(), s_cache.end(),
+                  [](const CacheEntry &a, const CacheEntry &b)
+                  { return a.timestamp < b.timestamp; });
+        while (deficit > 0 && !s_cache.empty())
+        {
+            std::string path = std::string(CACHE_BASE_DIR) + "/" + s_cache.front().hash + ".jpg";
+            unlink(path.c_str());
+            ESP_LOGI(TAG, "Evicted for space: %s", s_cache.front().hash.c_str());
+            deficit = (deficit > s_cache.front().file_size)
+                          ? deficit - s_cache.front().file_size
+                          : 0;
+            s_cache.erase(s_cache.begin());
+            s_index_dirty = true;
+        }
+    }
+
     // ─── IO task ─────────────────────────────────────────────────────────────────
     //
     // THIS IS THE ONLY TASK THAT MAY CALL fopen / fread / fwrite / unlink ON SPIFFS.
@@ -295,6 +326,9 @@ namespace thumbnail_cache
             if (job.type == JobType::PUT)
             {
                 std::string path = std::string(CACHE_BASE_DIR) + "/" + job.hash + ".jpg";
+                xSemaphoreTake(s_mutex, portMAX_DELAY);
+                ensure_space_internal(job.jpeg_len);
+                xSemaphoreGive(s_mutex);
                 FILE *f = fopen(path.c_str(), "wb");
                 if (f)
                 {
@@ -336,7 +370,9 @@ namespace thumbnail_cache
                     }
                     else
                     {
-                        ESP_LOGE(TAG, "Write incomplete, removing: %s", job.hash);
+                        ESP_LOGE(TAG,
+                                 "Write incomplete (%zu/%zu, errno=%d), removing: %s",
+                                 written, job.jpeg_len, errno, job.hash);
                         unlink(path.c_str());
                     }
                 }
