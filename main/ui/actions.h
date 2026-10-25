@@ -1,44 +1,22 @@
-#ifndef EEZ_LVGL_UI_EVENTS_H
-#define EEZ_LVGL_UI_EVENTS_H
+#pragma once
 
-#include <lvgl.h>
+#include <string>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "lvgl.h"
 
-extern void action_product_edit_close(lv_event_t * e);
-extern void action_product_edit_save(lv_event_t * e);
-extern void action_screen_loading(lv_event_t * e);
-extern void action_generate_recipe_click(lv_event_t * e);
-extern void action_recipe_suggestion_next(lv_event_t * e);
-extern void action_recipe_suggestion_prev(lv_event_t * e);
-extern void action_snack_bar_hide_clicked(lv_event_t * e);
-extern void action_products_reload_click(lv_event_t * e);
-extern void action_product_sort_value_changed(lv_event_t * e);
-extern void action_product_filter_change(lv_event_t * e);
-extern void action_product_edit_calendar(lv_event_t * e);
-extern void action_edit_product_panel_clicked(lv_event_t * e);
-extern void action_product_calendar_value_changed(lv_event_t * e);
-extern void action_product_edit_delete(lv_event_t * e);
-extern void action_product_edit_frozen(lv_event_t * e);
-extern void action_recipes_filter_panel_toggle(lv_event_t * e);
-extern void action_main_screen_loaded(lv_event_t * e);
-extern void action_update_recipes_from_filter_panel(lv_event_t * e);
-extern void action_favourites_next(lv_event_t * e);
-extern void action_favourites_prev(lv_event_t * e);
-extern void action_create_recipe_steps_click(lv_event_t * e);
-extern void action_recipe_phase_next(lv_event_t * e);
-extern void action_recipe_phase_prev(lv_event_t * e);
-extern void action_favourites_reload_click(lv_event_t * e);
-extern void action_ingredients_factor(lv_event_t * e);
-extern void action_create_recipe_close_click(lv_event_t * e);
-extern void action_generate_ai_recipes_click(lv_event_t * e);
-extern void action_wi_fi_settings_click(lv_event_t * e);
-extern void action_clear_all_settings_click(lv_event_t * e);
+void action_products_reload(lv_event_t *e);
+void action_product_search_open(lv_event_t *e);
+void action_product_search_changed(lv_event_t *e);
+void action_product_filter_toggle(lv_event_t *e);
+void action_product_sort_toggle(lv_event_t *e);
+void action_product_filter_chip(lv_event_t *e);
+void action_product_sort_chip(lv_event_t *e);
+void action_product_edit_save(lv_event_t *e);
+void action_product_edit_cancel(lv_event_t *e);
+void action_product_edit_delete(lv_event_t *e);
+void action_product_qty_minus(lv_event_t *e);
+void action_product_qty_plus(lv_event_t *e);
+void action_settings_wifi(lv_event_t *e);
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif /*EEZ_LVGL_UI_EVENTS_H*/
+// Spawns a background delete and refreshes the list on success.
+void request_product_delete(const std::string &id);
