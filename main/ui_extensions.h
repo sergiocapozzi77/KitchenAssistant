@@ -46,6 +46,8 @@ void showCookbookDetail(const std::string &cookbookId);
 void populateCookbookRecipesUi(const std::string &cookbookId);
 void retryCookbookDetail();
 void showRecipeDetailScreen(const Recipe &recipe);
+// Clears the open cookbook id so an in-flight fetch result is discarded.
+void leaveCookbookDetail();
 
 // ── Overlays ────────────────────────────────────────────────────────────────
 void showSnackbar(const char *message, int duration_ms);
