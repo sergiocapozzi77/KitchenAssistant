@@ -34,9 +34,9 @@ static lv_obj_t *make_row(lv_obj_t *parent, int height)
     return row;
 }
 
-static void style_tab_bar()
+static void style_tab_bar_for(lv_obj_t *tabview)
 {
-    lv_obj_t *bar = lv_tabview_get_tab_bar(objects.tabview);
+    lv_obj_t *bar = lv_tabview_get_tab_bar(tabview);
     lv_obj_set_style_bg_color(bar, lv_color_hex(UI_COLOR_SURFACE), 0);
     lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, 0);
     lv_obj_set_style_border_side(bar, LV_BORDER_SIDE_TOP, 0);
@@ -45,7 +45,7 @@ static void style_tab_bar()
     lv_obj_set_style_pad_all(bar, 8, 0);
     lv_obj_set_style_pad_column(bar, 8, 0);
 
-    uint32_t active = lv_tabview_get_tab_active(objects.tabview);
+    uint32_t active = lv_tabview_get_tab_active(tabview);
     uint32_t count = lv_obj_get_child_count(bar);
     for (uint32_t i = 0; i < count; ++i)
     {
@@ -66,9 +66,14 @@ static void style_tab_bar()
     }
 }
 
-static void tab_changed_cb(lv_event_t *)
+static void tab_changed_cb(lv_event_t *event)
 {
-    style_tab_bar();
+    lv_obj_t *target = static_cast<lv_obj_t *>(lv_event_get_target(event));
+    style_tab_bar_for(target);
+
+    if (target == objects.tabview && objects.tabview &&
+        lv_tabview_get_tab_active(objects.tabview) == 1)
+        request_cookbooks_load();
 }
 
 static void textarea_focus_cb(lv_event_t *e)
@@ -222,6 +227,46 @@ static void create_inventory_tab(lv_obj_t *tab)
     lv_obj_set_flex_flow(objects.products_list, LV_FLEX_FLOW_COLUMN);
 }
 
+static void create_cookbooks_tab(lv_obj_t *tab)
+{
+    lv_obj_set_style_pad_all(tab, 0, 0);
+    lv_obj_set_style_pad_row(tab, 0, 0);
+    lv_obj_set_flex_flow(tab, LV_FLEX_FLOW_COLUMN);
+    lv_obj_clear_flag(tab, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t *header = lv_obj_create(tab);
+    lv_obj_set_width(header, LV_PCT(100));
+    lv_obj_set_height(header, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(header, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(header, 0, 0);
+    lv_obj_set_style_pad_left(header, 24, 0);
+    lv_obj_set_style_pad_right(header, 24, 0);
+    lv_obj_set_style_pad_top(header, 24, 0);
+    lv_obj_set_style_pad_bottom(header, 12, 0);
+    lv_obj_set_flex_flow(header, LV_FLEX_FLOW_COLUMN);
+
+    lv_obj_t *title_row = make_row(header, 72);
+    objects.cookbooks_title_lbl = ui_theme::make_label(
+        title_row, "Cookbooks", ui_theme::font_display, UI_COLOR_TEXT_PRIMARY);
+    lv_obj_set_flex_grow(objects.cookbooks_title_lbl, 1);
+    objects.cookbooks_reload_btn = ui_theme::make_icon_button(
+        title_row, LV_SYMBOL_REFRESH, 72);
+    lv_obj_add_event_cb(objects.cookbooks_reload_btn, action_cookbooks_reload,
+                        LV_EVENT_CLICKED, NULL);
+
+    objects.cookbooks_list = lv_obj_create(tab);
+    lv_obj_set_width(objects.cookbooks_list, LV_PCT(100));
+    lv_obj_set_flex_grow(objects.cookbooks_list, 1);
+    lv_obj_set_style_bg_opa(objects.cookbooks_list, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(objects.cookbooks_list, 0, 0);
+    lv_obj_set_style_pad_all(objects.cookbooks_list, 24, 0);
+    lv_obj_set_style_pad_row(objects.cookbooks_list, 20, 0);
+    lv_obj_set_style_pad_column(objects.cookbooks_list, 20, 0);
+    lv_obj_set_flex_flow(objects.cookbooks_list, LV_FLEX_FLOW_ROW_WRAP);
+    lv_obj_set_flex_align(objects.cookbooks_list, LV_FLEX_ALIGN_START,
+                          LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+}
+
 static void create_settings_tab(lv_obj_t *tab)
 {
     lv_obj_set_style_pad_all(tab, 24, 0);
@@ -252,6 +297,184 @@ static void create_settings_tab(lv_obj_t *tab)
     lv_obj_center(btn_label);
     lv_obj_add_event_cb(objects.settings_wifi_btn, action_settings_wifi,
                         LV_EVENT_CLICKED, NULL);
+}
+
+static lv_obj_t *make_meta_card(lv_obj_t *parent, const char *caption)
+{
+    lv_obj_t *card = lv_obj_create(parent);
+    lv_obj_set_flex_grow(card, 1);
+    lv_obj_set_height(card, 92);
+    ui_theme::style_card(card);
+    lv_obj_set_style_pad_all(card, 16, 0);
+    lv_obj_set_style_pad_row(card, 4, 0);
+    lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
+    ui_theme::make_label(card, caption, ui_theme::font_body,
+                         UI_COLOR_TEXT_MUTED);
+    return ui_theme::make_label(card, "-", ui_theme::font_title,
+                                UI_COLOR_TEXT_PRIMARY);
+}
+
+static void create_cookbook_detail_screen()
+{
+    objects.cookbook_detail = make_screen();
+    lv_obj_set_style_pad_all(objects.cookbook_detail, 0, 0);
+    lv_obj_set_style_pad_row(objects.cookbook_detail, 0, 0);
+    lv_obj_set_flex_flow(objects.cookbook_detail, LV_FLEX_FLOW_COLUMN);
+
+    lv_obj_t *top = lv_obj_create(objects.cookbook_detail);
+    lv_obj_set_width(top, LV_PCT(100));
+    lv_obj_set_height(top, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(top, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(top, 0, 0);
+    lv_obj_set_style_pad_left(top, 24, 0);
+    lv_obj_set_style_pad_right(top, 24, 0);
+    lv_obj_set_style_pad_top(top, 24, 0);
+    lv_obj_set_style_pad_bottom(top, 12, 0);
+    lv_obj_set_style_pad_column(top, 16, 0);
+    lv_obj_set_flex_flow(top, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(top, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
+                          LV_FLEX_ALIGN_CENTER);
+
+    objects.cookbook_detail_back_btn = ui_theme::make_icon_button(
+        top, LV_SYMBOL_LEFT, 72);
+    lv_obj_add_event_cb(objects.cookbook_detail_back_btn, action_cookbook_back,
+                        LV_EVENT_CLICKED, NULL);
+
+    lv_obj_t *titles = lv_obj_create(top);
+    lv_obj_set_flex_grow(titles, 1);
+    lv_obj_set_height(titles, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(titles, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(titles, 0, 0);
+    lv_obj_set_style_pad_all(titles, 0, 0);
+    lv_obj_set_style_pad_row(titles, 4, 0);
+    lv_obj_set_flex_flow(titles, LV_FLEX_FLOW_COLUMN);
+
+    objects.cookbook_detail_title_lbl = ui_theme::make_label(
+        titles, "Cookbook", ui_theme::font_display, UI_COLOR_TEXT_PRIMARY);
+    lv_obj_set_width(objects.cookbook_detail_title_lbl, LV_PCT(100));
+    lv_label_set_long_mode(objects.cookbook_detail_title_lbl,
+                           LV_LABEL_LONG_MODE_DOTS);
+    objects.cookbook_detail_count_lbl = ui_theme::make_label(
+        titles, "", ui_theme::font_body, UI_COLOR_TEXT_MUTED);
+
+    objects.cookbook_detail_list = lv_obj_create(objects.cookbook_detail);
+    lv_obj_set_width(objects.cookbook_detail_list, LV_PCT(100));
+    lv_obj_set_flex_grow(objects.cookbook_detail_list, 1);
+    lv_obj_set_style_bg_opa(objects.cookbook_detail_list, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(objects.cookbook_detail_list, 0, 0);
+    lv_obj_set_style_pad_left(objects.cookbook_detail_list, 24, 0);
+    lv_obj_set_style_pad_right(objects.cookbook_detail_list, 24, 0);
+    lv_obj_set_style_pad_top(objects.cookbook_detail_list, 8, 0);
+    lv_obj_set_style_pad_bottom(objects.cookbook_detail_list, 24, 0);
+    lv_obj_set_style_pad_row(objects.cookbook_detail_list, 16, 0);
+    lv_obj_set_flex_flow(objects.cookbook_detail_list, LV_FLEX_FLOW_COLUMN);
+
+    objects.cookbook_detail_spinner = lv_spinner_create(objects.cookbook_detail);
+    lv_obj_set_size(objects.cookbook_detail_spinner, 80, 80);
+    lv_obj_align(objects.cookbook_detail_spinner, LV_ALIGN_CENTER, 0, 54);
+    lv_obj_set_style_arc_color(objects.cookbook_detail_spinner,
+                               lv_color_hex(UI_COLOR_ACCENT), LV_PART_INDICATOR);
+    lv_obj_add_flag(objects.cookbook_detail_spinner, LV_OBJ_FLAG_HIDDEN);
+
+    objects.cookbook_detail_state_lbl = ui_theme::make_label(
+        objects.cookbook_detail, "", ui_theme::font_title,
+        UI_COLOR_TEXT_SECONDARY);
+    lv_obj_align(objects.cookbook_detail_state_lbl, LV_ALIGN_CENTER, 0, 20);
+    lv_obj_add_flag(objects.cookbook_detail_state_lbl, LV_OBJ_FLAG_HIDDEN);
+
+    objects.cookbook_detail_retry_btn = lv_button_create(objects.cookbook_detail);
+    lv_obj_set_size(objects.cookbook_detail_retry_btn, 200, 64);
+    ui_theme::style_primary_button(objects.cookbook_detail_retry_btn);
+    lv_obj_t *retry_label = ui_theme::make_label(
+        objects.cookbook_detail_retry_btn, "Retry", ui_theme::font_body,
+        0xFFFFFF);
+    lv_obj_center(retry_label);
+    lv_obj_align(objects.cookbook_detail_retry_btn, LV_ALIGN_CENTER, 0, 100);
+    lv_obj_add_flag(objects.cookbook_detail_retry_btn, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_event_cb(objects.cookbook_detail_retry_btn,
+                        action_cookbook_retry, LV_EVENT_CLICKED, NULL);
+}
+
+static void create_recipe_detail_screen()
+{
+    objects.recipe_detail = make_screen();
+    lv_obj_set_style_pad_all(objects.recipe_detail, 0, 0);
+    lv_obj_set_style_pad_row(objects.recipe_detail, 0, 0);
+    lv_obj_set_flex_flow(objects.recipe_detail, LV_FLEX_FLOW_COLUMN);
+
+    lv_obj_t *hero = lv_obj_create(objects.recipe_detail);
+    lv_obj_set_size(hero, 800, 420);
+    lv_obj_set_style_bg_color(hero, lv_color_hex(UI_COLOR_SURFACE_HIGH), 0);
+    lv_obj_set_style_bg_opa(hero, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(hero, 0, 0);
+    lv_obj_set_style_radius(hero, 0, 0);
+    lv_obj_set_style_pad_all(hero, 0, 0);
+    lv_obj_clear_flag(hero, LV_OBJ_FLAG_SCROLLABLE);
+
+    objects.recipe_detail_hero = lv_image_create(hero);
+    lv_obj_set_size(objects.recipe_detail_hero, 800, 420);
+    lv_obj_set_style_bg_opa(objects.recipe_detail_hero, LV_OPA_TRANSP, 0);
+
+    objects.recipe_detail_back_btn = ui_theme::make_icon_button(
+        hero, LV_SYMBOL_LEFT, 72);
+    lv_obj_align(objects.recipe_detail_back_btn, LV_ALIGN_TOP_LEFT, 24, 24);
+    lv_obj_add_event_cb(objects.recipe_detail_back_btn, action_recipe_back,
+                        LV_EVENT_CLICKED, NULL);
+
+    lv_obj_t *content = lv_obj_create(objects.recipe_detail);
+    lv_obj_set_width(content, LV_PCT(100));
+    lv_obj_set_flex_grow(content, 1);
+    lv_obj_set_style_bg_opa(content, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(content, 0, 0);
+    lv_obj_set_style_pad_all(content, 24, 0);
+    lv_obj_set_style_pad_row(content, 12, 0);
+    lv_obj_set_flex_flow(content, LV_FLEX_FLOW_COLUMN);
+    lv_obj_clear_flag(content, LV_OBJ_FLAG_SCROLLABLE);
+
+    objects.recipe_detail_title_lbl = ui_theme::make_label(
+        content, "", ui_theme::font_display, UI_COLOR_TEXT_PRIMARY);
+    lv_obj_set_width(objects.recipe_detail_title_lbl, LV_PCT(100));
+    lv_label_set_long_mode(objects.recipe_detail_title_lbl,
+                           LV_LABEL_LONG_MODE_DOTS);
+
+    objects.recipe_detail_source_lbl = ui_theme::make_label(
+        content, "", ui_theme::font_body, UI_COLOR_TEXT_MUTED);
+
+    lv_obj_t *meta = lv_obj_create(content);
+    lv_obj_set_width(meta, LV_PCT(100));
+    lv_obj_set_height(meta, 92);
+    lv_obj_set_style_bg_opa(meta, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(meta, 0, 0);
+    lv_obj_set_style_pad_all(meta, 0, 0);
+    lv_obj_set_style_pad_column(meta, 16, 0);
+    lv_obj_set_flex_flow(meta, LV_FLEX_FLOW_ROW);
+
+    objects.recipe_detail_time_lbl = make_meta_card(meta, "Total time");
+    objects.recipe_detail_difficulty_lbl =
+        make_meta_card(meta, "Difficulty");
+
+    objects.recipe_detail_tabview = lv_tabview_create(content);
+    lv_obj_set_width(objects.recipe_detail_tabview, LV_PCT(100));
+    lv_obj_set_flex_grow(objects.recipe_detail_tabview, 1);
+    lv_tabview_set_tab_bar_position(objects.recipe_detail_tabview, LV_DIR_TOP);
+    lv_tabview_set_tab_bar_size(objects.recipe_detail_tabview, 92);
+
+    objects.recipe_detail_ingredients_tab = lv_tabview_add_tab(
+        objects.recipe_detail_tabview, "Ingredients");
+    objects.recipe_detail_method_tab = lv_tabview_add_tab(
+        objects.recipe_detail_tabview, "Method");
+
+    for (lv_obj_t *page : {objects.recipe_detail_ingredients_tab,
+                           objects.recipe_detail_method_tab})
+    {
+        lv_obj_set_style_pad_all(page, 24, 0);
+        lv_obj_set_style_pad_row(page, 12, 0);
+        lv_obj_set_flex_flow(page, LV_FLEX_FLOW_COLUMN);
+    }
+
+    lv_obj_add_event_cb(objects.recipe_detail_tabview, tab_changed_cb,
+                        LV_EVENT_VALUE_CHANGED, NULL);
+    style_tab_bar_for(objects.recipe_detail_tabview);
 }
 
 static lv_obj_t *create_text_field(lv_obj_t *parent, const char *placeholder)
@@ -412,13 +635,15 @@ static void create_main_screen()
     lv_tabview_set_tab_bar_size(objects.tabview, 108);
 
     objects.tab_inventory = lv_tabview_add_tab(objects.tabview, "Inventory");
+    objects.tab_cookbooks = lv_tabview_add_tab(objects.tabview, "Cookbooks");
     objects.tab_settings = lv_tabview_add_tab(objects.tabview, "Settings");
     create_inventory_tab(objects.tab_inventory);
+    create_cookbooks_tab(objects.tab_cookbooks);
     create_settings_tab(objects.tab_settings);
 
     lv_obj_add_event_cb(objects.tabview, tab_changed_cb,
                         LV_EVENT_VALUE_CHANGED, NULL);
-    style_tab_bar();
+    style_tab_bar_for(objects.tabview);
 
     create_product_edit_modal();
     create_overlays();
@@ -428,5 +653,6 @@ void create_screens()
 {
     ui_theme::init();
     create_main_screen();
-    // COOKBOOK_DETAIL and RECIPE_DETAIL are added in Checkpoint B.
+    create_cookbook_detail_screen();
+    create_recipe_detail_screen();
 }

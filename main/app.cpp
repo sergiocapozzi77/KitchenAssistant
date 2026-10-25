@@ -85,7 +85,9 @@ void Application::initQueues()
 
 static void combinedFetchTask(void *param)
 {
+    lv_lock();
     showSpinner();
+    lv_unlock();
 
     while (!wifiManager.isConnected())
         vTaskDelay(pdMS_TO_TICKS(1000));
@@ -101,7 +103,9 @@ static void combinedFetchTask(void *param)
     ESP_LOGI(TAG, "WiFi connected. Fetching products...");
 
     productsManager.fetchProductsSync();
+    lv_lock();
     hideSpinner();
+    lv_unlock();
 
     vTaskDelete(NULL);
 }
@@ -233,7 +237,7 @@ void Application::initHardware()
         lv_async_call([](void *)
                       {
             if (objects.tabview && lv_obj_is_valid(objects.tabview)) {
-                lv_tabview_set_active(objects.tabview, 1, LV_ANIM_OFF);
+                lv_tabview_set_active(objects.tabview, 2, LV_ANIM_OFF);
             } }, nullptr);
     }
 
