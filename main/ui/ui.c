@@ -2,7 +2,7 @@
 
 #include "screens.h"
 
-static lv_obj_t *screen_for(enum ScreensEnum screen_id)
+static lv_obj_t *screen_for(ScreensEnum screen_id)
 {
     switch (screen_id)
     {
@@ -17,7 +17,7 @@ static lv_obj_t *screen_for(enum ScreensEnum screen_id)
     }
 }
 
-void loadScreen(enum ScreensEnum screenId)
+void loadScreen(ScreensEnum screenId)
 {
     lv_obj_t *screen = screen_for(screenId);
     if (!screen)

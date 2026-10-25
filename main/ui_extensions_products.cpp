@@ -5,7 +5,6 @@
 #include "screens.h"
 #include "ui_theme.h"
 
-#include "esp_log.h"
 #include "images.h"
 
 #include <algorithm>
@@ -16,8 +15,6 @@
 #include <map>
 #include <set>
 #include <string>
-
-static const char *TAG = "PRODUCT_UI";
 
 namespace
 {

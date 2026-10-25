@@ -1,6 +1,7 @@
 #include "screens.h"
 
 #include "actions.h"
+#include "ui_extensions.h"
 #include "ui_theme.h"
 
 #include <cstdint>
@@ -132,8 +133,7 @@ static void create_inventory_tab(lv_obj_t *tab)
     lv_obj_set_flex_align(controls, LV_FLEX_ALIGN_START,
                           LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
-    objects.product_search_btn = ui_theme::make_icon_button(
-        controls, LV_SYMBOL_SEARCH, 64);
+    objects.product_search_btn = ui_theme::make_chip(controls, "Find", false);
     lv_obj_add_event_cb(objects.product_search_btn, action_product_search_open,
                         LV_EVENT_CLICKED, NULL);
 

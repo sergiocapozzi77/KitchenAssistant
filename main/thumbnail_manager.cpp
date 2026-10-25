@@ -275,7 +275,6 @@ bool download_jpeg(const std::string &url, PsramBuffer &out)
     cfg.buffer_size = 4096;
     cfg.buffer_size_tx = 1024;
     cfg.crt_bundle_attach = esp_crt_bundle_attach;
-    cfg.follow_redirects = true;
     cfg.max_redirection_count = 5;
     cfg.user_agent = "KitchenAssistant/1.0";
 

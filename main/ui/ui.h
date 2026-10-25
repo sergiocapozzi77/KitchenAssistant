@@ -12,7 +12,7 @@ extern "C" {
 void ui_init();
 void ui_tick();
 
-void loadScreen(enum ScreensEnum screenId);
+void loadScreen(ScreensEnum screenId);
 
 #ifdef __cplusplus
 }

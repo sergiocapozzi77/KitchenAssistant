@@ -4629,7 +4629,9 @@ cm = Path("main/CMakeLists.txt").read_text(encoding="utf-8")
 assert '#include "lv_demos.h"' not in app
 assert "#include <cstdio>" not in app
 assert '#include "ui_theme.h"' not in ue
-assert '#include "ui_extensions.h"' not in sc
+# screens.cpp uses ProductFilter, ProductSort and product_category_options()
+# from ui_extensions.h, so that include is required, not dead.
+assert '#include "ui_extensions.h"' in sc
 assert "#include <cstdio>" not in cu
 
 sources = cm.split("SRCS", 1)[1].split("INCLUDE_DIRS", 1)[0].split()
@@ -4673,8 +4675,10 @@ Expected: FAIL on `lv_demos.h` still being included.
 
 Drop `#include "lv_demos.h"` and `<cstdio>` from `main/app.cpp`
 (`cJSON` stays: it parses the WiFi credential blob). Drop `ui_theme.h` from
-`main/ui_extensions.cpp`, `ui_extensions.h` from `main/ui/screens.cpp` and
-`<cstdio>` from `main/ui_extensions_cookbooks.cpp`.
+`main/ui_extensions.cpp` and `<cstdio>` from
+`main/ui_extensions_cookbooks.cpp`. Keep `ui_extensions.h` in
+`main/ui/screens.cpp`: it declares `ProductFilter`, `ProductSort` and
+`product_category_options()`.
 
 - [ ] **Step 3: Run the check**
 
