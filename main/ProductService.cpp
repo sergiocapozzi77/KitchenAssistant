@@ -1,572 +1,219 @@
 #include "ProductService.h"
-#include "AppwriteClientInstance.h"
-#include "esp_log.h"
-#include "esp_http_client.h"
-#include "esp_crt_bundle.h"
-#include <random>
-#include <sstream>
-#include <iomanip>
-#include <cctype>
-#include "vars.h"
 
-/* =========================================================
- * DATE FORMAT HELPER
- * ========================================================= */
-static std::string extractDatePart(const std::string &isoStr)
+#include "SupabaseClient.h"
+
+#include "cJSON.h"
+#include "esp_log.h"
+
+#include <cstdio>
+#include <cstring>
+#include <utility>
+
+static const char *TAG = "PRODUCTS";
+
+namespace
 {
-    // Strip time component from ISO 8601 datetime (e.g., "2026-03-28T00:00:00Z" → "2026-03-28")
-    if (isoStr.empty())
-        return "";
-    size_t tPos = isoStr.find('T');
-    if (tPos != std::string::npos)
+
+std::string jsonString(cJSON *obj, const char *key)
+{
+    cJSON *v = cJSON_GetObjectItemCaseSensitive(obj, key);
+    if (cJSON_IsString(v) && v->valuestring)
+        return v->valuestring;
+    return "";
+}
+
+int jsonInt(cJSON *obj, const char *key, int fallback = 0)
+{
+    cJSON *v = cJSON_GetObjectItemCaseSensitive(obj, key);
+    return cJSON_IsNumber(v) ? (int)v->valuedouble : fallback;
+}
+
+bool jsonBool(cJSON *obj, const char *key, bool fallback = false)
+{
+    cJSON *v = cJSON_GetObjectItemCaseSensitive(obj, key);
+    if (cJSON_IsBool(v))
+        return cJSON_IsTrue(v) != 0;
+    return fallback;
+}
+
+std::string normalizedCategory(const std::string &category)
+{
+    return category.empty() ? "Other" : category;
+}
+
+} // namespace
+
+ProductService::ProductService() : _client(getSupabaseClient())
+{
+}
+
+bool ProductService::getProducts(std::vector<Product> &out)
+{
+    out.clear();
+    constexpr int kPageSize = 1000;
+
+    int offset = 0;
+    for (int page = 0; page < 10; ++page)
     {
-        return isoStr.substr(0, tPos);
+        std::string filters =
+            "select=id,name,quantity,category,expiry,frozen,barcode"
+            "&order=name.asc&limit=" +
+            std::to_string(kPageSize) + "&offset=" + std::to_string(offset);
+
+        int status = -1;
+        std::string body = _client.select("products", filters, status);
+        if (status != 200)
+        {
+            ESP_LOGE(TAG, "products fetch failed: status=%d", status);
+            return false;
+        }
+
+        cJSON *root = cJSON_Parse(body.c_str());
+        if (!cJSON_IsArray(root))
+        {
+            ESP_LOGE(TAG, "products response is not an array");
+            cJSON_Delete(root);
+            return false;
+        }
+
+        int count = cJSON_GetArraySize(root);
+        cJSON *item = nullptr;
+        cJSON_ArrayForEach(item, root)
+        {
+            if (!cJSON_IsObject(item))
+                continue;
+
+            Product p;
+            p.id = jsonString(item, "id");
+            p.name = jsonString(item, "name");
+            if (p.id.empty() || p.name.empty())
+                continue;
+
+            p.category = normalizedCategory(jsonString(item, "category"));
+            p.expiry = jsonString(item, "expiry");
+            p.barcode = jsonString(item, "barcode");
+            p.quantity = jsonInt(item, "quantity", 0);
+            p.frozen = jsonBool(item, "frozen", false);
+            out.push_back(std::move(p));
+        }
+        cJSON_Delete(root);
+
+        offset += count;
+        if (count < kPageSize)
+            break;
     }
-    return isoStr;
+
+    ESP_LOGI(TAG, "Fetched %u products", (unsigned)out.size());
+    return true;
+}
+
+bool ProductService::updateProduct(const Product &product)
+{
+    if (product.id.empty())
+        return false;
+
+    cJSON *root = cJSON_CreateObject();
+    if (!root)
+        return false;
+    cJSON_AddStringToObject(root, "name", product.name.c_str());
+    cJSON_AddNumberToObject(root, "quantity", product.quantity);
+    cJSON_AddStringToObject(root, "category", normalizedCategory(product.category).c_str());
+    // A PostgreSQL date column accepts null, not the empty string.
+    if (product.expiry.empty())
+        cJSON_AddNullToObject(root, "expiry");
+    else
+        cJSON_AddStringToObject(root, "expiry", product.expiry.c_str());
+    cJSON_AddBoolToObject(root, "frozen", product.frozen);
+
+    char *body = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!body)
+        return false;
+
+    int status = -1;
+    std::string filters = "id=eq." + SupabaseClient::urlEncode(product.id);
+    std::string response = _client.update("products", filters, body, status);
+    cJSON_free(body);
+
+    if (status != 200 && status != 204)
+    {
+        ESP_LOGE(TAG, "update product %s failed: status=%d response=%.120s",
+                 product.id.c_str(), status, response.c_str());
+        return false;
+    }
+    return true;
+}
+
+bool ProductService::deleteProduct(const std::string &id)
+{
+    if (id.empty())
+        return false;
+    int status = _client.remove("products", "id=eq." + SupabaseClient::urlEncode(id));
+    if (status != 204 && status != 200)
+    {
+        ESP_LOGE(TAG, "delete product %s failed: status=%d", id.c_str(), status);
+        return false;
+    }
+    return true;
+}
+
+bool ProductService::upsertBarcode(const std::string &barcode,
+                                   const std::string &name,
+                                   const std::string &category)
+{
+    if (barcode.empty())
+        return false;
+
+    std::string filter = "select=id&barcode=eq." +
+                         SupabaseClient::urlEncode(barcode) + "&limit=1";
+    int status = -1;
+    std::string body = _client.select("barcodes", filter, status);
+    if (status != 200)
+    {
+        ESP_LOGE(TAG, "barcode lookup failed: status=%d", status);
+        return false;
+    }
+
+    cJSON *root = cJSON_Parse(body.c_str());
+    std::string existingId;
+    if (cJSON_IsArray(root) && cJSON_GetArraySize(root) > 0)
+    {
+        cJSON *first = cJSON_GetArrayItem(root, 0);
+        existingId = jsonString(first, "id");
+    }
+    cJSON_Delete(root);
+
+    cJSON *row = cJSON_CreateObject();
+    if (!row)
+        return false;
+    cJSON_AddStringToObject(row, "barcode", barcode.c_str());
+    cJSON_AddStringToObject(row, "name", name.c_str());
+    cJSON_AddStringToObject(row, "category", normalizedCategory(category).c_str());
+    char *printed = cJSON_PrintUnformatted(row);
+    cJSON_Delete(row);
+    if (!printed)
+        return false;
+
+    bool ok = false;
+    if (!existingId.empty())
+    {
+        std::string filters = "id=eq." + SupabaseClient::urlEncode(existingId);
+        std::string response = _client.update("barcodes", filters, printed, status);
+        ok = (status == 200 || status == 204);
+        if (!ok)
+            ESP_LOGE(TAG, "barcode update failed: status=%d response=%.120s",
+                     status, response.c_str());
+    }
+    else
+    {
+        std::string response = _client.insert("barcodes", printed, status);
+        ok = (status == 201 || status == 200);
+        if (!ok)
+            ESP_LOGE(TAG, "barcode insert failed: status=%d response=%.120s",
+                     status, response.c_str());
+    }
+    cJSON_free(printed);
+    return ok;
 }
 
 ProductService productService;
-
-static const char *TAG = "ProductService";
-
-// Configuration - move to Kconfig or NVS
-#ifndef APPWRITE_ENDPOINT
-#define APPWRITE_ENDPOINT CONFIG_APPWRITE_ENDPOINT
-#endif
-
-ProductService::ProductService()
-    : _httpClient(getAppwriteClient())
-{
-}
-
-/* =========================================================
- * HTTP GET
- * ========================================================= */
-
-/* =========================================================
- * HTTP POST
- * ========================================================= */
-
-/* =========================================================
- * HTTP PATCH
- * ========================================================= */
-
-/* =========================================================
- * HTTP DELETE
- * ========================================================= */
-
-std::vector<Product> ProductService::getProductsRetry(const std::vector<std::string> &queries, int &out)
-{
-    std::vector<Product> result;
-    int attempt = 0;
-
-    while (true)
-    {
-        result = getProducts(queries, out);
-
-        if (out == 0)
-        {
-            ESP_LOGI(TAG, "Successfully fetched %d products on attempt %d", result.size(), attempt + 1);
-            return result; // Success! Exit early
-        }
-
-        attempt++;
-        ESP_LOGE(TAG, "Attempt %d failed. Retrying in 2s...", attempt);
-        vTaskDelay(pdMS_TO_TICKS(2000));
-    }
-
-    return result;
-}
-
-/* =========================================================
- * BUSINESS LOGIC
- * ========================================================= */
-std::vector<Product> ProductService::getProducts(const std::vector<std::string> &queries, int &out)
-{
-    out = -1; // Default to error
-    std::vector<Product> allProducts;
-
-    const int perPage = 25;
-    int offset = 0;
-    int total = 2147483647;
-    int safetyCounter = 0; // Prevent infinite loops
-
-    std::string baseUrl = Endpoint + "/tablesdb/" + DatabaseId + "/tables/" + CollectionId + "/rows";
-
-    while ((int)allProducts.size() < total && safetyCounter++ < 40)
-    {
-        // 1. Give the system a moment to breathe (Reset WDT)
-        vTaskDelay(pdMS_TO_TICKS(50));
-
-        std::string url = baseUrl + "?";
-        int qIdx = 0;
-
-        for (const auto &q : queries)
-        {
-            url += "queries[" + std::to_string(qIdx++) + "]=" + HttpClientHelper::urlEncode(q) + "&";
-        }
-
-        std::string limitJson = "{\"method\":\"limit\",\"values\":[" + std::to_string(perPage) + "]}";
-        std::string offsetJson = "{\"method\":\"offset\",\"values\":[" + std::to_string(offset) + "]}";
-
-        url += "queries[" + std::to_string(qIdx++) + "]=" + HttpClientHelper::urlEncode(limitJson) + "&";
-        url += "queries[" + std::to_string(qIdx++) + "]=" + HttpClientHelper::urlEncode(offsetJson);
-
-        // 2. HTTP Request
-        int status;
-        std::string body = _httpClient.httpGet(url, status);
-
-        if (status != 200)
-        {
-            ESP_LOGE(TAG, "Network Error: %d at offset %d", status, offset);
-            out = -1;
-            return allProducts; // Returning early ensures getProductsRetry sees out != 0
-        }
-
-        // 3. JSON Parsing
-        cJSON *root = cJSON_Parse(body.c_str());
-        if (!root)
-        {
-            ESP_LOGE(TAG, "JSON Parse Error at offset %d", offset);
-            out = -1;
-            return allProducts;
-        }
-
-        if (total == 2147483647)
-        {
-            cJSON *totalItem = cJSON_GetObjectItem(root, "total");
-            if (totalItem && cJSON_IsNumber(totalItem))
-                total = totalItem->valueint;
-        }
-
-        cJSON *rows = cJSON_GetObjectItem(root, "rows");
-        if (!rows || !cJSON_IsArray(rows) || cJSON_GetArraySize(rows) == 0)
-        {
-            cJSON_Delete(root);
-            break;
-        }
-
-        cJSON *item;
-        cJSON_ArrayForEach(item, rows)
-        {
-            cJSON *name = cJSON_GetObjectItem(item, "name");
-            cJSON *qty = cJSON_GetObjectItem(item, "quantity");
-            cJSON *id = cJSON_GetObjectItem(item, "$id");
-            cJSON *cat = cJSON_GetObjectItem(item, "category");
-            cJSON *exp = cJSON_GetObjectItem(item, "expiry");
-            cJSON *frozen = cJSON_GetObjectItem(item, "frozen");
-            cJSON *barc = cJSON_GetObjectItem(item, "barcode");
-
-            if (name && id && cJSON_IsString(name) && cJSON_IsString(id))
-            {
-                Product p;
-                p.name = name->valuestring;
-                p.rowId = id->valuestring;
-                p.quantity = (qty && cJSON_IsNumber(qty)) ? qty->valueint : 0;
-                p.category = (cat && cJSON_IsString(cat)) ? cat->valuestring : "Uncategorized";
-                p.expiry = (exp && cJSON_IsString(exp)) ? extractDatePart(exp->valuestring) : "";
-                p.barcode = (barc && cJSON_IsString(barc)) ? barc->valuestring : "";
-                p.frozen = (frozen && cJSON_IsBool(frozen)) ? cJSON_IsTrue(frozen) : false;
-                allProducts.push_back(p);
-            }
-        }
-
-        int rowsFetched = cJSON_GetArraySize(rows);
-        cJSON_Delete(root);
-        offset = allProducts.size();
-
-        if (rowsFetched < perPage || (int)allProducts.size() >= total)
-            break;
-    }
-
-    out = 0; // Success!
-    return allProducts;
-}
-
-/*
-bool ProductService::manageUpdateProduct(Product &product)
-{
-    // LVGLManager::updateStatusLabel("Saving product...");
-    std::vector<Product> existing;
-    const auto mode = get_var_add_or_del();
-    int queryResult;
-
-    if (product.expiry.empty())
-    {
-        // Build query
-        std::string q =
-            "{\"method\":\"equal\",\"attribute\":\"name\",\"values\":[\"" +
-            product.name + "\"]}";
-
-        existing = getProducts({q}, queryResult);
-    }
-
-    // Case 1: Product exists
-    if (!existing.empty())
-    {
-        Product p = existing[0];
-
-        switch (mode)
-        {
-        case AddOrDelType_Add:
-            ESP_LOGI(TAG, "Adding %d to existing %s (current: %d)",
-                     product.quantity, p.name.c_str(), p.quantity);
-            p.quantity += product.quantity;
-            break;
-
-        case AddOrDelType_Del:
-            ESP_LOGI(TAG, "Subtracting %d from %s (current: %d)",
-                     product.quantity, p.name.c_str(), p.quantity);
-            p.quantity -= product.quantity;
-
-            if (p.quantity <= 0)
-            {
-                ESP_LOGI(TAG, "Quantity <= 0, deleting %s", p.name.c_str());
-                return deleteProduct(p); // ✅ Fixed: use p.rowId
-            }
-            break;
-
-        default:
-            ESP_LOGE(TAG, "Unknown mode: %d", (int)mode);
-            return false;
-        }
-
-        return updateProduct(p);
-    }
-
-    // Case 2: Product doesn't exist
-    switch (mode)
-    {
-    case AddOrDelType_Add:
-        ESP_LOGI(TAG, "Creating new product: %s", product.name.c_str());
-        return addProduct(product);
-
-    case AddOrDelType_Del:
-        ESP_LOGW(TAG, "Cannot delete non-existent product: %s", product.name.c_str());
-        return true; // Not an error
-
-    default:
-        ESP_LOGE(TAG, "Unknown mode: %d", (int)mode);
-        return false;
-    }
-}*/
-
-bool ProductService::addProduct(Product &product)
-{
-    ESP_LOGI(TAG, "Adding product: name='%s', qty=%d, category='%s', expiry='%s', frozen=%s, barcode='%s'",
-             product.name.c_str(), product.quantity,
-             product.category.c_str(), product.expiry.c_str(),
-             product.frozen ? "true" : "false", product.barcode.c_str());
-
-    std::string url = Endpoint + "/tablesdb/" + DatabaseId +
-                      "/tables/" + CollectionId + "/rows";
-    ESP_LOGD(TAG, "POST URL: %s", url.c_str());
-
-    std::string rowId = HttpClientHelper::generateId();
-    ESP_LOGD(TAG, "Generated rowId: %s", rowId.c_str());
-
-    cJSON *root = cJSON_CreateObject();
-    if (!root)
-    {
-        ESP_LOGE(TAG, "JSON alloc failed");
-        return false;
-    }
-
-    cJSON_AddStringToObject(root, "rowId", rowId.c_str());
-
-    cJSON *data = cJSON_AddObjectToObject(root, "data");
-    if (!data)
-    {
-        ESP_LOGE(TAG, "JSON data alloc failed");
-        cJSON_Delete(root);
-        return false;
-    }
-
-    cJSON_AddStringToObject(data, "name", product.name.c_str());
-    cJSON_AddNumberToObject(data, "quantity", product.quantity);
-    cJSON_AddStringToObject(data, "category", product.category.c_str());
-    cJSON_AddStringToObject(data, "expiry", product.expiry.c_str());
-    cJSON_AddStringToObject(data, "barcode", product.barcode.c_str());
-    cJSON_AddBoolToObject(data, "frozen", product.frozen);
-
-    char *json = cJSON_PrintUnformatted(root);
-    if (!json)
-    {
-        ESP_LOGE(TAG, "JSON print failed");
-        cJSON_Delete(root);
-        return false;
-    }
-
-    ESP_LOGD(TAG, "Request payload: %s", json);
-    ESP_LOGI(TAG, "Sending HTTP POST request...");
-
-    int status = -1;
-    std::string response = _httpClient.httpPost(url, json, status);
-
-    cJSON_Delete(root);
-    free(json);
-
-    ESP_LOGI(TAG, "HTTP response: status=%d, length=%d", status, response.length());
-
-    if (status != 200 && status != 201)
-    {
-        ESP_LOGE(TAG, "addProduct failed: status=%d, response='%s'",
-                 status, response.c_str());
-        return false;
-    }
-
-    ESP_LOGD(TAG, "Response body: %s", response.c_str());
-
-    // Parse response to get rowId
-    cJSON *doc = cJSON_Parse(response.c_str());
-    if (!doc)
-    {
-        ESP_LOGW(TAG, "Could not parse response JSON");
-        return true; // Product might still be created
-    }
-
-    cJSON *idItem = cJSON_GetObjectItem(doc, "$id");
-    if (idItem && cJSON_IsString(idItem))
-    {
-        product.rowId = idItem->valuestring;
-        ESP_LOGI(TAG, "Product created successfully: rowId=%s", product.rowId.c_str());
-    }
-    else
-    {
-        ESP_LOGW(TAG, "Response missing '$id' field");
-    }
-
-    cJSON_Delete(doc);
-
-    //  LVGLManager::updateStatusLabel("Product added");
-    //  LVGLManager::showProductSnackbar(product.name, product.category, ProductAction::Added);
-
-    ESP_LOGI(TAG, "Product addition complete");
-    return true;
-}
-
-bool ProductService::updateProduct(Product &product)
-{
-    std::string url = Endpoint + "/tablesdb/" + DatabaseId +
-                      "/tables/" + CollectionId + "/rows/" + product.rowId;
-
-    ESP_LOGI(TAG, "Updating product: rowId='%s', name='%s', qty=%d, category='%s', expiry='%s', frozen=%s",
-             product.rowId.c_str(), product.name.c_str(), product.quantity,
-             product.category.c_str(), product.expiry.c_str(),
-             product.frozen ? "true" : "false");
-
-    cJSON *root = cJSON_CreateObject();
-    if (!root)
-        return false;
-
-    cJSON *data = cJSON_AddObjectToObject(root, "data");
-    if (!data)
-    {
-        cJSON_Delete(root);
-        return false;
-    }
-
-    cJSON_AddStringToObject(data, "name", product.name.c_str());
-    cJSON_AddNumberToObject(data, "quantity", product.quantity);
-    cJSON_AddStringToObject(data, "name", product.name.c_str());
-    cJSON_AddStringToObject(data, "category", product.category.c_str());
-    cJSON_AddStringToObject(data, "expiry", product.expiry.c_str());
-    cJSON_AddBoolToObject(data, "frozen", product.frozen);
-
-    char *json = cJSON_PrintUnformatted(root);
-    if (!json)
-    {
-        cJSON_Delete(root);
-        return false;
-    }
-
-    int status = -1;
-    std::string response = _httpClient.httpPatch(url, json, status);
-
-    cJSON_Delete(root);
-    free(json);
-
-    if (status != 200)
-    {
-        ESP_LOGE(TAG, "updateProduct failed: %d", status);
-        return false;
-    }
-
-    //  LVGLManager::updateStatusLabel("Product updated");
-    //  LVGLManager::showProductSnackbar(product.name, product.category, ProductAction::Updated);
-    return true;
-}
-
-bool ProductService::deleteProduct(const std::string &rowId)
-{
-    std::string url = Endpoint + "/tablesdb/" + DatabaseId +
-                      "/tables/" + CollectionId + "/rows/" + rowId;
-
-    int status = _httpClient.httpDelete(url);
-    bool success = (status == 200 || status == 204);
-
-    if (success)
-    {
-        ESP_LOGI(TAG, "Product %s deleted", rowId.c_str());
-        //  LVGLManager::updateStatusLabel("Product deleted");
-        // LVGLManager::showProductSnackbar(product.name, product.category, ProductAction::Deleted);
-    }
-    else
-    {
-        ESP_LOGE(TAG, "deleteProduct failed: %d", status);
-    }
-
-    return success;
-}
-
-bool ProductService::upsertBarcode(const std::string &barcode, const std::string &name, const std::string &category)
-{
-    if (barcode.empty())
-    {
-        ESP_LOGW(TAG, "upsertBarcode: barcode is empty");
-        return false;
-    }
-
-    ESP_LOGI(TAG, "Upserting barcode: barcode='%s', name='%s', category='%s'",
-             barcode.c_str(), name.c_str(), category.c_str());
-
-    std::string baseUrl = Endpoint + "/tablesdb/" + DatabaseId +
-                          "/tables/" + BarcodeCollectionId + "/rows";
-
-    // Step 1: Search for existing barcode entry to get its rowId
-    std::string query = "{\"method\":\"equal\",\"attribute\":\"barcode\",\"values\":[\"" + barcode + "\"]}";
-    std::string searchUrl = baseUrl + "?queries[0]=" + HttpClientHelper::urlEncode(query);
-
-    int status = -1;
-    std::string response = _httpClient.httpGet(searchUrl, status);
-
-    std::string rowId;
-    bool found = false;
-
-    if (status == 200)
-    {
-        cJSON *root = cJSON_Parse(response.c_str());
-        if (root)
-        {
-            cJSON *rows = cJSON_GetObjectItem(root, "rows");
-            if (rows && cJSON_IsArray(rows) && cJSON_GetArraySize(rows) > 0)
-            {
-                cJSON *firstRow = cJSON_GetArrayItem(rows, 0);
-                cJSON *idItem = cJSON_GetObjectItem(firstRow, "$id");
-                if (idItem && cJSON_IsString(idItem))
-                {
-                    rowId = idItem->valuestring;
-                    found = true;
-                }
-            }
-            cJSON_Delete(root);
-        }
-    }
-
-    if (found)
-    {
-        // Step 2a: Update existing row using its actual rowId
-        ESP_LOGI(TAG, "Found existing barcode entry, updating rowId: %s", rowId.c_str());
-
-        cJSON *root = cJSON_CreateObject();
-        if (!root) return false;
-
-        cJSON *data = cJSON_AddObjectToObject(root, "data");
-        if (!data) { cJSON_Delete(root); return false; }
-
-        cJSON_AddStringToObject(data, "name", name.c_str());
-        cJSON_AddStringToObject(data, "category", category.c_str());
-
-        char *json = cJSON_PrintUnformatted(root);
-        cJSON_Delete(root);
-        if (!json) return false;
-
-        std::string updateUrl = baseUrl + "/" + rowId;
-        status = -1;
-        response = _httpClient.httpPatch(updateUrl, json, status);
-        free(json);
-
-        if (status != 200)
-        {
-            ESP_LOGE(TAG, "Barcode update failed: %d", status);
-            return false;
-        }
-
-        ESP_LOGI(TAG, "Barcode updated successfully");
-        return true;
-    }
-
-    // Step 2b: Not found, create new entry
-    ESP_LOGI(TAG, "Barcode not found, creating new entry");
-
-    cJSON *root = cJSON_CreateObject();
-    if (!root) return false;
-
-    std::string newRowId = HttpClientHelper::generateId();
-    cJSON_AddStringToObject(root, "rowId", newRowId.c_str());
-
-    cJSON *data = cJSON_AddObjectToObject(root, "data");
-    if (!data) { cJSON_Delete(root); return false; }
-
-    cJSON_AddStringToObject(data, "barcode", barcode.c_str());
-    cJSON_AddStringToObject(data, "name", name.c_str());
-    cJSON_AddStringToObject(data, "category", category.c_str());
-
-    char *json = cJSON_PrintUnformatted(root);
-    cJSON_Delete(root);
-    if (!json) return false;
-
-    status = -1;
-    response = _httpClient.httpPost(baseUrl, json, status);
-    free(json);
-
-    bool success = (status == 200 || status == 201);
-    if (!success)
-        ESP_LOGE(TAG, "Barcode insert failed: %d", status);
-    else
-        ESP_LOGI(TAG, "Barcode created successfully");
-
-    return success;
-}
-
-std::vector<Product> ProductService::getExpiringProducts()
-{
-    std::vector<Product> result;
-
-    // Get current datetime and tomorrow's datetime in ISO 8601 format
-    time_t now;
-    struct tm timeinfo;
-    time(&now);
-    localtime_r(&now, &timeinfo);
-
-    char today[25], tomorrow[25];
-    strftime(today, sizeof(today), "%Y-%m-%dT%H:%M:%SZ", &timeinfo);
-
-    timeinfo.tm_mday += 1; // Add one day
-    mktime(&timeinfo);     // Normalize the time structure
-    strftime(tomorrow, sizeof(tomorrow), "%Y-%m-%dT23:59:59Z", &timeinfo);
-
-    // Build queries for today and tomorrow
-    std::string queryTomorrow = "{\"method\":\"lessThanEqual\",\"attribute\":\"expiry\",\"values\":[\"" + std::string(tomorrow) + "\"]}";
-
-    // Fetch products
-    int queryResult;
-    int maxRetry = 0;
-    do
-    {
-        result = getProducts({queryTomorrow}, queryResult);
-
-        if (queryResult != 0)
-        {
-            ESP_LOGE(TAG, "Failed to fetch expiring products");
-            vTaskDelay(2000 / portTICK_PERIOD_MS); // Wait before retrying
-        }
-        else
-        {
-
-            ESP_LOGI(TAG, "Fetched %d products expiring today or tomorrow", result.size());
-        }
-    } while (queryResult != 0 && maxRetry++ < 3);
-
-    return result;
-}
