@@ -3,7 +3,7 @@
 #include "ui_extensions.h"
 #include "ui.h"      // objects
 #include "screens.h" // objects_t
-#include "styles.h"  // add_style_main_button
+#include "ui_theme.h"
 #include "cJSON.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
@@ -359,7 +359,7 @@ void WiFiSettingsUI::showPasswordDialog(const std::string &ssid)
     lv_obj_t *cancel_btn = lv_btn_create(btn_row);
     lv_obj_set_height(cancel_btn, 44);
     lv_obj_set_flex_grow(cancel_btn, 1);
-    add_style_main_button(cancel_btn);
+    ui_theme::style_secondary_button(cancel_btn);
     lv_obj_add_event_cb(cancel_btn, onPasswordCancelClick, LV_EVENT_CLICKED, nullptr);
     lv_obj_t *cancel_lbl = lv_label_create(cancel_btn);
     lv_label_set_text(cancel_lbl, "Cancel");
@@ -375,7 +375,7 @@ void WiFiSettingsUI::showPasswordDialog(const std::string &ssid)
     lv_obj_t *connect_btn = lv_btn_create(btn_row);
     lv_obj_set_height(connect_btn, 44);
     lv_obj_set_flex_grow(connect_btn, 1);
-    add_style_main_button(connect_btn);
+    ui_theme::style_primary_button(connect_btn);
     lv_obj_add_event_cb(connect_btn, onPasswordConnectClick, LV_EVENT_CLICKED, nullptr);
     lv_obj_t *connect_lbl = lv_label_create(connect_btn);
     lv_label_set_text(connect_lbl, "Connect");
@@ -684,7 +684,7 @@ void WiFiSettingsUI::openScreen()
     s_screen = lv_obj_create(0);
     lv_obj_set_pos(s_screen, 0, 0);
     lv_obj_set_size(s_screen, 800, 1280);
-    lv_obj_set_style_bg_color(s_screen, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_bg_color(s_screen, lv_color_hex(UI_COLOR_PAGE_BG), 0);
     lv_obj_set_style_bg_opa(s_screen, LV_OPA_COVER, 0);
     lv_obj_set_flex_flow(s_screen, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_all(s_screen, 0, 0);
@@ -703,7 +703,7 @@ void WiFiSettingsUI::openScreen()
     lv_obj_t *header = lv_obj_create(s_screen);
     lv_obj_set_width(header, lv_pct(100));
     lv_obj_set_height(header, 55);
-    lv_obj_set_style_bg_color(header, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_bg_color(header, lv_color_hex(UI_COLOR_PAGE_BG), 0);
     lv_obj_set_style_border_width(header, 0, 0);
     lv_obj_set_style_radius(header, 0, 0);
     lv_obj_set_style_pad_all(header, 10, 0);
@@ -719,7 +719,7 @@ void WiFiSettingsUI::openScreen()
     lv_obj_set_size(close_btn, 38, 38);
     lv_obj_align(close_btn, LV_ALIGN_RIGHT_MID, -12, 0);
     lv_obj_add_event_cb(close_btn, onCloseClick, LV_EVENT_CLICKED, nullptr);
-    add_style_main_button(close_btn);
+    ui_theme::style_secondary_button(close_btn);
 
     lv_obj_t *close_lbl = lv_label_create(close_btn);
     lv_label_set_text(close_lbl, "X");
@@ -759,13 +759,13 @@ void WiFiSettingsUI::openScreen()
     lv_obj_set_x(rescan_btn, 80); // center horizontally (800 - 80*2 = 640 content width)
     lv_obj_set_height(rescan_btn, 48);
     lv_obj_add_event_cb(rescan_btn, onRescanClick, LV_EVENT_CLICKED, nullptr);
-    add_style_main_button(rescan_btn);
+    ui_theme::style_primary_button(rescan_btn);
     lv_obj_set_style_margin_bottom(rescan_btn, 20, 0);
 
     lv_obj_t *rescan_lbl = lv_label_create(rescan_btn);
     lv_label_set_text(rescan_lbl, "Rescan");
     lv_obj_center(rescan_lbl);
-    lv_obj_set_style_text_color(rescan_lbl, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_text_color(rescan_lbl, lv_color_white(), 0);
 
     // ── Keyboard (hidden by default, shown when password is needed) ──
     s_keyboard = lv_keyboard_create(s_screen);

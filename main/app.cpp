@@ -15,12 +15,8 @@
 #include "lv_demos.h"
 #include "ui.h"
 #include "WiFiManager.h"
-#include "ProductService.h"
 #include "ui_extensions.h"
 #include "ProductsManager.h"
-#include "FavouritesManager.h"
-#include "CookbookManager.h"
-// #include "thumbnail_cache.h"  // DISABLED
 #include "cJSON.h"
 #include <cstdio>
 #include "display_sleep.h"
@@ -102,21 +98,10 @@ static void combinedFetchTask(void *param)
         lv_label_set_text(objects.current_wifi_lbl, wifiManager.getSSID().c_str());
     lv_unlock();
 
-    ESP_LOGI(TAG, "WiFi connected. Starting combined data fetch...");
+    ESP_LOGI(TAG, "WiFi connected. Fetching products...");
 
-    // Run product and favourite fetches sequentially in one task
     productsManager.fetchProductsSync();
     hideSpinner();
-
-    favouritesManager.fetchFavourites();
-
-    cookbookManager.fetchCookbooks();
-
-    // Refresh favourites UI if on the favourites tab
-    if (objects.tabview && lv_obj_is_valid(objects.tabview) && lv_tabview_get_tab_act(objects.tabview) == 2)
-    {
-        showCurrentPageFavourites(true);
-    }
 
     vTaskDelete(NULL);
 }
@@ -192,11 +177,6 @@ void Application::initHardware()
             ESP_LOGI(TAG, "No saved WiFi credentials found — will prompt user in settings");
         }
 
-        // // DISABLED: thumbnail cache
-        // if (!thumbnail_cache::init())
-        // {
-        //     ESP_LOGW(TAG, "Thumbnail cache init failed (continuing without cache)");
-        // }
     }
 
     // Initialize WiFi driver (always, regardless of saved credentials)
@@ -221,7 +201,7 @@ void Application::initHardware()
     bsp_display_start_with_config(&cfg);
     bsp_display_backlight_on();
 
-    // Initialize EEZ Studio UI once
+    // Build the hand-written UI once
     bsp_display_lock(0);
 
     // ── wrap the BSP touch indev ──────────────────────────────────────
@@ -253,7 +233,7 @@ void Application::initHardware()
         lv_async_call([](void *)
                       {
             if (objects.tabview && lv_obj_is_valid(objects.tabview)) {
-                lv_tabview_set_active(objects.tabview, 3, LV_ANIM_OFF);
+                lv_tabview_set_active(objects.tabview, 1, LV_ANIM_OFF);
             } }, nullptr);
     }
 

@@ -1,39 +1,22 @@
 idf_component_register(
-    SRCS 
+    SRCS
         main.cpp
         app.cpp
+        SupabaseClient.cpp
         ProductService.cpp
         ProductsManager.cpp
-        RecipeService.cpp
-        DeepSeekAIService.cpp
-        LeonardoImageGenerator.cpp
-        RecipeAIDetailService.cpp
-        RecipeSuggestionsManager.cpp
-        RecipeStepsAggregationService.cpp
-        RecipeDetailService.cpp
-        FavouriteService.cpp
-        FavouritesManager.cpp
-        CookbookService.cpp
-        CookbookManager.cpp
-        HttpClientHelper.cpp
-        AppwriteClientInstance.cpp
         WiFiSettingsUI.cpp
-        WifiManager.cpp
+        WiFiManager.cpp
         ui_extensions.cpp
         ui_extensions_products.cpp
-        ui_extensions_recipes.cpp
-        ui_extensions_recipe_detail.cpp
-        ui_extensions_favourites.cpp
-        ui_extensions_recipe_steps.cpp
         thumbnail_cache.cpp
         thumbnail_manager.cpp
         spiffs_cleanup.cpp
-        filters_ui.cpp
         display_sleep.cpp
         quick_panel.cpp
         battery.cpp
-        ui/screens.c
-        ui/styles.c
+        ui_theme.cpp
+        ui/screens.cpp
         ui/images.c
         ui/actions.cpp
         ui/ui.c
@@ -57,13 +40,13 @@ idf_component_register(
         ui/ui_image_wine.c
         ui/ui_image_other.c
         ui/ui_image_snacks.c
-    INCLUDE_DIRS 
-    . 
+    INCLUDE_DIRS
+    .
     ui)
 
 idf_component_get_property(LVGL_LIB lvgl__lvgl COMPONENT_LIB)
 target_compile_options(
-    ${LVGL_LIB} 
+    ${LVGL_LIB}
     PRIVATE
         -DLV_LVGL_H_INCLUDE_SIMPLE
 )
