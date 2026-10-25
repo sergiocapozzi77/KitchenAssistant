@@ -1,32 +1,36 @@
 #include "ui.h"
+
 #include "screens.h"
-#include "images.h"
-#include "actions.h"
-#include "vars.h"
 
-#include <string.h>
-
-static int16_t currentScreen = -1;
-
-static lv_obj_t *getLvglObjectFromIndex(int32_t index) {
-    if (index == -1) {
-        return 0;
+static lv_obj_t *screen_for(enum ScreensEnum screen_id)
+{
+    switch (screen_id)
+    {
+    case SCREEN_ID_MAIN:
+        return objects.main;
+    case SCREEN_ID_COOKBOOK_DETAIL:
+        return objects.cookbook_detail;
+    case SCREEN_ID_RECIPE_DETAIL:
+        return objects.recipe_detail;
+    default:
+        return objects.main;
     }
-    return ((lv_obj_t **)&objects)[index];
 }
 
-void loadScreen(enum ScreensEnum screenId) {
-    currentScreen = screenId - 1;
-    lv_obj_t *screen = getLvglObjectFromIndex(currentScreen);
-    lv_scr_load_anim(screen, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
+void loadScreen(enum ScreensEnum screenId)
+{
+    lv_obj_t *screen = screen_for(screenId);
+    if (!screen)
+        return;
+    lv_screen_load_anim(screen, LV_SCR_LOAD_ANIM_FADE_IN, 200, 0, false);
 }
 
-void ui_init() {
+void ui_init(void)
+{
     create_screens();
-    loadScreen(SCREEN_ID_MAIN);
-
+    lv_screen_load(objects.main);
 }
 
-void ui_tick() {
-    tick_screen(currentScreen);
+void ui_tick(void)
+{
 }

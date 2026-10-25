@@ -1,5 +1,4 @@
-#ifndef EEZ_LVGL_UI_SCREENS_H
-#define EEZ_LVGL_UI_SCREENS_H
+#pragma once
 
 #include <lvgl.h>
 
@@ -7,225 +6,98 @@
 extern "C" {
 #endif
 
-// Screens
-
-enum ScreensEnum {
-    _SCREEN_ID_FIRST = 1,
+typedef enum
+{
     SCREEN_ID_MAIN = 1,
-    SCREEN_ID_RECIPE_DETAIL = 2,
-    SCREEN_ID_RECIPE_PHASE = 3,
-    _SCREEN_ID_LAST = 3
-};
+    SCREEN_ID_COOKBOOK_DETAIL = 2,
+    SCREEN_ID_RECIPE_DETAIL = 3
+} ScreensEnum;
 
-typedef struct _objects_t {
+typedef struct objects_t
+{
     lv_obj_t *main;
+    lv_obj_t *cookbook_detail;
     lv_obj_t *recipe_detail;
-    lv_obj_t *recipe_phase;
+
     lv_obj_t *tabview;
+    lv_obj_t *tab_inventory;
+    lv_obj_t *tab_cookbooks;
+    lv_obj_t *tab_settings;
+
+    // Inventory
     lv_obj_t *products_header_pnl;
-    lv_obj_t *product_filter_dropdown;
-    lv_obj_t *product_sort_dropdown;
+    lv_obj_t *products_title_lbl;
     lv_obj_t *products_reload_btn;
+    lv_obj_t *product_search_btn;
     lv_obj_t *product_search_ta;
+    lv_obj_t *product_filter_pill;
+    lv_obj_t *product_filter_lbl;
+    lv_obj_t *product_sort_pill;
+    lv_obj_t *product_sort_lbl;
+    lv_obj_t *product_filter_chips;
+    lv_obj_t *product_chip_all;
+    lv_obj_t *product_chip_expiring;
+    lv_obj_t *product_chip_expired;
+    lv_obj_t *product_sort_chips;
+    lv_obj_t *product_sort_chip_az;
+    lv_obj_t *product_sort_chip_expiry;
     lv_obj_t *products_list;
-    lv_obj_t *products_sidebar;
-    lv_obj_t *products_container;
-    lv_obj_t *create_recipe_pnl;
-    lv_obj_t *products_filters_panel;
-    lv_obj_t *products_filters_panel__keywords_text;
-    lv_obj_t *products_filters_panel__filters_panel;
-    lv_obj_t *products_filters_panel__meal_type_dropdown;
-    lv_obj_t *products_filters_panel__total_time_dropdown;
-    lv_obj_t *products_filters_panel__diet_dropdown;
-    lv_obj_t *products_filters_panel__difficulty_dropdown;
-    lv_obj_t *products_filters_panel__cuisine_dropdown;
-    lv_obj_t *products_filters_panel__calories_dropdown;
-    lv_obj_t *products_filters_panel__source_dropdown;
-    lv_obj_t *products_filters_panel__poducts_selected_cb;
-    lv_obj_t *products_filters_panel__product_selected_lbl;
-    lv_obj_t *generate_ai_recipes_btn;
-    lv_obj_t *generate_recipe_btn;
-    lv_obj_t *panel_create_recipe_close_btn;
+
+    // Product edit modal
     lv_obj_t *product_edit_modal;
-    lv_obj_t *product_edit;
-    lv_obj_t *product_edit__product_edit_panel;
-    lv_obj_t *product_edit__product_edit_close_btn;
-    lv_obj_t *product_edit__product_edit_title_lbl;
-    lv_obj_t *product_edit__obj0;
-    lv_obj_t *product_edit__product_edit_name_ta;
-    lv_obj_t *product_edit__obj1;
-    lv_obj_t *product_edit__product_edit_expiry_ta;
-    lv_obj_t *product_edit__obj2;
-    lv_obj_t *product_edit__product_edit_category_dd;
-    lv_obj_t *product_edit__product_edit_save_btn;
-    lv_obj_t *product_edit__product_edit_cancel_btn;
-    lv_obj_t *product_edit__product_edit_selectdate;
-    lv_obj_t *product_edit__product_edit_delete_btn;
-    lv_obj_t *product_edit__product_edit_frozen_cb;
-    lv_obj_t *product_edit__calendar_editproduct;
-    lv_obj_t *recipes_header_pnl;
-    lv_obj_t *recipe_filter_toggle_text;
-    lv_obj_t *recipe_suggestion_prev_btn;
-    lv_obj_t *recipe_suggestion_next_btn;
-    lv_obj_t *recipes_list;
-    lv_obj_t *recipe_list_filter_container;
-    lv_obj_t *recipes_filters_panel;
-    lv_obj_t *recipes_filters_panel__keywords_text;
-    lv_obj_t *recipes_filters_panel__filters_panel;
-    lv_obj_t *recipes_filters_panel__meal_type_dropdown;
-    lv_obj_t *recipes_filters_panel__total_time_dropdown;
-    lv_obj_t *recipes_filters_panel__diet_dropdown;
-    lv_obj_t *recipes_filters_panel__difficulty_dropdown;
-    lv_obj_t *recipes_filters_panel__cuisine_dropdown;
-    lv_obj_t *recipes_filters_panel__calories_dropdown;
-    lv_obj_t *recipes_filters_panel__source_dropdown;
-    lv_obj_t *recipes_filters_panel__poducts_selected_cb;
-    lv_obj_t *recipes_filters_panel__product_selected_lbl;
-    lv_obj_t *recipe_filter_panel_update_bt;
-    lv_obj_t *favourites_header_pnl;
-    lv_obj_t *favourite_bar;
-    lv_obj_t *favourites_prev_btn;
-    lv_obj_t *favourites_next_btn;
-    lv_obj_t *favourites_reload_btn;
-    lv_obj_t *favourites_search_ta;
-    lv_obj_t *favourites_list;
-    lv_obj_t *settings_wifi_btn;
+    lv_obj_t *product_edit_panel;
+    lv_obj_t *product_edit_title;
+    lv_obj_t *product_edit_name_ta;
+    lv_obj_t *product_edit_expiry_ta;
+    lv_obj_t *product_edit_category_dd;
+    lv_obj_t *product_edit_qty_lbl;
+    lv_obj_t *product_edit_qty_minus;
+    lv_obj_t *product_edit_qty_plus;
+    lv_obj_t *product_edit_frozen_cb;
+    lv_obj_t *product_edit_delete_btn;
+    lv_obj_t *product_edit_cancel_btn;
+    lv_obj_t *product_edit_save_btn;
+
+    // Cookbooks
+    lv_obj_t *cookbooks_list;
+    lv_obj_t *cookbooks_title_lbl;
+    lv_obj_t *cookbooks_reload_btn;
+
+    // Cookbook detail
+    lv_obj_t *cookbook_detail_back_btn;
+    lv_obj_t *cookbook_detail_title_lbl;
+    lv_obj_t *cookbook_detail_count_lbl;
+    lv_obj_t *cookbook_detail_list;
+    lv_obj_t *cookbook_detail_spinner;
+    lv_obj_t *cookbook_detail_state_lbl;
+    lv_obj_t *cookbook_detail_retry_btn;
+
+    // Recipe detail
+    lv_obj_t *recipe_detail_back_btn;
+    lv_obj_t *recipe_detail_hero;
+    lv_obj_t *recipe_detail_title_lbl;
+    lv_obj_t *recipe_detail_source_lbl;
+    lv_obj_t *recipe_detail_time_lbl;
+    lv_obj_t *recipe_detail_difficulty_lbl;
+    lv_obj_t *recipe_detail_tabview;
+    lv_obj_t *recipe_detail_ingredients_tab;
+    lv_obj_t *recipe_detail_method_tab;
+
+    // Settings
     lv_obj_t *current_wifi_lbl;
-    lv_obj_t *settings_wifi_btn_1;
-    lv_obj_t *keywords_keyboard;
-    lv_obj_t *spinner;
+    lv_obj_t *settings_wifi_btn;
+
+    // Overlays
     lv_obj_t *snackbar;
-    lv_obj_t *obj0;
     lv_obj_t *snackbar_text;
-    lv_obj_t *obj1;
-    lv_obj_t *root_container;
-    lv_obj_t *top_bar;
-    lv_obj_t *recipe_back_btn;
-    lv_obj_t *obj2;
-    lv_obj_t *recipe_title;
-    lv_obj_t *recipe_favourite_add;
-    lv_obj_t *recipe_favourite_remove;
-    lv_obj_t *recipe_header_img;
-    lv_obj_t *meta_card;
-    lv_obj_t *meta_item_time;
-    lv_obj_t *obj3;
-    lv_obj_t *recipe_total_time_val;
-    lv_obj_t *obj4;
-    lv_obj_t *meta_item_difficulty;
-    lv_obj_t *obj5;
-    lv_obj_t *recipe_difficulty_val;
-    lv_obj_t *obj6;
-    lv_obj_t *detail_tabview;
-    lv_obj_t *recipe_ing_cont;
-    lv_obj_t *recipe_method_cont;
-    lv_obj_t *recipe_details_bottom_bar;
-    lv_obj_t *create_steps_btn_1;
-    lv_obj_t *recipe_detail_spinner;
-    lv_obj_t *root_container_phase;
-    lv_obj_t *top_phase_bar;
-    lv_obj_t *phase_back_btn;
-    lv_obj_t *obj7;
-    lv_obj_t *phase_recipe_title;
-    lv_obj_t *step_progress;
-    lv_obj_t *step_progress__spb_root;
-    lv_obj_t *step_progress__spb_track_bg;
-    lv_obj_t *step_progress__spb_track_fill;
-    lv_obj_t *step_progress__spb_circle_1;
-    lv_obj_t *step_progress__spb_num_1;
-    lv_obj_t *step_progress__spb_label_1;
-    lv_obj_t *step_progress__spb_circle_2;
-    lv_obj_t *step_progress__spb_num_2;
-    lv_obj_t *step_progress__spb_label_2;
-    lv_obj_t *step_progress__spb_circle_3;
-    lv_obj_t *step_progress__spb_num_3;
-    lv_obj_t *step_progress__spb_label_3;
-    lv_obj_t *step_progress__spb_circle_4;
-    lv_obj_t *step_progress__spb_num_4;
-    lv_obj_t *step_progress__spb_label_4;
-    lv_obj_t *step_progress__spb_circle_5;
-    lv_obj_t *step_progress__spb_num_5;
-    lv_obj_t *step_progress__spb_label_5;
-    lv_obj_t *step_progress__spb_circle_6;
-    lv_obj_t *step_progress__spb_num_6;
-    lv_obj_t *step_progress__spb_label_6;
-    lv_obj_t *step_progress__spb_circle_7;
-    lv_obj_t *step_progress__spb_num_7;
-    lv_obj_t *step_progress__spb_label_7;
-    lv_obj_t *step_progress__spb_circle_8;
-    lv_obj_t *step_progress__spb_num_8;
-    lv_obj_t *step_progress__spb_label_8;
-    lv_obj_t *step_progress__spb_circle_9;
-    lv_obj_t *step_progress__spb_num_9;
-    lv_obj_t *step_progress__spb_label_9;
-    lv_obj_t *step_progress__spb_circle_10;
-    lv_obj_t *step_progress__spb_num_10;
-    lv_obj_t *step_progress__spb_label_10;
-    lv_obj_t *step_progress__spb_circle_11;
-    lv_obj_t *step_progress__spb_num_11;
-    lv_obj_t *step_progress__spb_label_11;
-    lv_obj_t *step_progress__spb_circle_12;
-    lv_obj_t *step_progress__spb_num_12;
-    lv_obj_t *step_progress__spb_label_12;
-    lv_obj_t *recipe_phase_title;
-    lv_obj_t *recipe_phase_title_txt;
-    lv_obj_t *recipe_phase_imgs;
-    lv_obj_t *recipe_phase_ingredients;
-    lv_obj_t *recipe_phase_method;
-    lv_obj_t *recipe_phase_footer;
-    lv_obj_t *recipe_phase_next;
-    lv_obj_t *recipe_phase_prev;
-    lv_obj_t *phase_ingredients_factor_1;
-    lv_obj_t *phase_ingredients_factor_minus;
-    lv_obj_t *phase_ingredients_factor_plus;
-    lv_obj_t *phase_detail_spinner;
+    lv_obj_t *spinner;
+    lv_obj_t *keyboard;
 } objects_t;
 
 extern objects_t objects;
 
-void create_screen_main();
-void tick_screen_main();
-
-void create_screen_recipe_detail();
-void tick_screen_recipe_detail();
-
-void create_screen_recipe_phase();
-void tick_screen_recipe_phase();
-
-void create_user_widget_product_edit(lv_obj_t *parent_obj, int startWidgetIndex);
-void tick_user_widget_product_edit(int startWidgetIndex);
-
-void create_user_widget_filters_panel(lv_obj_t *parent_obj, int startWidgetIndex);
-void tick_user_widget_filters_panel(int startWidgetIndex);
-
-void create_user_widget_step_progress_bar(lv_obj_t *parent_obj, int startWidgetIndex);
-void tick_user_widget_step_progress_bar(int startWidgetIndex);
-
-void tick_screen_by_id(enum ScreensEnum screenId);
-void tick_screen(int screen_index);
-
-void create_screens();
-
-// Color themes
-
-enum Themes {
-    THEME_ID_DEFAULT,
-};
-enum Colors {
-    COLOR_ID_ACCENT,
-    COLOR_ID_ACCENT_DARK,
-    COLOR_ID_BORDER,
-    COLOR_ID_LIGHT_ACCENT,
-    COLOR_ID_LIGHT_BORDER,
-    COLOR_ID_TEXT_COLOR,
-    COLOR_ID_CHECKBOX,
-    COLOR_ID_BACKGROUND,
-};
-void change_color_theme(uint32_t themeIndex);
-extern uint32_t theme_colors[1][8];
-extern uint32_t active_theme_index;
+void create_screens(void);
 
 #ifdef __cplusplus
 }
 #endif
-
-#endif /*EEZ_LVGL_UI_SCREENS_H*/
