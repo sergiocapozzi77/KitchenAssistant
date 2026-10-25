@@ -433,8 +433,12 @@ void action_recipe_open(lv_event_t *event)
 void action_recipe_back(lv_event_t *)
 {
     thumb_queue_cancel_all();
-    if (objects.main && lv_obj_is_valid(objects.main))
-        lv_screen_load_anim(objects.main, LV_SCREEN_LOAD_ANIM_MOVE_RIGHT, 200, 0,
+    // The spec says RECIPE_DETAIL returns to the screen it was opened from.
+    lv_obj_t *target = objects.cookbook_detail;
+    if (!target || !lv_obj_is_valid(target))
+        target = objects.main;
+    if (target && lv_obj_is_valid(target))
+        lv_screen_load_anim(target, LV_SCREEN_LOAD_ANIM_MOVE_RIGHT, 200, 0,
                             false);
 }
 

@@ -4158,6 +4158,10 @@ for name in ("action_cookbooks_reload", "action_cookbook_open",
 assert "void request_cookbooks_load()" in a
 assert "void request_cookbook_recipes(const std::string &cookbookId)" in a
 
+# Spec: RECIPE_DETAIL returns to the screen it was opened from (the cookbook).
+back = a.split("void action_recipe_back", 1)[1].split("\n}", 1)[0]
+assert "objects.cookbook_detail" in back, "recipe back must return to cookbook detail"
+
 for call in ("cookbooksManager.refreshSync()",
              "recipesManager.fetchForCookbookSync(ctx->id)",
              "cookbooksManager.loaded()",
@@ -4220,7 +4224,8 @@ the main screen with `LV_SCREEN_LOAD_ANIM_MOVE_RIGHT`.
 
 `action_recipe_open` reads the heap `Recipe *` payload and calls
 `showRecipeDetailScreen`. `action_recipe_back` cancels thumbnails and
-animates back to the main screen.
+animates back to the cookbook detail screen it was opened from (spec:
+`RECIPE_DETAIL` returns to the screen it was opened from).
 
 Add `openCookbookId()` to the cookbook UI, backed by
 `s_open_cookbook_id`, and `showCookbookDetailFailure(id)` which shows the
