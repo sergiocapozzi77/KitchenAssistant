@@ -219,10 +219,11 @@ Deleted: recipe search, the suggestions screen, the phase wizard, all AI
 (DeepSeek suggestions, AI recipe detail, Leonardo images, create-recipe panel,
 generate buttons).
 
-The UI already implements the kept flow — `ui_extensions.h:25-26` exposes
-`populateCookbooksList()` / `showCurrentPageCookbooks()`; clicking a cookbook
-sets `g_activeCookbookId` and drills into `getFavouritesByCookbook()`; clicking a
-recipe opens `showRecipeDetailScreen()`. Nothing new is needed in LVGL.
+The UI does **not** implement the kept flow as designed. It implements a
+different one: four tabs (Products, Recipes, Favourites, Settings), a category
+sidebar, and a favourite toggle that only means something for recipes found by
+search. With EEZ Studio retired, the UI is replaced rather than preserved; see
+§10.
 
 ---
 
@@ -230,17 +231,16 @@ recipe opens `showRecipeDetailScreen()`. Nothing new is needed in LVGL.
 
 1. **The key is a master credential.** See 5.1. Accepted trade-off; the
    alternative that preserves RLS costs app changes or a live-account edit.
-2. **Phase 1 leaves the Recipes tab visible but inert.** `main/ui/screens.c` is
-   generated and registers 32 callbacks by pointer, including the search, phase
-   and AI handlers. Deleting those functions breaks the link, so their bodies
-   become no-ops and the services underneath are deleted. The tab, the phase
-   screen and the AI panels stay on screen until an EEZ Studio regeneration — an
-   explicit Phase 2, not a hidden gap.
+2. **The EEZ generation constraint is gone.** `main/ui/screens.c` was generated
+   and registered 32 callbacks by pointer, which is why an earlier version of
+   this plan left the search, phase and AI handlers in place as no-ops. EEZ
+   Studio is no longer used, so the generated UI is deleted and the two screens
+   that survive are hand-written. §10 records what that costs.
 3. **`updated_at` needs no client handling** — triggers maintain it (2.2).
-4. **Favourites remain unfiltered by cookbook.** `getFavourites()` returns all
-   saved recipes and cookbooks are a drill-down, matching today's behaviour. If
-   the device should only ever show recipes that belong to a cookbook, that is
-   a one-line filter (`cookbook_ids=not.is.null`) and a different empty state.
+4. **No unfiltered recipe list remains.** Measured on RoastedMaple: all 39
+   recipes belong to at least one cookbook, so the Recipes tab can be dropped
+   without hiding anything. A recipe could only become unreachable if the app
+   later saved one outside every cookbook.
 5. **Thumbnails grow.** The old path downloaded server-resized payloads; the new
    path downloads `image_url` directly. Mitigated with a response-size guard and
    the existing SPIFFS cache, but it is a real change in PSRAM pressure during
@@ -255,10 +255,64 @@ recipe opens `showRecipeDetailScreen()`. Nothing new is needed in LVGL.
 
 ## 9. Open items
 
-- **Phase 2 (EEZ).** Remove the Recipes tab, the RECIPE_PHASE screen, the
-  create-recipe panel and the AI buttons in EEZ Studio; regenerate; then delete
-  the remaining no-op handlers in `actions.cpp`. Not part of this migration's
-  definition of done.
 - **REST contract checks before flashing.** PostgREST URL shapes are exercised
   directly (including a throwaway write/read/delete round-trip) before the
   firmware depends on them, because the firmware cannot be built here.
+- **Icon fidelity.** LVGL's bundled fonts have no Material Icons glyphs, so the
+  app's icons can only be approximated with `LV_SYMBOL_*`. Adding a Material
+  icon font is possible later but not needed for the layout.
+
+---
+
+## 10. The UI replacement
+
+EEZ Studio is retired as of 2026-10-25, which removes the constraint that shaped
+the first version of this plan. What the generated UI actually costs:
+
+| Function in `main/ui/screens.c` | Lines | Fate |
+|---|---|---|
+| `create_screen_main` | 860 | Replaced |
+| `create_screen_recipe_detail` | 424 | Replaced |
+| `create_screen_recipe_phase` | 343 | Deleted |
+| `create_user_widget_product_edit` | 233 | Replaced |
+| `create_user_widget_filters_panel` | 153 | Deleted |
+| `create_user_widget_step_progress_bar` | 514 | Deleted |
+
+Plus `objects_t` with 162 members, most named `obj0..obj45`, and a `loadScreen()`
+that casts `&objects` to an array of `lv_obj_t *` and indexes it by screen id —
+so the struct's field order is load-bearing. Three of the six generated
+constructors are already dead weight, and the rest is easier to re-author than
+to patch into a different design.
+
+### 10.1 What the app looks like
+
+Measured from `KitchenAssistantApp`:
+
+| Area | Structure |
+|---|---|
+| Tabs | Inventory, Cookbooks, Settings — bottom bar with icons and labels |
+| Inventory | Title, search/filter/sort pills, "Add item" row, collapsible category groups with `CATEGORY · N items` headers, then product rows (name, frozen icon, expiry badge, edit, delete) |
+| Cookbooks | Two-column grid, cards with a photo mosaic, name and "N recipes" |
+| Cookbook detail | Back arrow, cookbook name, "N recipes", horizontal recipe cards (130×100 image, name, source, time/difficulty/cuisine badges) |
+| Recipe detail | Hero, meta card, Ingredients + Methods tabs |
+| Theme | Dark M3 by default, optional light theme |
+
+Three app behaviours the firmware must copy rather than keep its own version of:
+
+- **Expiry badge threshold is 3 days**, not the 7 the firmware uses today.
+- **Category headers carry the count** and collapse; the firmware's expiring
+  counts move onto them from the sidebar badges.
+- **Recipe cards carry cuisine**, a column the current `RecipeSuggestion` has no
+  field for.
+
+### 10.2 Choices made for the device
+
+- Hand-written UI (decision 9): the surviving two screens and the modal are
+  ordinary C++ against named handles.
+- Light palette (decision 10): the device sits in a bright kitchen; the app's
+  light theme keeps the same component geometry.
+- First-recipe cover (decision 12): user instruction, deviating from the app's
+  mosaic. All 12 cookbooks have an image to show.
+- Read-only cookbooks and no product creation (decision 13 and the matching
+  non-goal): the phone owns authoring, the device owns display and expiry
+  editing. This deletes six service methods rather than porting them.
