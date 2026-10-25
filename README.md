@@ -46,7 +46,7 @@ service-role key:
 ```c
 #define SUPABASE_URL "https://ubsqrktgvlxzaujksran.supabase.co"
 #define SUPABASE_SERVICE_KEY "replace-with-service-role-key"
-#define SUPABASE_USER_ID "c92ebb7f-457e-4d46-a9e8-edf7fa67e7b2"
+#define SUPABASE_USER_ID "c92ebb7f-457e-4d46-a9e8-ed7f7a67e7b2"
 ```
 
 `SUPABASE_USER_ID` pins the mirrored account. The service-role key bypasses

@@ -14,7 +14,7 @@
 
 - **Never run `idf.py build`, `idf.py flash`, `cmake`, or any ESP-IDF compilation command.** The user builds and flashes manually. Verification in this plan is REST contract checks, source scans, `git diff --check`, and an on-device checklist handed to the user.
 - **Never read, print, edit, or commit `main/secrets.h`.** It holds the service-role key and is git-ignored. A plan step may ask the *user* to edit it; the agent must not.
-- `SUPABASE_URL` is `https://ubsqrktgvlxzaujksran.supabase.co`; `SUPABASE_USER_ID` is `c92ebb7f-457e-4d46-a9e8-edf7fa67e7b2`; the account is `RoastedMaple`.
+- `SUPABASE_URL` is `https://ubsqrktgvlxzaujksran.supabase.co`; `SUPABASE_USER_ID` is `c92ebb7f-457e-4d46-a9e8-ed7f7a67e7b2`; the account is `RoastedMaple`.
 - The device mirrors **one account only**. `SupabaseClient` prepends `user_id=eq.<uuid>` to every select and appends it to every update and delete; it injects `user_id` into every insert. No call site may pass its own `user_id`.
 - The service-role key bypasses RLS. Never place it in source, tests, logs, commits, or a URL query string. REST checks read it from the environment variable `SUPABASE_SERVICE_KEY` only.
 - No recipe search, no AI services, no recipe/cookbook/product creation on the device. Products support edit and delete only; cookbooks and recipes are read-only.
@@ -411,7 +411,7 @@ recipe tasks can both call the client.
 // The service-role key bypasses RLS; never commit it.
 #define SUPABASE_URL "https://ubsqrktgvlxzaujksran.supabase.co"
 #define SUPABASE_SERVICE_KEY "replace-with-service-role-key"
-#define SUPABASE_USER_ID "c92ebb7f-457e-4d46-a9e8-edf7fa67e7b2"
+#define SUPABASE_USER_ID "c92ebb7f-457e-4d46-a9e8-ed7f7a67e7b2"
 ```
 
 - [ ] **Step 5: USER ACTION — update `main/secrets.h`**
@@ -423,7 +423,7 @@ The agent must not open or edit this file. Tell the user:
 > #pragma once
 > #define SUPABASE_URL "https://ubsqrktgvlxzaujksran.supabase.co"
 > #define SUPABASE_SERVICE_KEY "<the service_role key from Supabase project settings>"
-> #define SUPABASE_USER_ID "c92ebb7f-457e-4d46-a9e8-edf7fa67e7b2"
+> #define SUPABASE_USER_ID "c92ebb7f-457e-4d46-a9e8-ed7f7a67e7b2"
 > ```
 > Do not paste the key into chat.
 
