@@ -4466,6 +4466,228 @@ supersedes Checkpoint A item 9: Settings is now tab index 2.
 17. **Tab bars.** The main tab bar and the recipe Ingredients/Method bar keep
     the themed style, and switching tabs does not reset the cookbook grid.
 
+## Checkpoint C — documentation and cleanup
+
+### Task C1: Rewrite the README
+
+**Files:**
+- Modify: `README.md`
+
+**Interfaces:**
+- Consumes: the final source tree from Checkpoints A and B.
+- Produces: an accurate README for the Supabase firmware, with no
+  Appwrite/AI/search/favourites claims and no EEZ instructions.
+
+- [ ] **Step 1: Write the failing check**
+
+```bash
+python - <<'PY'
+from pathlib import Path
+r = Path("README.md").read_text(encoding="utf-8")
+
+for token in ("ESP32-P4", "LVGL", "Supabase", "Cookbooks", "Inventory",
+              "main/secrets.h", "SUPABASE_URL", "SUPABASE_SERVICE_KEY",
+              "SUPABASE_USER_ID", "secrets.h.example",
+              "main/SupabaseClient.cpp", "main/RecipeService.cpp",
+              "main/CookbooksManager.cpp",
+              "main/ui_extensions_cookbooks.cpp",
+              "main/ui/screens.cpp", "main/ui_theme.cpp",
+              "main/thumbnail_manager.cpp", "combinedFetchTask"):
+    assert token in r, token
+
+for stale in ("Appwrite", "appwrite", "DeepSeek", "Leonardo", "GoodFood",
+              "Giallo", "Ania Gotuje", "EEZ", "eez", "AI recipes",
+              "Favourites", "RecipeSuggestion", "filters_ui"):
+    assert stale not in r, stale
+
+for path in ("main/SupabaseClient.cpp", "main/RecipeService.cpp",
+             "main/CookbooksManager.cpp",
+             "main/ui_extensions_cookbooks.cpp", "main/ui/screens.cpp"):
+    assert Path(path).exists(), path
+print("README contract: PASS")
+PY
+```
+
+Expected: FAIL on `Supabase` — the README still describes Appwrite.
+
+- [ ] **Step 2: Rewrite the README**
+
+Describe the firmware as an ESP32-P4 kitchen display that mirrors one Supabase
+account: Inventory with edit/delete, Cookbooks with per-cookbook recipe
+loading, and recipe detail with Ingredients and Method tabs. Replace the
+Configuration section with the three `SUPABASE_*` defines and point at
+`main/secrets.h.example`; state that the service-role key bypasses RLS and
+must never be committed. Replace the feature list with inventory, cookbooks,
+recipe detail, and the offline thumbnail cache. Replace the architecture
+diagram and key-source table with the Supabase services, the managers, the
+hand-written `main/ui` and the cookbook UI. Keep the hardware, build,
+concurrency, partitions, components and licence sections, correcting task
+names (`combinedFetchTask`, `thumb_worker_task`, `cache_io_task`).
+
+- [ ] **Step 3: Run the check**
+
+Run the Step 1 script again. Expected: `README contract: PASS`.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add README.md
+git commit -m "Rewrite the README for Supabase and the hand-written UI" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
+```
+
+### Task C2: Rewrite CLAUDE.md
+
+**Files:**
+- Modify: `CLAUDE.md`
+
+**Interfaces:**
+- Consumes: the final source tree and the project rules the user relies on.
+- Produces: accurate architecture guidance for future sessions, with the
+  build prohibition preserved.
+
+- [ ] **Step 1: Write the failing check**
+
+```bash
+python - <<'PY'
+from pathlib import Path
+c = Path("CLAUDE.md").read_text(encoding="utf-8")
+
+for token in ("Supabase", "main/SupabaseClient.cpp", "main/RecipeService.cpp",
+              "main/RecipeService.h", "main/CookbooksManager.cpp",
+              "main/ui_extensions_cookbooks.cpp", "main/ui/screens.cpp",
+              "main/ui/actions.cpp", "main/ProductsManager.cpp",
+              "combinedFetchTask", "SUPABASE_SERVICE_KEY",
+              "SUPABASE_USER_ID", "thumb_worker_task"):
+    assert token in c, token
+
+for stale in ("Appwrite", "appwrite", "EEZ", "eezstudio", "GoodFood",
+              "Giallo", "Ania Gotuje", "DeepSeek", "Leonardo",
+              "fetchProductsTask", "RecipeSuggestion"):
+    assert stale not in c, stale
+
+for rule in ("Never run `idf.py build`", "Do not attempt to compile"):
+    assert rule in c, rule
+print("CLAUDE.md contract: PASS")
+PY
+```
+
+Expected: FAIL on `Supabase` — CLAUDE.md still describes Appwrite and EEZ.
+
+- [ ] **Step 2: Rewrite CLAUDE.md**
+
+Keep the file's shape: overview, build commands, architecture, key
+components, concurrency, partitions, managed vs local components, important
+files, project rules. Replace the overview with the Supabase mirror of the
+RoastedMaple account and the three screens. Describe the layer stack as
+hand-written LVGL (`main/ui`) → UI extensions → services/managers →
+`SupabaseClient` + cJSON + FreeRTOS. Document `SupabaseClient`, the product
+and cookbook/recipe services and managers, `ui_extensions_cookbooks.cpp`,
+and the thumbnail manager. Update concurrency: `combinedFetchTask` fetches
+products, cookbook grids load lazily on tab activation, each cookbook body
+loads on open under an in-flight guard, and all UI writes take `lv_lock`.
+Replace the EEZ rule with: `main/ui` is hand-written C++ and may be edited;
+there is no generator. Keep the no-build rules verbatim and keep
+`main/secrets.h` untracked with the three `SUPABASE_*` defines.
+
+- [ ] **Step 3: Run the check**
+
+Run the Step 1 script again. Expected: `CLAUDE.md contract: PASS`.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add CLAUDE.md
+git commit -m "Update CLAUDE.md for the Supabase architecture" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
+```
+
+### Task C3: Dead includes and the final static scan
+
+**Files:**
+- Modify: `main/app.cpp` (drop unused `lv_demos.h`, `<cstdio>`)
+- Modify: `main/ui_extensions.cpp` (drop unused `ui_theme.h`)
+- Modify: `main/ui/screens.cpp` (drop unused `ui_extensions.h`)
+- Modify: `main/ui_extensions_cookbooks.cpp` (drop unused `<cstdio>`)
+
+**Interfaces:**
+- Consumes: the final tree plus the README/CLAUDE.md written in C1/C2.
+- Produces: the Checkpoint C evidence record. The spec keeps unused image
+  assets in place, so `main/ui/images.*` and `ui_image_*.c` stay.
+
+- [ ] **Step 1: Write the failing check**
+
+```bash
+python - <<'PY'
+from pathlib import Path
+import subprocess
+
+app = Path("main/app.cpp").read_text(encoding="utf-8")
+ue = Path("main/ui_extensions.cpp").read_text(encoding="utf-8")
+sc = Path("main/ui/screens.cpp").read_text(encoding="utf-8")
+cu = Path("main/ui_extensions_cookbooks.cpp").read_text(encoding="utf-8")
+cm = Path("main/CMakeLists.txt").read_text(encoding="utf-8")
+
+assert '#include "lv_demos.h"' not in app
+assert "#include <cstdio>" not in app
+assert '#include "ui_theme.h"' not in ue
+assert '#include "ui_extensions.h"' not in sc
+assert "#include <cstdio>" not in cu
+
+sources = cm.split("SRCS", 1)[1].split("INCLUDE_DIRS", 1)[0].split()
+for s in sources:
+    assert (Path("main") / s).exists(), s
+for stale in ("ui/screens.c", "ui/styles.c", "ui/styles.h", "ui/structs.h",
+              "ui/vars.h", "ui_extensions_recipes.cpp",
+              "ui_extensions_favourites.cpp", "FavouriteService.cpp",
+              "CookbookManager.cpp", "RecipeDetailService.cpp"):
+    assert stale not in sources, stale
+
+residue = subprocess.run(
+    ["git", "grep", "-liE",
+     "appwrite|deepseek|leonardo|goodfood|giallo|aniagotuje|"
+     "favouritesmanager|cookbookmanager|RecipeSuggestion|"
+     "add_style_main_button|get_leonardo_cached_url",
+     "--", "main/*.cpp", "main/*.h", "main/ui/*.cpp", "main/ui/*.h",
+     ":(exclude)main/secrets.h", ":(exclude)main/ui/images.h"],
+    capture_output=True, text=True)
+if residue.stdout.strip():
+    raise SystemExit("stale feature residue: " + residue.stdout.strip())
+
+key_hits = subprocess.run(
+    ["git", "grep", "-lE", r"eyJ[A-Za-z0-9_-]{20,}|service_role", "--",
+     "main", ":(exclude)main/secrets.h"],
+    capture_output=True, text=True).stdout.strip()
+if key_hits:
+    raise SystemExit("key material in tracked sources: " + key_hits)
+
+for doc in ("README.md", "CLAUDE.md"):
+    text = Path(doc).read_text(encoding="utf-8")
+    assert "Supabase" in text and "Appwrite" not in text, doc
+
+print("Checkpoint C cleanup contract: PASS")
+PY
+```
+
+Expected: FAIL on `lv_demos.h` still being included.
+
+- [ ] **Step 2: Remove the dead includes**
+
+Drop `#include "lv_demos.h"` and `<cstdio>` from `main/app.cpp`
+(`cJSON` stays: it parses the WiFi credential blob). Drop `ui_theme.h` from
+`main/ui_extensions.cpp`, `ui_extensions.h` from `main/ui/screens.cpp` and
+`<cstdio>` from `main/ui_extensions_cookbooks.cpp`.
+
+- [ ] **Step 3: Run the check**
+
+Run the Step 1 script again. Expected: `Checkpoint C cleanup contract: PASS`.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add main/app.cpp main/ui_extensions.cpp main/ui/screens.cpp \
+        main/ui_extensions_cookbooks.cpp
+git commit -m "Drop dead includes" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
+```
+
 <!-- PLAN-CONTINUES -->
 
 
