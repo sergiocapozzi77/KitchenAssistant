@@ -1,9 +1,12 @@
 #include "actions.h"
 
+#include "CookbooksManager.h"
 #include "ProductService.h"
 #include "ProductsManager.h"
+#include "RecipesManager.h"
 #include "WiFiSettingsUI.h"
 #include "screens.h"
+#include "thumbnail_manager.h"
 #include "ui_extensions.h"
 
 #include "esp_heap_caps.h"
@@ -13,6 +16,8 @@
 
 #include <atomic>
 #include <cstdint>
+#include <mutex>
+#include <set>
 #include <string>
 
 static const char *TAG = "ACTIONS";
@@ -25,6 +30,9 @@ constexpr UBaseType_t kTaskPriority = 5;
 constexpr BaseType_t kTaskCore = 1;
 
 std::atomic<bool> s_reload_running{false};
+std::atomic<bool> s_cookbooks_running{false};
+std::mutex s_cookbook_mutex;
+std::set<std::string> s_cookbook_inflight;
 lv_timer_t *s_search_timer = nullptr;
 
 struct ProductUpdateCtx
@@ -137,6 +145,56 @@ void close_search()
         lv_obj_add_flag(objects.keyboard, LV_OBJ_FLAG_HIDDEN);
     setProductSearchFilter("");
     productsManager.populateProductList();
+}
+
+struct CookbooksLoadCtx
+{
+    bool refresh = false;
+};
+
+void cookbooks_reload_task(void *arg)
+{
+    auto *ctx = static_cast<CookbooksLoadCtx *>(arg);
+    bool refresh = ctx->refresh;
+    delete ctx;
+
+    bool ok = refresh ? cookbooksManager.refreshSync()
+                      : cookbooksManager.fetchSync();
+
+    lv_lock();
+    if (ok)
+        populateCookbooksUi();
+    else
+        showSnackbar("Couldn't load cookbooks", 4000);
+    s_cookbooks_running.store(false);
+    lv_unlock();
+
+    vTaskDelete(nullptr);
+}
+
+struct CookbookFetchCtx
+{
+    std::string id;
+};
+
+void cookbook_recipes_task(void *arg)
+{
+    auto *ctx = static_cast<CookbookFetchCtx *>(arg);
+
+    recipesManager.fetchForCookbookSync(ctx->id);
+
+    lv_lock();
+    {
+        std::lock_guard<std::mutex> lock(s_cookbook_mutex);
+        s_cookbook_inflight.erase(ctx->id);
+    }
+    // Discard the result when the user already left this cookbook.
+    if (openCookbookId() == ctx->id)
+        populateCookbookRecipesUi(ctx->id);
+    lv_unlock();
+
+    delete ctx;
+    vTaskDelete(nullptr);
 }
 
 } // namespace
@@ -295,5 +353,111 @@ void request_product_delete(const std::string &id)
     {
         delete ctx;
         showSnackbar("Couldn't start delete", 3000);
+    }
+}
+
+void request_cookbooks_load()
+{
+    if (cookbooksManager.loaded())
+    {
+        if (objects.cookbooks_list && lv_obj_is_valid(objects.cookbooks_list))
+            populateCookbooksUi();
+        return;
+    }
+
+    if (s_cookbooks_running.exchange(true))
+        return;
+
+    auto *ctx = new CookbooksLoadCtx{false};
+    if (!spawn_task(cookbooks_reload_task, "cookbooks_load", ctx))
+    {
+        delete ctx;
+        s_cookbooks_running.store(false);
+        showSnackbar("Couldn't load cookbooks", 3000);
+    }
+}
+
+void action_cookbooks_reload(lv_event_t *)
+{
+    if (s_cookbooks_running.exchange(true))
+        return;
+
+    auto *ctx = new CookbooksLoadCtx{true};
+    if (!spawn_task(cookbooks_reload_task, "cookbooks_reload", ctx))
+    {
+        delete ctx;
+        s_cookbooks_running.store(false);
+        showSnackbar("Couldn't load cookbooks", 3000);
+    }
+}
+
+void action_cookbook_open(lv_event_t *event)
+{
+    auto *id = static_cast<std::string *>(lv_event_get_user_data(event));
+    if (!id || id->empty())
+        return;
+
+    showCookbookDetail(*id);
+    if (recipesManager.hasCookbook(*id))
+        populateCookbookRecipesUi(*id);
+    else
+        request_cookbook_recipes(*id);
+}
+
+void action_cookbook_back(lv_event_t *)
+{
+    leaveCookbookDetail();
+    if (objects.main && lv_obj_is_valid(objects.main))
+        lv_screen_load_anim(objects.main, LV_SCREEN_LOAD_ANIM_MOVE_RIGHT, 200, 0,
+                            false);
+}
+
+void action_cookbook_retry(lv_event_t *)
+{
+    std::string id = openCookbookId();
+    if (id.empty())
+        return;
+
+    retryCookbookDetail();
+    request_cookbook_recipes(id);
+}
+
+void action_recipe_open(lv_event_t *event)
+{
+    auto *recipe = static_cast<Recipe *>(lv_event_get_user_data(event));
+    if (!recipe)
+        return;
+    showRecipeDetailScreen(*recipe);
+}
+
+void action_recipe_back(lv_event_t *)
+{
+    thumb_queue_cancel_all();
+    if (objects.main && lv_obj_is_valid(objects.main))
+        lv_screen_load_anim(objects.main, LV_SCREEN_LOAD_ANIM_MOVE_RIGHT, 200, 0,
+                            false);
+}
+
+void request_cookbook_recipes(const std::string &cookbookId)
+{
+    if (cookbookId.empty())
+        return;
+
+    {
+        std::lock_guard<std::mutex> lock(s_cookbook_mutex);
+        if (!s_cookbook_inflight.insert(cookbookId).second)
+            return;
+    }
+
+    auto *ctx = new CookbookFetchCtx{cookbookId};
+    if (!spawn_task(cookbook_recipes_task, "cookbook_recipes", ctx))
+    {
+        delete ctx;
+        {
+            std::lock_guard<std::mutex> lock(s_cookbook_mutex);
+            s_cookbook_inflight.erase(cookbookId);
+        }
+        showSnackbar("Couldn't load recipes", 3000);
+        showCookbookDetailFailure(cookbookId);
     }
 }

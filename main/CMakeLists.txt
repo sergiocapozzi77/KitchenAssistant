@@ -5,10 +5,15 @@ idf_component_register(
         SupabaseClient.cpp
         ProductService.cpp
         ProductsManager.cpp
+        RecipeService.cpp
+        RecipesManager.cpp
+        CookbookService.cpp
+        CookbooksManager.cpp
         WiFiSettingsUI.cpp
         WiFiManager.cpp
         ui_extensions.cpp
         ui_extensions_products.cpp
+        ui_extensions_cookbooks.cpp
         thumbnail_cache.cpp
         thumbnail_manager.cpp
         spiffs_cleanup.cpp

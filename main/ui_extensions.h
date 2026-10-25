@@ -46,8 +46,12 @@ void showCookbookDetail(const std::string &cookbookId);
 void populateCookbookRecipesUi(const std::string &cookbookId);
 void retryCookbookDetail();
 void showRecipeDetailScreen(const Recipe &recipe);
+// Shows the failure state when a cookbook fetch could not be started.
+void showCookbookDetailFailure(const std::string &cookbookId);
 // Clears the open cookbook id so an in-flight fetch result is discarded.
 void leaveCookbookDetail();
+// The cookbook whose detail screen is open; empty after leaving it.
+std::string openCookbookId();
 
 // ── Overlays ────────────────────────────────────────────────────────────────
 void showSnackbar(const char *message, int duration_ms);

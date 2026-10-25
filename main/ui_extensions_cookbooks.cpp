@@ -644,8 +644,22 @@ void showRecipeDetailScreen(const Recipe &recipe)
                             LV_SCREEN_LOAD_ANIM_MOVE_LEFT, 200, 0, false);
 }
 
+void showCookbookDetailFailure(const std::string &cookbookId)
+{
+    if (cookbookId != s_open_cookbook_id)
+        return;
+    set_spinner_visible(false);
+    set_detail_list_visible(false);
+    set_detail_state("Could not load recipes", true);
+}
+
 void leaveCookbookDetail()
 {
     s_open_cookbook_id.clear();
     thumb_queue_cancel_all();
+}
+
+std::string openCookbookId()
+{
+    return s_open_cookbook_id;
 }
