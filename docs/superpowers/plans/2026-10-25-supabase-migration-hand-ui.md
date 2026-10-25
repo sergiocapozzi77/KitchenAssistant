@@ -3708,6 +3708,764 @@ fails with `#error` otherwise. Build and flash the usual way.
 Items 9–15 of the spec that cover cookbooks, recipes, thumbnails and recipe
 JSON robustness are verified in the Checkpoint B checklist.
 
+## Checkpoint B — Cookbooks and recipes
+
+### Task B1: RecipeService
+
+**Files:**
+- Create: `main/RecipeService.h`
+- Create: `main/RecipeService.cpp`
+
+**Interfaces:**
+- Consumes: `SupabaseClient::select`, `RecipeSummary`, `Recipe`,
+  `IngredientSection`, `InstructionSection` from `models.h`.
+- Produces: `bool recipeService.fetchSummaries(std::vector<RecipeSummary> &out)`
+  and `bool recipeService.fetchForCookbook(const std::string &cookbookId,
+  std::vector<Recipe> &out)`; global `recipeService`.
+
+- [ ] **Step 1: Write the failing check**
+
+```bash
+python - <<'PY'
+from pathlib import Path
+h = Path("main/RecipeService.h").read_text(encoding="utf-8")
+c = Path("main/RecipeService.cpp").read_text(encoding="utf-8")
+assert "class RecipeService" in h
+assert "fetchSummaries(std::vector<RecipeSummary> &out)" in h
+assert "fetchForCookbook(const std::string &cookbookId, std::vector<Recipe> &out)" in h
+assert "extern RecipeService recipeService" in h
+assert "select=id,image_url,cookbook_ids&order=name.asc" in c
+assert "cookbook_ids=cs." in c
+assert "SupabaseClient::urlEncode" in c
+assert "parseIngredientSections" in c and "parseInstructionSections" in c
+for token in ("ingredients", "method_steps", "image_url_big", "recipe_source",
+              "total_time", "prep_time", "cook_time", "rawIngredient",
+              "Name", "Steps"):
+    assert token in c, token
+print("RecipeService contract: PASS")
+PY
+```
+
+Expected: FAIL — `FileNotFoundError: main/RecipeService.h`.
+
+- [ ] **Step 2: Implement the service**
+
+`fetchSummaries` selects `id,image_url,cookbook_ids` ordered by `name.asc`.
+`fetchForCookbook` selects `*` filtered by
+`cookbook_ids=cs.` + `SupabaseClient::urlEncode("{" + id + "}")`, ordered by
+`name.asc`. Parsing mirrors the app's `supabase-recipes.service.ts`:
+ingredients accept the single-element JSON string, a plain section array, and
+a bare string; method steps add the app's `[{steps:[raw]}]` fallback for
+malformed JSON, an all-strings array becomes one section, and section fields
+accept both `name`/`Name` and `steps`/`Steps`. Ingredient display text is
+`rawIngredient` when present, otherwise `quantity + " " + unit + " " + name`;
+numeric quantities format with `%g`.
+
+- [ ] **Step 3: Run the check**
+
+Run the Step 1 script again. Expected: `RecipeService contract: PASS`.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add main/RecipeService.h main/RecipeService.cpp
+git commit -m "Add the Supabase recipe service" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
+```
+
+### Task B2: RecipesManager
+
+**Files:**
+- Create: `main/RecipesManager.h`
+- Create: `main/RecipesManager.cpp`
+
+**Interfaces:**
+- Consumes: `recipeService.fetchSummaries`, `recipeService.fetchForCookbook`.
+- Produces: global `recipesManager` with `fetchSummariesSync()`,
+  `fetchForCookbookSync(id)`, `summariesLoaded()`, `getSummaries()`,
+  `hasCookbook(id)`, `cookbookFailed(id)`, `getCookbookRecipes(id)`,
+  `getRecipe(id, out)`, `recipeCountFor(id)`, `coverFor(id)`, `clear()`.
+
+- [ ] **Step 1: Write the failing check**
+
+```bash
+python - <<'PY'
+from pathlib import Path
+h = Path("main/RecipesManager.h").read_text(encoding="utf-8")
+c = Path("main/RecipesManager.cpp").read_text(encoding="utf-8")
+assert "class RecipesManager" in h
+for token in ("fetchSummariesSync()", "fetchForCookbookSync(const std::string &cookbookId)",
+              "summariesLoaded()", "getSummaries()", "hasCookbook(",
+              "cookbookFailed(", "getCookbookRecipes(", "getRecipe(",
+              "recipeCountFor(", "coverFor(", "clear()", "std::mutex",
+              "extern RecipesManager recipesManager"):
+    assert token in h, token
+assert "recipeService.fetchSummaries" in c
+assert "recipeService.fetchForCookbook" in c
+assert "_summariesLoaded" in c and "_cookbooks" in c
+assert "std::lock_guard" in c
+assert "coverImageUrl" not in c  # covers derive from summaries
+
+for fn in ("fetchSummariesSync", "fetchForCookbookSync"):
+    start = c.index("RecipesManager::" + fn)
+    body = c[start:c.index("\n}\n", start)]
+    assert body.index("recipeService.") < body.index("lock_guard"), fn
+print("RecipesManager contract: PASS")
+PY
+```
+
+Expected: FAIL — `FileNotFoundError: main/RecipesManager.h`.
+
+- [ ] **Step 2: Implement the manager**
+
+Fetch outside the mutex, then publish the result under the lock. A failed
+cookbook fetch clears the entry and marks `failed`, so Retry refetches. Counts
+and covers are derived from the ordered summary list with `recipeCountFor` and
+`coverFor` rather than stored on the cookbook.
+
+- [ ] **Step 3: Run the check**
+
+Run the Step 1 script again. Expected: `RecipesManager contract: PASS`.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add main/RecipesManager.h main/RecipesManager.cpp
+git commit -m "Add the recipe cache manager" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
+```
+
+### Task B3: CookbookService and CookbooksManager
+
+**Files:**
+- Create: `main/CookbookService.h`
+- Create: `main/CookbookService.cpp`
+- Create: `main/CookbooksManager.h`
+- Create: `main/CookbooksManager.cpp`
+
+**Interfaces:**
+- Consumes: `SupabaseClient::select`, `recipesManager.fetchSummariesSync()`,
+  `recipeCountFor`, `coverFor`, `clear`.
+- Produces: `cookbookService.fetchCookbooks(std::vector<Cookbook> &out)`;
+  global `cookbooksManager` with `fetchSync()`, `refreshSync()`, `loaded()`,
+  `snapshot()`, `getCookbook(id, out)`, `recipeCountFor(id)`.
+
+- [ ] **Step 1: Write the failing check**
+
+```bash
+python - <<'PY'
+from pathlib import Path
+sh = Path("main/CookbookService.h").read_text(encoding="utf-8")
+sc = Path("main/CookbookService.cpp").read_text(encoding="utf-8")
+mh = Path("main/CookbooksManager.h").read_text(encoding="utf-8")
+mc = Path("main/CookbooksManager.cpp").read_text(encoding="utf-8")
+assert "class CookbookService" in sh
+assert "fetchCookbooks(std::vector<Cookbook> &out)" in sh
+assert "extern CookbookService cookbookService" in sh
+assert 'select=id,name&order=name.asc' in sc
+assert "class CookbooksManager" in mh
+for token in ("fetchSync()", "refreshSync()", "loaded()", "snapshot()",
+              "getCookbook(", "recipeCountFor(", "std::mutex",
+              "extern CookbooksManager cookbooksManager"):
+    assert token in mh, token
+assert "cookbookService.fetchCookbooks" in mc
+assert "recipesManager.fetchSummariesSync" in mc
+assert "recipesManager.recipeCountFor" in mc
+assert "recipesManager.coverFor" in mc
+refresh = mc[mc.index("CookbooksManager::refreshSync"):
+             mc.index("\n}\n", mc.index("CookbooksManager::refreshSync"))]
+assert "recipesManager.clear()" in refresh and "fetchSync()" in refresh
+fetch = mc[mc.index("CookbooksManager::fetchSync"):
+           mc.index("\n}\n", mc.index("CookbooksManager::fetchSync"))]
+assert fetch.index("cookbookService.fetchCookbooks") < fetch.index("lock_guard")
+print("Cookbooks network contract: PASS")
+PY
+```
+
+Expected: FAIL — `FileNotFoundError: main/CookbookService.h`.
+
+- [ ] **Step 2: Implement the service and manager**
+
+`fetchCookbooks` selects `id,name` ordered by `name.asc`. `fetchSync` fetches
+cookbooks, ensures summaries are loaded, then derives each cookbook's count
+and cover from `recipesManager` before publishing the list under the mutex.
+`refreshSync` clears the recipe caches first, which is what makes the header
+reload button refetch every cookbook body.
+
+- [ ] **Step 3: Run the check**
+
+Run the Step 1 script again. Expected: `Cookbooks network contract: PASS`.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add main/CookbookService.h main/CookbookService.cpp \
+        main/CookbooksManager.h main/CookbooksManager.cpp
+git commit -m "Add the cookbook service and grid cache" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
+```
+
+### Task B4: Cookbooks tab and the two detail screens
+
+**Files:**
+- Modify: `main/ui/screens.cpp`
+- Modify: `main/ui/actions.h` (declarations only; definitions in B6)
+- Modify: `main/app.cpp` (tab index and spinner locking)
+
+**Interfaces:**
+- Consumes: `ui_theme` helpers, `make_screen`, `objects_t` handles already
+  declared in `screens.h`.
+- Produces: constructed `objects.cookbooks_list`,
+  `objects.cookbook_detail*`, `objects.recipe_detail*`; tab order
+  Inventory (0), Cookbooks (1), Settings (2); declarations
+  `action_cookbooks_reload`, `action_cookbook_open`, `action_cookbook_back`,
+  `action_cookbook_retry`, `action_recipe_open`, `action_recipe_back`,
+  `request_cookbooks_load`, `request_cookbook_recipes`.
+
+- [ ] **Step 1: Write the failing check**
+
+```bash
+python - <<'PY'
+from pathlib import Path
+s = Path("main/ui/screens.cpp").read_text(encoding="utf-8")
+a = Path("main/ui/actions.h").read_text(encoding="utf-8")
+app = Path("main/app.cpp").read_text(encoding="utf-8")
+
+order = [s.index('lv_tabview_add_tab(objects.tabview, "Inventory")'),
+         s.index('lv_tabview_add_tab(objects.tabview, "Cookbooks")'),
+         s.index('lv_tabview_add_tab(objects.tabview, "Settings")')]
+assert order == sorted(order)
+for tag in ("tab_cookbooks", "cookbooks_list", "cookbooks_title_lbl",
+            "cookbooks_reload_btn", "cookbook_detail_back_btn",
+            "cookbook_detail_title_lbl", "cookbook_detail_count_lbl",
+            "cookbook_detail_list", "cookbook_detail_spinner",
+            "cookbook_detail_state_lbl", "cookbook_detail_retry_btn",
+            "recipe_detail_back_btn", "recipe_detail_hero",
+            "recipe_detail_title_lbl", "recipe_detail_source_lbl",
+            "recipe_detail_time_lbl", "recipe_detail_difficulty_lbl",
+            "recipe_detail_tabview", "recipe_detail_ingredients_tab",
+            "recipe_detail_method_tab"):
+    assert f"objects.{tag} =" in s, tag
+for fn in ("create_cookbooks_tab", "create_cookbook_detail_screen",
+           "create_recipe_detail_screen"):
+    assert fn + "(" in s, fn
+assert s.index("create_cookbooks_tab(objects.tab_cookbooks)") > 0
+assert "create_cookbook_detail_screen();" in s
+assert "create_recipe_detail_screen();" in s
+
+assert "lv_tabview_set_active(objects.tabview, 2," in app
+assert "lv_lock();\n    showSpinner();\n    lv_unlock();" in app
+assert "lv_lock();\n    hideSpinner();\n    lv_unlock();" in app
+
+for name in ("action_cookbooks_reload", "action_cookbook_open",
+             "action_cookbook_back", "action_cookbook_retry",
+             "action_recipe_open", "action_recipe_back"):
+    assert f"void {name}(lv_event_t *e);" in a, name
+assert "void request_cookbooks_load();" in a
+assert "void request_cookbook_recipes(const std::string &cookbookId);" in a
+print("Cookbook screens contract: PASS")
+PY
+```
+
+Expected: FAIL — the tab view has no Cookbooks tab and no detail screens.
+
+- [ ] **Step 2: Build the screens**
+
+Add `create_cookbooks_tab` with the header and the `LV_FLEX_FLOW_ROW_WRAP`
+grid. Add `create_cookbook_detail_screen` with the top bar, list, spinner,
+state label and Retry button. Add `create_recipe_detail_screen` with the
+800×420 hero and floating back button, title, source, meta cards and the
+Ingredients/Method tabview. Generalise `style_tab_bar` to take a tabview so
+the recipe tabview is styled the same way. `tab_changed_cb` requests the
+cookbook grid when tab 1 becomes active. In `app.cpp`, change the
+no-credentials tab index to 2 and wrap the two spinner calls in the fetch task
+with `lv_lock`/`lv_unlock`; LVGL is not thread-safe and the calls currently
+run from a FreeRTOS task without the lock.
+
+- [ ] **Step 3: Run the check**
+
+Run the Step 1 script again. Expected: `Cookbook screens contract: PASS`.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add main/ui/screens.cpp main/ui/actions.h main/app.cpp
+git commit -m "Build the cookbook and recipe screens" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
+```
+
+### Task B5: Cookbook grid, recipe cards and recipe detail rendering
+
+**Files:**
+- Create: `main/ui_extensions_cookbooks.cpp`
+- Modify: `main/ui_extensions.h` (add `leaveCookbookDetail`)
+
+**Interfaces:**
+- Consumes: `cookbooksManager.snapshot()`, `getCookbook(id, out)`;
+  `recipesManager.hasCookbook(id)`, `cookbookFailed(id)`,
+  `getCookbookRecipes(id)`; `ui_theme` helpers; `push_thumbnail`,
+  `thumb_queue_cancel_all`; `objects_t` handles; `action_cookbook_open`,
+  `action_recipe_open`.
+- Produces: definitions of `populateCookbooksUi()`,
+  `showCookbookDetail(id)`, `populateCookbookRecipesUi(id)`,
+  `retryCookbookDetail()`, `showRecipeDetailScreen(recipe)`, plus
+  `leaveCookbookDetail()`. Payload convention: cookbook cards carry a
+  heap `std::string *` id and recipe cards carry a heap `Recipe *` as
+  `lv_event` user data, freed on `LV_EVENT_DELETE`. Every UI function
+  assumes the caller holds the LVGL lock.
+
+- [ ] **Step 1: Write the failing check**
+
+```bash
+python - <<'PY'
+from pathlib import Path
+p = Path("main/ui_extensions_cookbooks.cpp").read_text(encoding="utf-8")
+h = Path("main/ui_extensions.h").read_text(encoding="utf-8")
+
+for sig in ("void populateCookbooksUi()",
+            "void showCookbookDetail(const std::string &cookbookId)",
+            "void populateCookbookRecipesUi(const std::string &cookbookId)",
+            "void retryCookbookDetail()",
+            "void showRecipeDetailScreen(const Recipe &recipe)",
+            "void leaveCookbookDetail()"):
+    assert sig in p, sig
+assert "void leaveCookbookDetail();" in h
+
+assert "lv_obj_set_size(card, 366, 404)" in p
+assert "lv_obj_set_size(cover, 366, 280)" in p
+assert "lv_obj_set_size(card, 752, 200)" in p
+assert "lv_obj_set_size(image, 260, 200)" in p
+
+assert "lv_obj_clean(objects.cookbooks_list)" in p
+assert "lv_obj_clean(objects.cookbook_detail_list)" in p
+assert "lv_obj_clean(objects.recipe_detail_ingredients_tab)" in p
+assert "lv_obj_clean(objects.recipe_detail_method_tab)" in p
+assert p.count("thumb_queue_cancel_all();") >= 3
+
+for call in ("recipesManager.hasCookbook(cookbookId)",
+             "recipesManager.cookbookFailed(cookbookId)",
+             "recipesManager.getCookbookRecipes(cookbookId)",
+             "cookbooksManager.snapshot()",
+             "cookbooksManager.getCookbook(cookbookId, cookbook)"):
+    assert call in p, call
+
+assert "objects.cookbook_detail_spinner" in p
+assert "objects.cookbook_detail_state_lbl" in p
+assert "objects.cookbook_detail_retry_btn" in p
+assert "action_cookbook_open" in p
+assert "action_recipe_open" in p
+assert "new std::string(cookbook.id)" in p
+assert "new Recipe(recipe)" in p
+assert p.count("LV_EVENT_DELETE") >= 2
+
+assert "LV_TEXT_DECOR_STRIKETHROUGH" in p
+assert "No ingredients listed" in p
+assert "No method steps" in p
+assert "No recipes in this cookbook" in p
+assert "Could not load recipes" in p
+assert "lv_screen_load_anim" in p
+assert "LV_SCREEN_LOAD_ANIM_MOVE_LEFT" in p
+assert "imageUrlBig" in p
+assert "s_open_cookbook_id" in p
+assert "cookbookId != s_open_cookbook_id" in p
+assert "rawIngredient" in p
+print("Cookbook UI contract: PASS")
+PY
+```
+
+Expected: FAIL — `FileNotFoundError: main/ui_extensions_cookbooks.cpp`.
+
+- [ ] **Step 2: Implement the cookbook UI**
+
+`populateCookbooksUi` cancels thumbnails, cleans the grid and builds
+366×404 cards with a 366×280 cover, the cookbook name and an "N recipes"
+line. An empty cache renders a centred "No cookbooks yet" state. Each card
+queues `push_thumbnail` for its `coverImageUrl` and carries a heap id for
+`action_cookbook_open`.
+
+`showCookbookDetail` records `s_open_cookbook_id`, fills the title and
+count from `cookbooksManager.getCookbook`, clears the list, shows the
+spinner only when `recipesManager.hasCookbook` is false, hides the state
+and Retry controls, and animates to the cookbook screen. It does not fetch:
+B6 decides whether to request recipes.
+
+`populateCookbookRecipesUi` returns early when the id no longer matches
+`s_open_cookbook_id` (the user navigated away while the fetch ran). On
+`cookbookFailed` it hides the list and spinner and shows "Could not load
+recipes" plus Retry. An empty result shows "No recipes in this cookbook".
+Success builds 752×200 cards: 260×200 image, dotted title, and time,
+difficulty and cuisine badges only when the field is non-empty. Each card
+carries a heap `Recipe` for `action_recipe_open`. The count label is updated
+from the rendered rows.
+
+`retryCookbookDetail` restores the loading state; `leaveCookbookDetail`
+clears the open id and cancels queued thumbnails.
+
+`showRecipeDetailScreen` cancels thumbnails, deletes and recreates the hero
+image (so the previous recipe's decoded buffer is freed) and queues
+`imageUrlBig`, falling back to `imageUrl`. It fills the title, source
+(with "Serves N" when known), time and difficulty, resets the tabview to
+Ingredients, and rebuilds both tabs. Ingredient rows are custom check rows
+(circle box plus wrapped label) that toggle an accent fill, a check mark and
+`LV_TEXT_DECOR_STRIKETHROUGH` on the label. Ingredient display text prefers
+`rawIngredient`, else quantity + unit + name. Method steps are numbered per
+section; empty sections render "No ingredients listed" / "No method steps".
+
+- [ ] **Step 3: Run the check**
+
+Run the Step 1 script again. Expected: `Cookbook UI contract: PASS`.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add main/ui_extensions_cookbooks.cpp main/ui_extensions.h
+git commit -m "Render the cookbook grid and recipe pages" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
+```
+
+### Task B6: Cookbook actions, background fetches and the build list
+
+**Files:**
+- Modify: `main/ui/actions.cpp`
+- Modify: `main/ui_extensions.h`
+- Modify: `main/ui_extensions_cookbooks.cpp`
+- Modify: `main/CMakeLists.txt`
+
+**Interfaces:**
+- Consumes: `cookbooksManager.loaded()`, `refreshSync()`;
+  `recipesManager.hasCookbook(id)`, `fetchForCookbookSync(id)`;
+  `populateCookbooksUi()`, `showCookbookDetail(id)`,
+  `populateCookbookRecipesUi(id)`, `retryCookbookDetail()`,
+  `showRecipeDetailScreen(recipe)`, `leaveCookbookDetail()`;
+  `spawn_task`, `showSnackbar`, `showCookbookDetailFailure(id)`,
+  `openCookbookId()`.
+- Produces: definitions of every `actions.h` declaration from B4; a
+  per-cookbook in-flight set so a second tap cannot start a duplicate
+  fetch; all five new sources listed in `main/CMakeLists.txt`.
+
+- [ ] **Step 1: Write the failing check**
+
+```bash
+python - <<'PY'
+from pathlib import Path
+a = Path("main/ui/actions.cpp").read_text(encoding="utf-8")
+h = Path("main/ui/actions.h").read_text(encoding="utf-8")
+x = Path("main/ui_extensions.h").read_text(encoding="utf-8")
+xc = Path("main/ui_extensions_cookbooks.cpp").read_text(encoding="utf-8")
+cm = Path("main/CMakeLists.txt").read_text(encoding="utf-8")
+
+for name in ("action_cookbooks_reload", "action_cookbook_open",
+             "action_cookbook_back", "action_cookbook_retry",
+             "action_recipe_open", "action_recipe_back"):
+    assert f"void {name}(lv_event_t *" in a, name
+    assert f"void {name}(lv_event_t *e);" in h, name
+
+assert "void request_cookbooks_load()" in a
+assert "void request_cookbook_recipes(const std::string &cookbookId)" in a
+
+for call in ("cookbooksManager.refreshSync()",
+             "recipesManager.fetchForCookbookSync(ctx->id)",
+             "cookbooksManager.loaded()",
+             "recipesManager.hasCookbook(*id)",
+             "populateCookbooksUi()",
+             "populateCookbookRecipesUi(ctx->id)",
+             "showCookbookDetail(*id)",
+             "showRecipeDetailScreen(*recipe)",
+             "leaveCookbookDetail()",
+             "retryCookbookDetail()",
+             "openCookbookId()"):
+    assert call in a, call
+
+assert "s_cookbook_inflight.insert" in a
+assert "s_cookbook_inflight.erase" in a
+assert "openCookbookId() == ctx->id" in a
+assert a.count("lv_lock();") >= 2
+assert "spawn_task(cookbooks_reload_task" in a
+assert "spawn_task(cookbook_recipes_task" in a
+assert "LV_SCREEN_LOAD_ANIM_MOVE_RIGHT" in a
+assert "thumb_queue_cancel_all()" in a
+
+assert "std::string openCookbookId();" in x
+assert "std::string openCookbookId()" in xc
+assert "void showCookbookDetailFailure(const std::string &cookbookId);" in x
+assert "void showCookbookDetailFailure(const std::string &cookbookId)" in xc
+
+tokens = set(cm.split())
+for src in ("CookbookService.cpp", "CookbooksManager.cpp", "RecipeService.cpp",
+            "RecipesManager.cpp", "ui_extensions_cookbooks.cpp"):
+    assert src in tokens, src
+print("Cookbook actions contract: PASS")
+PY
+```
+
+Expected: FAIL — actions.cpp has no cookbook action definitions.
+
+- [ ] **Step 2: Implement the actions**
+
+`request_cookbooks_load` renders the cached grid when
+`cookbooksManager.loaded()`, otherwise starts one `cookbooks_reload_task`
+guarded by an atomic flag. That task calls `refreshSync`, then under
+`lv_lock` renders the grid or shows "Couldn't load cookbooks".
+`action_cookbooks_reload` runs the same task, bypassing the loaded check.
+
+`action_cookbook_open` reads the heap id payload, calls
+`showCookbookDetail`, then renders cached recipes immediately or calls
+`request_cookbook_recipes`. That request inserts the id into a
+mutex-guarded in-flight set, spawns `cookbook_recipes_task`, and on spawn
+failure removes the id, shows a snackbar and calls
+`showCookbookDetailFailure`. The task fetches, then under `lv_lock`
+removes the in-flight entry and renders only when
+`openCookbookId() == ctx->id`, discarding a result the user navigated away
+from.
+
+`action_cookbook_back` calls `leaveCookbookDetail` and animates back to
+the main screen with `LV_SCREEN_LOAD_ANIM_MOVE_RIGHT`.
+`action_cookbook_retry` restores the loading state and re-requests
+`openCookbookId()`.
+
+`action_recipe_open` reads the heap `Recipe *` payload and calls
+`showRecipeDetailScreen`. `action_recipe_back` cancels thumbnails and
+animates back to the main screen.
+
+Add `openCookbookId()` to the cookbook UI, backed by
+`s_open_cookbook_id`, and `showCookbookDetailFailure(id)` which shows the
+same spinner/state/Retry combination as a network failure, guarded by the
+open id. Add `CookbookService.cpp`, `CookbooksManager.cpp`,
+`RecipeService.cpp`, `RecipesManager.cpp` and
+`ui_extensions_cookbooks.cpp` to `main/CMakeLists.txt`.
+
+- [ ] **Step 3: Run the check**
+
+Run the Step 1 script again. Expected: `Cookbook actions contract: PASS`.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add main/ui/actions.cpp main/ui_extensions.h \
+        main/ui_extensions_cookbooks.cpp main/CMakeLists.txt
+git commit -m "Wire cookbook actions and background fetches" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
+```
+
+### Task B7: Checkpoint B static contract and on-device checklist
+
+**Files:**
+- Modify: `docs/superpowers/plans/2026-10-25-supabase-migration-hand-ui.md`
+- No production changes unless the check fails.
+
+**Interfaces:**
+- Consumes: every source, header, CMake entry and screen produced by B1–B6.
+- Produces: the Checkpoint B evidence record and the on-device checklist that
+  supersedes Checkpoint A's item 9 (Settings moved to tab index 2).
+
+- [ ] **Step 1: Run the Checkpoint B static contract**
+
+The allowlist from A9 is gone: all five cookbook APIs must now have a
+definition, and the four new data-layer headers join the definition and
+include-resolution scan.
+
+```bash
+python - <<'PY'
+from pathlib import Path
+import re, subprocess
+
+root = Path("main")
+fails = []
+cmake = (root / "CMakeLists.txt").read_text(encoding="utf-8")
+sources = cmake.split("SRCS", 1)[1].split("INCLUDE_DIRS", 1)[0].split()
+if len(sources) != 45:
+    fails.append(f"expected 45 compiled sources, found {len(sources)}")
+
+for s in sources:
+    if not (root / s).exists():
+        fails.append(f"missing source: {s}")
+
+component_headers = set()
+for base in ("components", "managed_components"):
+    p = Path(base)
+    if p.exists():
+        component_headers |= {f.name for f in p.rglob("*.h")}
+system_prefixes = ("esp_", "nvs", "freertos/", "driver/", "hal/", "soc/",
+                   "rom/", "cJSON.h", "lvgl", "lv_", "tjpgd.h", "sdkconfig.h",
+                   "usb/", "mdns", "tinyusb", "bootloader")
+build_provided = {"../lvgl.h"}
+for s in sources:
+    text = (root / s).read_text(encoding="utf-8", errors="replace")
+    for inc in re.findall(r'#include\s+"([^"]+)"', text):
+        if (root / inc).exists() or (root / "ui" / inc).exists():
+            continue
+        if inc in build_provided or inc.startswith(system_prefixes):
+            continue
+        if Path(inc).name in component_headers:
+            continue
+        fails.append(f"unresolved include in {s}: {inc}")
+
+pairs = {
+    "ProductService.h": ["ProductService.cpp"],
+    "ProductsManager.h": ["ProductsManager.cpp"],
+    "SupabaseClient.h": ["SupabaseClient.cpp"],
+    "WiFiManager.h": ["WiFiManager.cpp"],
+    "WiFiSettingsUI.h": ["WiFiSettingsUI.cpp"],
+    "RecipeService.h": ["RecipeService.cpp"],
+    "RecipesManager.h": ["RecipesManager.cpp"],
+    "CookbookService.h": ["CookbookService.cpp"],
+    "CookbooksManager.h": ["CookbooksManager.cpp"],
+    "ui_extensions.h": ["ui_extensions.cpp", "ui_extensions_products.cpp",
+                        "ui_extensions_cookbooks.cpp"],
+    "ui_extensions_internal.h": ["ui_extensions.cpp"],
+    "ui_theme.h": ["ui_theme.cpp"],
+    "thumbnail_manager.h": ["thumbnail_manager.cpp"],
+    "thumbnail_cache.h": ["thumbnail_cache.cpp"],
+    "spiffs_cleanup.h": ["spiffs_cleanup.cpp"],
+    "display_sleep.h": ["display_sleep.cpp"],
+    "quick_panel.h": ["quick_panel.cpp"],
+    "battery.h": ["battery.cpp"],
+    "ui/actions.h": ["ui/actions.cpp"],
+    "ui/screens.h": ["ui/screens.cpp"],
+    "ui/ui.h": ["ui/ui.c"],
+}
+skip = {"return", "if", "for", "while", "switch", "sizeof", "std", "cJSON",
+        "lv_lock", "lv_unlock", "static_cast", "reinterpret_cast",
+        "const_cast"}
+decl_re = re.compile(r'^\s*(?:[\w:<>,\*&\s]+\s+)?([A-Za-z_]\w*)\s*\(.*\)\s*(?:const\s*)?;\s*$')
+for header, srcs in pairs.items():
+    h = root / header
+    if not h.exists():
+        fails.append(f"missing header: {header}")
+        continue
+    names = set()
+    for line in h.read_text(encoding="utf-8", errors="replace").splitlines():
+        m = decl_re.match(line.split("//", 1)[0])
+        if m and m.group(1) not in skip:
+            names.add(m.group(1))
+    blob = "".join((root / s).read_text(encoding="utf-8", errors="replace")
+                   for s in srcs)
+    for name in sorted(names):
+        pat = re.compile(r'\b' + re.escape(name) +
+                         r'\s*\([^;{}]*\)\s*(?:const\s*)?\{', re.S)
+        if not pat.search(blob) and not re.search(r'::' + re.escape(name) +
+                                                  r'\s*\(', blob):
+            fails.append(f"declared but no definition: {header}::{name}")
+
+cookbook_ui = (root / "ui_extensions_cookbooks.cpp").read_text(
+    encoding="utf-8", errors="replace")
+for name in ("populateCookbooksUi", "showCookbookDetail",
+             "populateCookbookRecipesUi", "retryCookbookDetail",
+             "showRecipeDetailScreen", "showCookbookDetailFailure",
+             "leaveCookbookDetail", "openCookbookId"):
+    if not re.search(r'\b' + name + r'\s*\(', cookbook_ui):
+        fails.append(f"missing cookbook UI function: {name}")
+
+recipe_service = (root / "RecipeService.cpp").read_text(
+    encoding="utf-8", errors="replace")
+for token in ("cookbook_ids=cs.", "SupabaseClient::urlEncode",
+              "parseIngredientSections", "parseInstructionSections",
+              "ingredients", "method_steps", "image_url_big",
+              "recipe_source", "total_time", "rawIngredient", "Name"):
+    if token not in recipe_service:
+        fails.append(f"RecipeService missing parser token: {token}")
+
+screens = (root / "ui/screens.h").read_text(encoding="utf-8")
+screens_cpp = (root / "ui/screens.cpp").read_text(encoding="utf-8")
+actions_cpp = (root / "ui/actions.cpp").read_text(encoding="utf-8")
+app = (root / "app.cpp").read_text(encoding="utf-8")
+for name in ("action_cookbooks_reload", "action_cookbook_open",
+             "action_cookbook_back", "action_cookbook_retry",
+             "action_recipe_open", "action_recipe_back",
+             "request_cookbooks_load", "request_cookbook_recipes"):
+    if not re.search(r'\b' + name + r'\s*\(', actions_cpp):
+        fails.append(f"missing action: {name}")
+order = [screens_cpp.index('lv_tabview_add_tab(objects.tabview, "Inventory")'),
+         screens_cpp.index('lv_tabview_add_tab(objects.tabview, "Cookbooks")'),
+         screens_cpp.index('lv_tabview_add_tab(objects.tabview, "Settings")')]
+if order != sorted(order):
+    fails.append("tab order is not Inventory, Cookbooks, Settings")
+if "request_cookbooks_load();" not in screens_cpp:
+    fails.append("tab_changed_cb does not request the cookbook load")
+if "lv_tabview_set_active(objects.tabview, 2," not in app:
+    fails.append("no-credentials tab index is not 2")
+
+used = set()
+for s in sources:
+    if s.endswith((".cpp", ".c")):
+        used |= set(re.findall(r'\bobjects\.([A-Za-z_]\w*)',
+                    (root / s).read_text(encoding="utf-8", errors="replace")))
+for name in sorted(used):
+    if not re.search(r'\b' + re.escape(name) + r'\s*;', screens):
+        fails.append(f"objects.{name} used but not declared")
+
+key_hits = subprocess.run(
+    ["git", "grep", "-lE", r"eyJ[A-Za-z0-9_-]{20,}|service_role", "--", "main"],
+    capture_output=True, text=True).stdout.strip()
+if key_hits:
+    fails.append(f"key material in tracked sources: {key_hits}")
+
+print(f"compiled sources: {len(sources)}; objects handles: {len(used)}")
+if fails:
+    print("FAIL")
+    for f in fails:
+        print(" -", f)
+    raise SystemExit(1)
+print("Checkpoint B static contract: PASS")
+PY
+```
+
+Expected: `compiled sources: 45; objects handles: 62` then
+`Checkpoint B static contract: PASS`. If the handle count differs, trust
+the per-name declarations check and update the number in this line.
+
+- [ ] **Step 2: Run the secrets and whitespace audit**
+
+```bash
+git diff --check
+git ls-files main/secrets.h          # must print nothing
+git status --short                    # only the plan file should change
+```
+
+Expected: no output from the first two commands.
+
+- [ ] **Step 3: Record the checkpoint**
+
+Append the result to the ledger: sources, handle count, audit result, and
+the fact that REST contract checks remain blocked while `SUPABASE_URL`,
+`SUPABASE_SERVICE_KEY` and `SUPABASE_USER_ID` are unset.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add docs/superpowers/plans/2026-10-25-supabase-migration-hand-ui.md
+git commit -m "Record Checkpoint B verification and device checklist" -m "Co-Authored-By: Claude Code <noreply@anthropic.com>"
+```
+
+#### Checkpoint B on-device checklist
+
+Flash first, then walk these with the device in hand. Item 9 below
+supersedes Checkpoint A item 9: Settings is now tab index 2.
+
+9. **Cookbooks grid.** Open the Cookbooks tab. After a short delay it shows
+   one card per cookbook in two columns (12 expected), each with a distinct
+   cover, its name and "N recipes" matching the database. No recipe body was
+   fetched to draw the grid. Reload re-fetches cookbooks and clears the
+   per-cookbook cache.
+10. **Cookbook body.** Opening a cookbook shows the spinner first, then exactly
+    that cookbook's recipes and the count in the header. Reopening the same
+    cookbook renders instantly without a spinner. Opening a different cookbook
+    fetches again.
+11. **Failure and Retry.** Disable WiFi (or unplug the AP), open a cookbook
+    that was never opened. It shows "Could not load recipes" and Retry. Turn
+    WiFi back on and tap Retry: the spinner returns and the list loads.
+12. **Recipe detail.** Opening a recipe card shows the hero image, title,
+    total time, difficulty and both tabs populated. Tapping an ingredient row
+    strikes it through and mutes its text; tapping again restores it.
+13. **Navigation.** Back from recipe detail returns to the same cookbook list.
+    Back from the cookbook returns to the Cookbooks tab (tab 1), not
+    Inventory. Rapidly tapping a cookbook then Back while the spinner is up
+    must not crash or repaint the hidden detail screen; reopening the same
+    cookbook works.
+14. **Thumbnails.** Covers, recipe-card images and the recipe hero all render,
+    with no watchdog reset and no PSRAM allocation failure in the log.
+15. **Degenerate recipes.** Open (or seed) a recipe with empty `method_steps`,
+    `[""]`, or malformed section JSON. The Method tab shows "No method steps"
+    and the app does not crash.
+16. **No credentials.** With WiFi credentials erased, boot lands on the
+    Settings tab (rightmost, index 2).
+17. **Tab bars.** The main tab bar and the recipe Ingredients/Method bar keep
+    the themed style, and switching tabs does not reset the cookbook grid.
+
 <!-- PLAN-CONTINUES -->
 
 
