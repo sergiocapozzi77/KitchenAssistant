@@ -78,7 +78,10 @@ void Application::initQueues()
     //     abort();
     // }
     // ESP_LOGI(TAG, "Queues created");
-    ui_extensions_init(112, 112, true);
+    // Thumbnail caching is disabled for now: the 7 MB SPIFFS partition fills up
+    // and cache writes start failing. Images still download and decode into
+    // PSRAM on demand, they are just not persisted across boots.
+    ui_extensions_init(112, 112, false);
 }
 
 static void combinedFetchTask(void *param)
