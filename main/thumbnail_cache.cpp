@@ -8,9 +8,11 @@
 #include "esp_heap_caps.h"
 #include "esp_spiffs.h"
 #include "cJSON.h"
+#include <dirent.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <errno.h>
+#include <cstring>
 #include <atomic>
 #include <algorithm>
 #include <vector>
@@ -23,6 +25,7 @@ static const char *TAG = "THUMBCACHE";
 
 #define CACHE_BASE_DIR CONFIG_BSP_SPIFFS_MOUNT_POINT
 #define INDEX_FILE CONFIG_BSP_SPIFFS_MOUNT_POINT "/thumb_index.json"
+#define INDEX_FILE_TMP INDEX_FILE ".tmp"
 #define MAX_CACHE_ITEMS 100
 #define IO_QUEUE_DEPTH 8
 #define IO_TASK_STACK 8192
@@ -219,15 +222,34 @@ namespace thumbnail_cache
         if (!json)
             return false;
 
-        FILE *f = fopen(INDEX_FILE, "w");
+        // Write to a temporary file first: truncating the live index on a full
+        // partition would leave the cache with no way to find its own files.
+        FILE *f = fopen(INDEX_FILE_TMP, "w");
         if (!f)
         {
             free(json);
             return false;
         }
-        fwrite(json, 1, strlen(json), f);
-        fclose(f);
+        size_t len = strlen(json);
+        size_t written = fwrite(json, 1, len, f);
+        bool flush_ok = (fflush(f) == 0);
+        bool close_ok = (fclose(f) == 0);
         free(json);
+
+        if (written != len || !flush_ok || !close_ok)
+        {
+            ESP_LOGE(TAG, "Index write failed (%zu/%zu, errno=%d)", written, len, errno);
+            unlink(INDEX_FILE_TMP);
+            return false;
+        }
+
+        unlink(INDEX_FILE);
+        if (rename(INDEX_FILE_TMP, INDEX_FILE) != 0)
+        {
+            ESP_LOGE(TAG, "Index rename failed (errno=%d)", errno);
+            unlink(INDEX_FILE_TMP);
+            return false;
+        }
 
         s_index_dirty = false;
         s_puts_since_save = 0;
@@ -253,34 +275,126 @@ namespace thumbnail_cache
         s_index_dirty = true;
     }
 
-    // SPIFFS can fill up well before MAX_CACHE_ITEMS if the cached images are
-    // large, so evict oldest entries until this write plus a reserve will fit.
-    static void ensure_space_internal(size_t needed)
+    // Cache files are named <16 hex chars>.jpg so they can be told apart from
+    // other files on the SPIFFS partition (WiFi credentials, the index, ...).
+    static bool is_cache_filename(const char *name)
+    {
+        if (!name || strlen(name) != 20)
+            return false;
+        for (int i = 0; i < 16; ++i)
+        {
+            char c = name[i];
+            if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')))
+                return false;
+        }
+        return strcmp(name + 16, ".jpg") == 0;
+    }
+
+    // The budget is based on the file sizes we track, not on esp_spiffs_info():
+    // SPIFFS keeps deleted pages around until garbage collection, which makes
+    // its "used" figure a poor guide for how large a write will fit. Keeping a
+    // quarter of the partition free leaves room for GC, the index and credentials.
+    static size_t cache_budget_internal()
     {
         size_t total = 0;
         size_t used = 0;
-        if (esp_spiffs_info(CONFIG_BSP_SPIFFS_PARTITION_LABEL, &total, &used) != ESP_OK)
+        if (esp_spiffs_info(CONFIG_BSP_SPIFFS_PARTITION_LABEL, &total, &used) == ESP_OK &&
+            total > 0)
+        {
+            return (total / 4) * 3;
+        }
+        return 5 * 1024 * 1024;
+    }
+
+    // SPIFFS can fill up well before MAX_CACHE_ITEMS if the cached images are
+    // large, so evict oldest entries until this write fits the byte budget.
+    static void ensure_space_internal(size_t needed)
+    {
+        const size_t budget = cache_budget_internal();
+
+        size_t cached_bytes = 0;
+        for (const auto &e : s_cache)
+            cached_bytes += e.file_size;
+
+        if (cached_bytes + needed <= budget)
             return;
 
-        constexpr size_t kReserve = 64 * 1024;
-        if (used + needed + kReserve <= total)
-            return;
-
-        size_t deficit = used + needed + kReserve - total;
         std::sort(s_cache.begin(), s_cache.end(),
                   [](const CacheEntry &a, const CacheEntry &b)
                   { return a.timestamp < b.timestamp; });
-        while (deficit > 0 && !s_cache.empty())
+
+        while (!s_cache.empty() && cached_bytes + needed > budget)
         {
-            std::string path = std::string(CACHE_BASE_DIR) + "/" + s_cache.front().hash + ".jpg";
-            unlink(path.c_str());
-            ESP_LOGI(TAG, "Evicted for space: %s", s_cache.front().hash.c_str());
-            deficit = (deficit > s_cache.front().file_size)
-                          ? deficit - s_cache.front().file_size
-                          : 0;
+            const CacheEntry victim = s_cache.front();
+            std::string path = std::string(CACHE_BASE_DIR) + "/" + victim.hash + ".jpg";
+            if (unlink(path.c_str()) != 0 && errno != ENOENT)
+                ESP_LOGW(TAG, "unlink failed for %s (errno=%d)", victim.hash.c_str(), errno);
+            ESP_LOGI(TAG, "Evicted for space: %s (%zu B)", victim.hash.c_str(),
+                     victim.file_size);
+            cached_bytes = (cached_bytes > victim.file_size)
+                               ? cached_bytes - victim.file_size
+                               : 0;
             s_cache.erase(s_cache.begin());
             s_index_dirty = true;
         }
+    }
+
+    // Deletes cache files that exist on disk but are missing from the index.
+    // They are leftovers from an index that failed to save and are unreachable,
+    // yet they keep occupying the partition.
+    static void purge_orphans_internal()
+    {
+        DIR *dir = opendir(CACHE_BASE_DIR);
+        if (!dir)
+            return;
+
+        std::vector<std::string> orphans;
+        struct dirent *ent;
+        while ((ent = readdir(dir)) != nullptr)
+        {
+            if (!is_cache_filename(ent->d_name))
+                continue;
+            std::string hash(ent->d_name, 16);
+            bool indexed = std::any_of(s_cache.begin(), s_cache.end(),
+                                       [&hash](const CacheEntry &e)
+                                       { return e.hash == hash; });
+            if (!indexed)
+                orphans.emplace_back(ent->d_name);
+        }
+        closedir(dir);
+
+        for (const auto &name : orphans)
+        {
+            std::string path = std::string(CACHE_BASE_DIR) + "/" + name;
+            if (unlink(path.c_str()) == 0)
+                ESP_LOGW(TAG, "Removed orphaned cache file: %s", name.c_str());
+            vTaskDelay(1);
+        }
+    }
+
+    // Drops every cache file so a full partition can recover, regardless of what
+    // the index thinks is on disk.
+    static void purge_all_internal()
+    {
+        std::vector<std::string> names;
+        DIR *dir = opendir(CACHE_BASE_DIR);
+        if (dir)
+        {
+            struct dirent *ent;
+            while ((ent = readdir(dir)) != nullptr)
+                if (is_cache_filename(ent->d_name))
+                    names.emplace_back(ent->d_name);
+            closedir(dir);
+        }
+
+        for (const auto &name : names)
+        {
+            std::string path = std::string(CACHE_BASE_DIR) + "/" + name;
+            unlink(path.c_str());
+        }
+        s_cache.clear();
+        s_index_dirty = true;
+        ESP_LOGW(TAG, "Purged thumbnail cache (%zu files)", names.size());
     }
 
     // ─── IO task ─────────────────────────────────────────────────────────────────
@@ -294,6 +408,7 @@ namespace thumbnail_cache
         // Load index here — safe because this task has an internal-RAM stack
         xSemaphoreTake(s_mutex, portMAX_DELAY);
         load_index_internal();
+        purge_orphans_internal();
         xSemaphoreGive(s_mutex);
 
         // Signal init() that the index is ready; get()/put() may now proceed
@@ -326,60 +441,73 @@ namespace thumbnail_cache
             if (job.type == JobType::PUT)
             {
                 std::string path = std::string(CACHE_BASE_DIR) + "/" + job.hash + ".jpg";
-                xSemaphoreTake(s_mutex, portMAX_DELAY);
-                ensure_space_internal(job.jpeg_len);
-                xSemaphoreGive(s_mutex);
-                FILE *f = fopen(path.c_str(), "wb");
-                if (f)
+                bool stored = false;
+
+                // Two attempts: the second starts from an empty cache, so a
+                // partition that is full for any reason still recovers.
+                for (int attempt = 0; attempt < 2 && !stored; ++attempt)
                 {
-                    size_t written = fwrite(job.jpeg_data, 1, job.jpeg_len, f);
-                    fclose(f);
-                    if (written == job.jpeg_len)
-                    {
-                        xSemaphoreTake(s_mutex, portMAX_DELAY);
-
-                        // Remove stale entry if a re-cache of the same key arrives
-                        auto it = std::find_if(s_cache.begin(), s_cache.end(),
-                                               [&job](const CacheEntry &e)
-                                               { return e.hash == job.hash; });
-                        if (it != s_cache.end())
-                            s_cache.erase(it);
-
-                        CacheEntry e;
-                        e.hash = job.hash;
-                        e.url = job.url;
-                        e.width = job.width;
-                        e.height = job.height;
-                        e.timestamp = (uint64_t)esp_timer_get_time();
-                        e.file_size = job.jpeg_len;
-                        s_cache.push_back(e);
-
-                        prune_internal(MAX_CACHE_ITEMS);
-                        s_index_dirty = true;
-                        s_puts_since_save++;
-
-                        bool should_flush = (s_puts_since_save >= INDEX_SAVE_BATCH_SIZE);
-
-                        ESP_LOGI(TAG, "Cached: %s (%zu B) [dirty=%d, puts=%u]",
-                                 job.hash, job.jpeg_len, s_index_dirty, s_puts_since_save);
-
-                        if (should_flush)
-                            save_index_internal();
-
-                        xSemaphoreGive(s_mutex);
-                    }
+                    xSemaphoreTake(s_mutex, portMAX_DELAY);
+                    if (attempt == 0)
+                        ensure_space_internal(job.jpeg_len);
                     else
+                        purge_all_internal();
+                    xSemaphoreGive(s_mutex);
+
+                    FILE *f = fopen(path.c_str(), "wb");
+                    if (!f)
+                    {
+                        ESP_LOGE(TAG, "fopen failed for write: %s (errno=%d)",
+                                 path.c_str(), errno);
+                        continue;
+                    }
+
+                    size_t written = fwrite(job.jpeg_data, 1, job.jpeg_len, f);
+                    bool flush_ok = (fflush(f) == 0);
+                    bool close_ok = (fclose(f) == 0);
+                    if (written != job.jpeg_len || !flush_ok || !close_ok)
                     {
                         ESP_LOGE(TAG,
                                  "Write incomplete (%zu/%zu, errno=%d), removing: %s",
                                  written, job.jpeg_len, errno, job.hash);
                         unlink(path.c_str());
+                        continue;
                     }
+
+                    xSemaphoreTake(s_mutex, portMAX_DELAY);
+
+                    // Remove stale entry if a re-cache of the same key arrives
+                    auto it = std::find_if(s_cache.begin(), s_cache.end(),
+                                           [&job](const CacheEntry &e)
+                                           { return e.hash == job.hash; });
+                    if (it != s_cache.end())
+                        s_cache.erase(it);
+
+                    CacheEntry e;
+                    e.hash = job.hash;
+                    e.url = job.url;
+                    e.width = job.width;
+                    e.height = job.height;
+                    e.timestamp = (uint64_t)esp_timer_get_time();
+                    e.file_size = job.jpeg_len;
+                    s_cache.push_back(e);
+
+                    prune_internal(MAX_CACHE_ITEMS);
+                    s_index_dirty = true;
+                    s_puts_since_save++;
+
+                    bool should_flush = (s_puts_since_save >= INDEX_SAVE_BATCH_SIZE);
+
+                    ESP_LOGI(TAG, "Cached: %s (%zu B) [dirty=%d, puts=%u]",
+                             job.hash, job.jpeg_len, s_index_dirty, s_puts_since_save);
+
+                    if (should_flush)
+                        save_index_internal();
+
+                    xSemaphoreGive(s_mutex);
+                    stored = true;
                 }
-                else
-                {
-                    ESP_LOGE(TAG, "fopen failed for write: %s (errno=%d)", path.c_str(), errno);
-                }
+
                 // PUT transfers ownership of jpeg_data to us — always free it
                 heap_caps_free(job.jpeg_data);
             }

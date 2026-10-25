@@ -193,7 +193,9 @@ void Application::initHardware()
     bsp_display_cfg_t cfg = {
         .lvgl_port_cfg = ESP_LVGL_PORT_INIT_CONFIG(),
         .buffer_size = BSP_LCD_DRAW_BUFF_SIZE,
-        // Two draw buffers: a single one tears visibly while thumbnails load.
+        // Tear-free output comes from CONFIG_BSP_DISPLAY_LVGL_AVOID_TEAR, which
+        // makes esp_lvgl_port use the panel's two frame buffers instead of these.
+        // Kept true so partial double buffering still applies if that is disabled.
         .double_buffer = true,
         .flags = {
             .buff_dma = true,
