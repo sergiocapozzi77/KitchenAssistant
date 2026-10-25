@@ -33,7 +33,7 @@ void push_thumbnail(lv_obj_t *image, const std::string &url, uint16_t width,
 
     ThumbContext *ctx = new ThumbContext{};
     ctx->thumb = image;
-    ctx->url = url;
+    ctx->url = thumbnail_url(url, width, height);
     ctx->maxW = width;
     ctx->maxH = height;
     ctx->cacheAllowed = cacheAllowed;

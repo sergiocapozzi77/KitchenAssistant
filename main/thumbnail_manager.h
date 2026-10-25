@@ -39,6 +39,11 @@ void thumb_queue_cancel_all();
 void thumb_queue_push(ThumbContext *ctx);
 
 // ── Image download and decode ───────────────────────────────────────────────
+// Rewrites Supabase Storage public-object URLs to the render endpoint sized to
+// W×H; any other URL is returned unchanged.
+std::string thumbnail_url(const std::string &url, uint16_t width,
+                          uint16_t height);
+
 // Downloads the URL directly (2 MB guard), decodes with tjpgd at a scale that
 // still covers W×H, and returns a variable image descriptor owned by the caller.
 bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,

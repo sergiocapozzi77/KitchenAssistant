@@ -267,6 +267,27 @@ bool decode_jpeg_buffer(const uint8_t *jpeg, size_t jpeg_len, uint16_t target_w,
 
 // ── HTTP download ───────────────────────────────────────────────────────────
 
+std::string thumbnail_url(const std::string &url, uint16_t width,
+                          uint16_t height)
+{
+    static const std::string kObject = "/storage/v1/object/public/";
+    static const std::string kRender = "/storage/v1/render/image/public/";
+
+    if (url.find(kRender) != std::string::npos || width == 0 || height == 0)
+        return url;
+
+    size_t at = url.find(kObject);
+    if (at == std::string::npos)
+        return url;
+
+    std::string out = url.substr(0, at) + kRender +
+                      url.substr(at + kObject.size());
+    out += (out.find('?') == std::string::npos) ? '?' : '&';
+    out += "width=" + std::to_string(width) + "&height=" +
+           std::to_string(height) + "&resize=cover";
+    return out;
+}
+
 bool download_jpeg(const std::string &url, PsramBuffer &out)
 {
     esp_http_client_config_t cfg = {};
