@@ -1,8 +1,12 @@
 # KitchenAssistant
 
-An ESP32-P4 embedded kitchen inventory manager with a touchscreen UI, Appwrite cloud sync, and multi-source recipe suggestions.
+An ESP32-P4 kitchen display that mirrors one Supabase account: it shows the
+inventory and cookbooks that the KitchenAssistant phone app syncs, on an
+800×1280 LCD driven by LVGL 9.5.
 
-Track product expiry dates, get recipe ideas based on what you have, and save favourites — all on an 800×1280 LCD driven by LVGL 9.x.
+The device is read-only for cookbooks: it edits and deletes products, and
+browses cookbooks, their recipes and the full recipe detail. Cookbook
+management stays on the phone.
 
 ## Hardware
 
@@ -36,85 +40,96 @@ idf.py menuconfig  # look under "Kitchen Assistant Configuration"
 
 ## Configuration
 
-Create `main/secrets.h` with the following defines (example values shown — replace with your own):
+Create `main/secrets.h` from `main/secrets.h.example` and fill in the
+service-role key:
 
 ```c
-#define APPWRITE_API_KEY "your-appwrite-api-key"
-#define APPWRITE_ENDPOINT "https://fra.cloud.appwrite.io/v1"
-#define APPWRITE_PROJECT_ID "your-project-id"
-#define RECIPES_COLLECTION_ID "recipes"
-#define STEPBYSTEP_COLLECTION_ID "stepbystep"
-#define APPWRITE_FUNCTION_ID "your-function-id"
-#define APPWRITE_IMAGE_RESIZE_FUNCTION_ID "your-image-resize-function-id"
-#define DEEPSEEK_API_KEY "your-deepseek-api-key"
-#define DEEPSEEK_ENDPOINT "https://api.deepseek.com"
-#define LEONARDO_API_KEY "your-leonardo-api-key"
-#define LEONARDO_ENDPOINT "https://cloud.leonardo.ai/api/rest/v1"
-#define LEONARDO_IMAGE_MODEL "your-model-id"
+#define SUPABASE_URL "https://ubsqrktgvlxzaujksran.supabase.co"
+#define SUPABASE_SERVICE_KEY "replace-with-service-role-key"
+#define SUPABASE_USER_ID "c92ebb7f-457e-4d46-a9e8-edf7fa67e7b2"
 ```
 
-WiFi credentials are stored on SPIFFS (set via the on-device settings UI at first boot).
+`SUPABASE_USER_ID` pins the mirrored account. The service-role key bypasses
+row-level security, so it must never be committed; `main/secrets.h` is
+excluded by `.gitignore`.
+
+WiFi credentials are stored on SPIFFS and are set in the on-device Settings
+tab at first boot.
 
 ## Features
 
-- **Inventory management** — Scan or add products with expiry dates, quantities, and categories. Products expiring soon are highlighted.
-- **Recipe suggestions** — Fetches recipes from BBC GoodFood, Giallo Zafferano, and Ania Gotuje based on available ingredients.
-- **AI recipes** — Generate custom recipes from your ingredients using DeepSeek AI.
-- **AI-generated images** — Recipe thumbnails and headers generated via Leonardo AI.
-- **Favourites** — Save recipes with full ingredients and method steps, synced to Appwrite.
-- **Recipe steps view** — Step-by-step cooking mode with progress tracking.
-- **Offline-capable thumbnail cache** — JPEG thumbnails cached on SPIFFS with LRU eviction.
+- **Inventory management** — Products grouped by category with expiry badges,
+  All / Expiring soon / Expired filters, A-Z / By expiry sorting, name search,
+  and an edit modal for name, expiry, category, quantity and frozen state.
+  Products can be edited or deleted on the device, never created.
+- **Cookbooks** — A two-column grid built from one light metadata query; each
+  card shows the first recipe's cover, the cookbook name and its recipe count.
+- **Cookbook recipes** — Opening a cookbook fetches exactly that cookbook's
+  rows, renders a card per recipe with time, difficulty and cuisine badges,
+  and caches the result so a revisit is instant.
+- **Recipe detail** — Hero image, title, source, total time, difficulty and
+  Ingredients / Method tabs; ingredient rows can be ticked off with a
+  strike-through while cooking.
+- **Offline-capable thumbnail cache** — JPEG thumbnails are downloaded
+  directly from the stored URL and cached on SPIFFS with LRU eviction.
 
 ## Architecture
 
 ```
-LVGL UI (EEZ Studio generated: main/ui/)
+Hand-written LVGL UI (main/ui)
     ↕
 UI Extensions (main/ui_extensions*.cpp) — populates LVGL widgets from data
     ↕
-Services (ProductService, RecipeService, RecipeDetailService, FavouriteService, WiFiManager)
+Services and managers (ProductService, CookbookService, RecipeService,
+ProductsManager, CookbooksManager, RecipesManager, WiFiManager)
     ↕
-ESP-IDF HTTP client + cJSON + FreeRTOS
+SupabaseClient (PostgREST) + cJSON + FreeRTOS
 ```
 
 ### Key Source Files
 
-| File                                   | Purpose                                                   |
-| -------------------------------------- | --------------------------------------------------------- |
-| `main/app.cpp`                         | Initialisation pipeline, main loop                        |
-| `main/ui_extensions.cpp`               | UI styles, helpers, recipe card builder                   |
-| `main/ui_extensions_products.cpp`      | Product list UI                                           |
-| `main/ui_extensions_recipes.cpp`       | Recipe list UI                                            |
-| `main/ui_extensions_recipe_detail.cpp` | Recipe detail screen + heart button                       |
-| `main/ui_extensions_favourites.cpp`    | Favourites list                                           |
-| `main/ui_extensions_recipe_steps.cpp`  | Step-by-step cooking mode                                 |
-| `main/ProductService.cpp`              | Appwrite CRUD for products                                |
-| `main/RecipeService.cpp`               | Recipe fetch from GoodFood, Giallo Zafferano, Ania Gotuje |
-| `main/RecipeDetailService.cpp`         | On-demand recipe detail scraping                          |
-| `main/RecipeAIDetailService.cpp`       | AI-powered recipe generation (DeepSeek)                   |
-| `main/FavouriteService.cpp`            | Appwrite favourites sync                                  |
-| `main/FavouritesManager.cpp`           | In-memory favourites cache with mutex                     |
-| `main/ProductsManager.cpp`             | In-memory product cache with mutex                        |
-| `main/DeepSeekAIService.cpp`           | DeepSeek AI integration                                   |
-| `main/LeonardoImageGenerator.cpp`      | AI image generation via Leonardo                          |
-| `main/thumbnail_cache.cpp`             | SPIFFS-backed LRU thumbnail cache                         |
-| `main/thumbnail_manager.cpp`           | Async thumbnail fetch, decode, and LVGL integration       |
-| `main/HttpClientHelper.cpp`            | Shared HTTP client for Appwrite functions                 |
-| `main/WiFiManager.cpp`                 | WiFi connection management                                |
-| `main/models.h`                        | `Product`, `RecipeSuggestion`, `Favorite` structs         |
-| `main/secrets.h`                       | API keys (not committed)                                  |
+| File                                   | Purpose                                                    |
+| -------------------------------------- | ---------------------------------------------------------- |
+| `main/app.cpp`                         | Initialisation pipeline, main loop                         |
+| `main/SupabaseClient.cpp`              | PostgREST client with service-role auth and user scoping   |
+| `main/ProductService.cpp`              | Products and barcodes CRUD on Supabase                     |
+| `main/ProductsManager.cpp`             | In-memory product cache with mutex                         |
+| `main/CookbookService.cpp`             | Read-only cookbook fetch                                   |
+| `main/CookbooksManager.cpp`            | Cookbook cache with derived recipe counts and covers       |
+| `main/RecipeService.cpp`               | Recipe summaries and per-cookbook recipe bodies            |
+| `main/RecipesManager.cpp`              | Summary list plus per-cookbook recipe caches with mutex    |
+| `main/ui/screens.cpp`                  | Hand-written construction of every screen and the modal    |
+| `main/ui/actions.cpp`                  | Event handlers and background fetch tasks                  |
+| `main/ui_theme.cpp`                    | Palette, shared styles, fonts and widget helpers           |
+| `main/ui_extensions.cpp`               | Snackbar, spinner and thumbnail queue entry point          |
+| `main/ui_extensions_products.cpp`      | Inventory list, grouped rows and product modal population  |
+| `main/ui_extensions_cookbooks.cpp`     | Cookbook grid, recipe cards and recipe detail rendering    |
+| `main/thumbnail_cache.cpp`             | SPIFFS-backed LRU thumbnail cache                          |
+| `main/thumbnail_manager.cpp`           | Async thumbnail fetch, decode and LVGL integration         |
+| `main/WiFiManager.cpp`                 | WiFi connection management                                 |
+| `main/models.h`                        | `Product`, `Cookbook`, `RecipeSummary`, `Recipe` structs   |
+| `main/secrets.h`                       | Supabase URL, service key and user id (not committed)      |
 
-### EEZ Studio UI (`main/ui/`)
+### UI
 
-The UI screens are designed in [EEZ Studio](https://www.envox.eu/eez-studio/eez-studio-introduction/) (`KitchenHelp.eez-project`). The following files are auto-generated and should not be manually edited: `screens.c`, `styles.c`, `images.c`. The file `actions.cpp` is the designated manual-edit file for event handlers.
+The UI is hand-written C++ in `main/ui`. `screens.cpp` builds the three screens
+(Inventory, Cookbooks, Settings), the product edit modal and the two detail
+screens. `actions.cpp` holds the event handlers. There is no UI generator;
+`main/ui` is edited directly.
 
 ### Concurrency Model
 
 - **LVGL main loop**: runs at ~100 Hz, handles rendering and input.
-- **`fetchProductsTask`**: FreeRTOS background task that fetches products from Appwrite and writes to `ProductsManager` under mutex.
-- **`thumb_worker_task`**: processes thumbnail download/decode queue, limited to 1 concurrent HTTP request via counting semaphore.
-- **`cache_io_task`**: SPIFFS I/O for thumbnail cache — runs with internal DRAM stack (critical for SPIFFS flash cache safety) pinned to core 0.
-- **Render threads**: LVGL 9.x multi-threaded software renderer with 2 draw units.
+- **`combinedFetchTask`**: FreeRTOS task that waits for WiFi and SNTP, fetches
+  products from Supabase, and writes to `ProductsManager` under mutex.
+- **Cookbook loads**: the grid is fetched once when the Cookbooks tab is first
+  activated; a cookbook's recipe bodies are fetched when it is opened, with a
+  per-cookbook in-flight guard so a late result is discarded after Back.
+- **`thumb_worker_task`**: processes the thumbnail queue, one HTTP request at a
+  time, under the LVGL lock when it touches widgets.
+- **`cache_io_task`**: SPIFFS I/O for the thumbnail cache, with an internal DRAM
+  stack pinned to core 0.
+- Every background task takes `lv_lock()` before touching `objects` or widgets.
 
 ### Flash Partitions
 
