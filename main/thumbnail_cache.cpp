@@ -1,4 +1,5 @@
 #include "thumbnail_cache.h"
+#include "diag.h"
 #include "sdkconfig.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
@@ -279,6 +280,11 @@ namespace thumbnail_cache
 
     static bool save_index_internal()
     {
+        // DIAGNOSTIC (temporary): bracket the index write so a watchdog reset
+        // that lands inside it leaves "[io] index save start" as the last line.
+        const int64_t save_started_us = esp_timer_get_time();
+        diag_bc(DIAG_IO_IDX_BUILD, (uint16_t)s_cache.size());
+
         cJSON *root = cJSON_CreateObject();
         cJSON_AddNumberToObject(root, "version", CACHE_INDEX_VERSION);
         cJSON *entries = cJSON_CreateArray();
@@ -299,18 +305,27 @@ namespace thumbnail_cache
         if (!json)
             return false;
 
+        const size_t len = strlen(json);
+        size_t fs_total = 0, fs_used = 0;
+        esp_spiffs_info(CONFIG_BSP_SPIFFS_PARTITION_LABEL, &fs_total, &fs_used);
+        ESP_LOGI(TAG, "[io] index save start: %zu entries, %zu B json, fs %zu/%zu B used",
+                 s_cache.size(), len, fs_used, fs_total);
+
         // Write to a temporary file first: truncating the live index on a full
         // partition would leave the cache with no way to find its own files.
+        diag_bc(DIAG_IO_IDX_OPEN, 0);
         FILE *f = fopen(INDEX_FILE_TMP, "w");
         if (!f)
         {
             free(json);
             return false;
         }
-        size_t len = strlen(json);
         size_t written = fwrite(json, 1, len, f);
+        diag_bc(DIAG_IO_IDX_WRITE, (uint16_t)(written / 1024));
         bool flush_ok = (fflush(f) == 0);
+        diag_bc(DIAG_IO_IDX_FLUSH, flush_ok ? 1 : 0);
         bool close_ok = (fclose(f) == 0);
+        diag_bc(DIAG_IO_IDX_CLOSE, close_ok ? 1 : 0);
         free(json);
 
         if (written != len || !flush_ok || !close_ok)
@@ -320,6 +335,7 @@ namespace thumbnail_cache
             return false;
         }
 
+        diag_bc(DIAG_IO_IDX_UNLINK, 0);
         unlink(INDEX_FILE);
         if (rename(INDEX_FILE_TMP, INDEX_FILE) != 0)
         {
@@ -327,12 +343,16 @@ namespace thumbnail_cache
             unlink(INDEX_FILE_TMP);
             return false;
         }
+        diag_bc(DIAG_IO_IDX_RENAME, 0);
 
         s_index_dirty = false;
         s_puts_since_save = 0;
         s_last_save_time = esp_timer_get_time();
-        ESP_LOGI(TAG, "Index saved (%zu entries), cache_io stack free: %u bytes",
-                 s_cache.size(), (unsigned)uxTaskGetStackHighWaterMark(NULL));
+        ESP_LOGI(TAG, "Index saved (%zu entries) in %lld ms, cache_io stack free: %u bytes",
+                 s_cache.size(),
+                 (long long)((esp_timer_get_time() - save_started_us) / 1000),
+                 (unsigned)uxTaskGetStackHighWaterMark(NULL));
+        diag_bc(DIAG_IO_IDX_DONE, 0);
         return true;
     }
 
@@ -506,9 +526,13 @@ namespace thumbnail_cache
         // Load index here — safe because this task has an internal-RAM stack
         int64_t t0 = esp_timer_get_time();
         xSemaphoreTake(s_mutex, portMAX_DELAY);
+        diag_bc(DIAG_IO_LOAD_ENTER, 0);
         load_index_internal();
+        diag_bc(DIAG_IO_LOAD_DONE, 0);
         int64_t t1 = esp_timer_get_time();
+        diag_bc(DIAG_IO_PURGE_ENTER, 0);
         purge_orphans_internal();
+        diag_bc(DIAG_IO_PURGE_DONE, 0);
         int64_t t2 = esp_timer_get_time();
         s_last_save_time = esp_timer_get_time();
         xSemaphoreGive(s_mutex);
@@ -527,6 +551,11 @@ namespace thumbnail_cache
 
         while (true)
         {
+            // DIAGNOSTIC (temporary): marks the moment this task parked on the
+            // queue. If the last IO_WAIT is shortly before a freeze, the flash
+            // operations that ran just before it are the suspect.
+            diag_bc(DIAG_IO_WAIT, 0);
+
             // Wait for job with timeout so we can periodically flush the index
             if (xQueueReceive(s_io_queue, &job, check_interval) != pdTRUE)
             {
@@ -545,9 +574,21 @@ namespace thumbnail_cache
                 continue;
             }
 
+            diag_bc(DIAG_IO_JOB, (uint16_t)job.type);
+
             // ── PUT ──────────────────────────────────────────────────────────────
             if (job.type == JobType::PUT)
             {
+                // DIAGNOSTIC (temporary): the PUT window covers ensure_space's
+                // unlinks, the file write and any batched index save — the
+                // flash operations suspected of stalling the tick interrupts.
+                diag_bc(DIAG_IO_PUT_ENTER, (uint16_t)(job.jpeg_len / 1024));
+                const int64_t put_started_us = esp_timer_get_time();
+                size_t fs_total = 0, fs_used = 0;
+                esp_spiffs_info(CONFIG_BSP_SPIFFS_PARTITION_LABEL, &fs_total, &fs_used);
+                ESP_LOGI(TAG, "[io] PUT start: %s (%zu B), fs %zu/%zu B used",
+                         job.hash, job.jpeg_len, fs_used, fs_total);
+
                 std::string path = std::string(CACHE_BASE_DIR) + "/" + job.hash + ".jpg";
                 bool stored = false;
 
@@ -555,6 +596,7 @@ namespace thumbnail_cache
                 // partition that is full for any reason still recovers.
                 for (int attempt = 0; attempt < 2 && !stored; ++attempt)
                 {
+                    diag_bc(DIAG_IO_PUT_SPACE, (uint16_t)attempt);
                     xSemaphoreTake(s_mutex, portMAX_DELAY);
                     if (attempt == 0)
                         ensure_space_internal(job.jpeg_len);
@@ -569,10 +611,13 @@ namespace thumbnail_cache
                                  path.c_str(), errno);
                         continue;
                     }
+                    diag_bc(DIAG_IO_PUT_OPEN, 0);
 
                     size_t written = fwrite(job.jpeg_data, 1, job.jpeg_len, f);
+                    diag_bc(DIAG_IO_PUT_WRITE, (uint16_t)(written / 1024));
                     bool flush_ok = (fflush(f) == 0);
                     bool close_ok = (fclose(f) == 0);
+                    diag_bc(DIAG_IO_PUT_CLOSE, 0);
                     if (written != job.jpeg_len || !flush_ok || !close_ok)
                     {
                         ESP_LOGE(TAG,
@@ -606,13 +651,19 @@ namespace thumbnail_cache
 
                     bool should_flush = (s_puts_since_save >= INDEX_SAVE_BATCH_SIZE);
 
-                    ESP_LOGI(TAG, "Cached: %s (%zu B) [dirty=%d, puts=%u]",
-                             job.hash, job.jpeg_len, s_index_dirty, s_puts_since_save);
+                    ESP_LOGI(TAG, "Cached: %s (%zu B) in %lld ms [dirty=%d, puts=%u]",
+                             job.hash, job.jpeg_len,
+                             (long long)((esp_timer_get_time() - put_started_us) / 1000),
+                             s_index_dirty, s_puts_since_save);
 
                     if (should_flush)
+                    {
+                        diag_bc(DIAG_IO_PUT_INDEX, (uint16_t)s_puts_since_save);
                         save_index_internal();
+                    }
 
                     xSemaphoreGive(s_mutex);
+                    diag_bc(DIAG_IO_PUT_DONE, 0);
                     stored = true;
                 }
 
@@ -630,6 +681,7 @@ namespace thumbnail_cache
                 std::vector<uint8_t> local_buf;
 
                 FILE *f = fopen(path.c_str(), "rb");
+                diag_bc(DIAG_IO_GET_OPEN, f ? 1 : 0);
                 if (f)
                 {
                     fseek(f, 0, SEEK_END);
@@ -654,6 +706,7 @@ namespace thumbnail_cache
                 {
                     ESP_LOGE(TAG, "fopen failed for read: %s (errno=%d)", path.c_str(), errno);
                 }
+                diag_bc(DIAG_IO_GET_READ, ok ? 1 : 0);
 
                 // get() blocks until this semaphore is given, so ctx (and the
                 // caller's output vector) are guaranteed to still be alive here.
@@ -664,6 +717,7 @@ namespace thumbnail_cache
                 ctx->result = ok;
 
                 // After this line we must NOT touch ctx — get() owns it now.
+                diag_bc(DIAG_IO_GET_DONE, 0);
                 xSemaphoreGive(ctx->done_sem);
 
                 if (ok)
@@ -713,10 +767,11 @@ namespace thumbnail_cache
         // CRITICAL: MALLOC_CAP_INTERNAL keeps the stack in DRAM.
         // Any task that calls fopen/fwrite/fread on SPIFFS must have an internal
         // stack — PSRAM stacks panic when the flash cache is disabled during writes.
+        TaskHandle_t io_handle = nullptr;
         BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
             cache_io_task, "cache_io", IO_TASK_STACK, NULL,
             2, // priority — lower than thumb_worker so writes don't block UI
-            NULL,
+            &io_handle,
             0, // pin to core 0 alongside SPIFFS driver
             MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
 
@@ -725,6 +780,8 @@ namespace thumbnail_cache
             ESP_LOGE(TAG, "Failed to create cache IO task");
             return false;
         }
+
+        diag_task_register(io_handle, DIAG_TASK_IO);
 
         s_initialized = true;
         ESP_LOGI(TAG, "Thumbnail cache initializing (waiting for index load)...");
@@ -744,11 +801,13 @@ namespace thumbnail_cache
         std::string hash = make_hash(url, width, height);
 
         // Index lookup is a RAM-only operation — safe from any task
+        diag_bc(DIAG_IO_GET_LOOKUP, 0);
         xSemaphoreTake(s_mutex, portMAX_DELAY);
         bool exists = std::any_of(s_cache.begin(), s_cache.end(),
                                   [&hash](const CacheEntry &e)
                                   { return e.hash == hash; });
         xSemaphoreGive(s_mutex);
+        diag_bc(DIAG_IO_GET_LOOKUP_DONE, exists ? 1 : 0);
 
         if (!exists)
             return false;
@@ -782,6 +841,7 @@ namespace thumbnail_cache
         // Wait until the IO task has read the file. Waiting without a timeout is
         // required for memory safety: returning early would destroy out_jpeg
         // while the IO task can still be writing into it.
+        diag_bc(DIAG_IO_GET_WAIT, 0);
         xSemaphoreTake(ctx->done_sem, portMAX_DELAY);
 
         // Semaphore taken — IO task has finished and will not touch ctx again.

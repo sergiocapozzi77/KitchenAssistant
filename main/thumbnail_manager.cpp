@@ -2,10 +2,12 @@
 
 #include "thumbnail_cache.h"
 
+#include "diag.h"
 #include "esp_crt_bundle.h"
 #include "esp_heap_caps.h"
 #include "esp_http_client.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/semphr.h"
@@ -479,12 +481,14 @@ void thumbnail_manager_init(uint16_t thumbMaxWidth, uint16_t thumbMaxHeight,
             ESP_LOGW(TAG, "Thumbnail cache unavailable; downloading without cache");
     }
 
+    TaskHandle_t worker_handle = nullptr;
     xTaskCreatePinnedToCoreWithCaps(
         thumb_worker_task, "thumb_worker", 8192, nullptr,
         1, // lowest non-idle — below draw workers (prio 2)
-        nullptr,
+        &worker_handle,
         1, // core 1 keeps HTTP off the LVGL core
         MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    diag_task_register(worker_handle, DIAG_TASK_THUMB);
 
     ESP_LOGI(TAG, "Thumbnail manager initialised (%ux%u, cache=%d)",
              thumbMaxWidth, thumbMaxHeight, s_thumb_cache ? 1 : 0);
@@ -495,6 +499,7 @@ void thumbnail_manager_init(uint16_t thumbMaxWidth, uint16_t thumbMaxHeight,
 void thumb_queue_push(ThumbContext *ctx)
 {
     ctx->generation = s_thumb_generation.load();
+    diag_bc(DIAG_THUMB_PUSH, (uint16_t)ctx->generation);
     ESP_LOGI(TAG, "Queue push: gen=%u url=%.60s", ctx->generation, ctx->url.c_str());
     if (xQueueSend(s_thumb_queue, &ctx, 0) != pdTRUE)
     {
@@ -514,6 +519,7 @@ void thumb_queue_push(ThumbContext *ctx)
 void thumb_queue_cancel_all()
 {
     s_thumb_generation.fetch_add(1, std::memory_order_relaxed);
+    diag_bc(DIAG_THUMB_CANCEL, (uint16_t)s_thumb_generation.load());
     ESP_LOGI(TAG, "Thumb generation bumped to %u", s_thumb_generation.load());
 }
 
@@ -571,7 +577,10 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
     if (useCache && s_cache_ready)
     {
         std::vector<uint8_t> cached;
-        if (thumbnail_cache::get(url, W, H, cached) && !cached.empty() &&
+        diag_bc(DIAG_THUMB_CACHE_GET_ENTER, 0);
+        const bool hit = thumbnail_cache::get(url, W, H, cached);
+        diag_bc(DIAG_THUMB_CACHE_GET_DONE, hit ? 1 : 0);
+        if (hit && !cached.empty() &&
             jpeg.assign(cached.data(), cached.size()))
         {
             loaded = true;
@@ -589,6 +598,14 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
         // not consume one, otherwise a page of nine images queues up behind two
         // slots even when every thumbnail is already on disk.
         {
+            // DIAGNOSTIC (temporary): bracket the HTTPS transfer. WiFi goes
+            // through esp-hosted over SDIO to the C6, so a watchdog stall whose
+            // last line is "[net] download start" points at that path (or TLS)
+            // rather than at the SPIFFS cache.
+            ESP_LOGI(TAG, "[net] download start %ux%u: %.60s", W, H, url.c_str());
+            const int64_t dl_started_us = esp_timer_get_time();
+            diag_bc(DIAG_THUMB_NET_ENTER, 0);
+
             SemaphoreGuard semGuard(s_http_concurrency_sem);
             if (!semGuard.acquired())
             {
@@ -596,15 +613,28 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
                 return false;
             }
 
-            if (!download_jpeg(url, jpeg))
+            const bool dl_ok = download_jpeg(url, jpeg);
+            diag_bc(DIAG_THUMB_NET_DONE, dl_ok ? 1 : 0);
+            ESP_LOGI(TAG, "[net] download %s in %lld ms (%zu B)",
+                     dl_ok ? "ok" : "failed",
+                     (long long)((esp_timer_get_time() - dl_started_us) / 1000),
+                     jpeg.size());
+            if (!dl_ok)
                 return false;
         }
 
         if (useCache && s_cache_ready)
+        {
+            diag_bc(DIAG_THUMB_CACHE_PUT, 0);
             thumbnail_cache::put(url, W, H, jpeg.data(), jpeg.size());
+        }
     }
 
-    return decode_jpeg_buffer(jpeg.data(), jpeg.size(), W, H, out_dsc, out_px);
+    diag_bc(DIAG_THUMB_DECODE_ENTER, 0);
+    const bool decoded = decode_jpeg_buffer(jpeg.data(), jpeg.size(), W, H,
+                                            out_dsc, out_px);
+    diag_bc(DIAG_THUMB_DECODE_DONE, decoded ? 1 : 0);
+    return decoded;
 }
 
 // ── Worker task ─────────────────────────────────────────────────────────────
@@ -613,13 +643,18 @@ void thumb_worker_task(void *)
 {
     ThumbContext *ctx = nullptr;
 
+    diag_bc(DIAG_THUMB_WAIT, 0); // entering the queue wait; no job in flight
+
     while (true)
     {
         if (xQueueReceive(s_thumb_queue, &ctx, pdMS_TO_TICKS(1000)) != pdTRUE)
             continue;
 
+        diag_bc(DIAG_THUMB_RECV, (uint16_t)ctx->generation);
+
         if (ctx->generation != s_thumb_generation.load())
         {
+            diag_bc(DIAG_THUMB_STALE, (uint16_t)ctx->generation);
             lv_lock();
             if (!ctx->cancelled.load() && ctx->thumb &&
                 lv_obj_is_valid(ctx->thumb))
@@ -637,9 +672,11 @@ void thumb_worker_task(void *)
         uint8_t *px = nullptr;
         uint16_t w = ctx->maxW ? ctx->maxW : s_thumb_max_w;
         uint16_t h = ctx->maxH ? ctx->maxH : s_thumb_max_h;
+        diag_bc(DIAG_THUMB_FETCH_ENTER, 0);
         bool ok = fetch_and_decode_jpeg(ctx->url, w, h, &dsc, &px,
                                         ctx->cacheAllowed);
 
+        diag_bc(DIAG_THUMB_APPLY_ENTER, ok ? 1 : 0);
         lv_lock();
 
         // The list may have been rebuilt while the fetch ran.
@@ -654,6 +691,7 @@ void thumb_worker_task(void *)
                 delete dsc;
             }
             lv_unlock();
+            diag_bc(DIAG_THUMB_APPLY_DONE, 0);
             delete ctx;
             continue;
         }
@@ -682,6 +720,7 @@ void thumb_worker_task(void *)
         }
 
         lv_unlock();
+        diag_bc(DIAG_THUMB_APPLY_DONE, 0);
         delete ctx;
 
         vTaskDelay(pdMS_TO_TICKS(50));

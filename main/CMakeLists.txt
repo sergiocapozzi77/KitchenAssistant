@@ -2,6 +2,7 @@ idf_component_register(
     SRCS
         main.cpp
         app.cpp
+        diag.cpp
         SupabaseClient.cpp
         ProductService.cpp
         ProductsManager.cpp

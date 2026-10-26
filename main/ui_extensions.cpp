@@ -2,6 +2,7 @@
 
 #include "ui_extensions_internal.h"
 
+#include "diag.h"
 #include "screens.h"
 #include "thumbnail_manager.h"
 
@@ -39,6 +40,7 @@ void push_thumbnail(lv_obj_t *image, const std::string &url, uint16_t width,
     ctx->cacheAllowed = cacheAllowed;
 
     lv_obj_add_event_cb(image, thumb_obj_deleted_cb, LV_EVENT_DELETE, ctx);
+    diag_bc(DIAG_UI_PUSH_THUMB, width);
     thumb_queue_push(ctx);
 }
 

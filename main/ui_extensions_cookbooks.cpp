@@ -5,6 +5,7 @@
 #include "CookbooksManager.h"
 #include "RecipesManager.h"
 #include "actions.h"
+#include "diag.h"
 #include "screens.h"
 #include "thumbnail_manager.h"
 #include "ui_theme.h"
@@ -375,6 +376,8 @@ void add_method_step(lv_obj_t *parent, int number, const std::string &step)
 
 void populate_ingredients_tab(const Recipe &recipe)
 {
+    diag_bc(DIAG_UI_POP_ING_ENTER, 0);
+
     lv_obj_t *tab = objects.recipe_detail_ingredients_tab;
     if (!valid(tab))
         return;
@@ -396,10 +399,14 @@ void populate_ingredients_tab(const Recipe &recipe)
     if (!any)
         ui_theme::make_label(tab, "No ingredients listed", ui_theme::font_body,
                              UI_COLOR_TEXT_MUTED);
+
+    diag_bc(DIAG_UI_POP_ING_DONE, 0);
 }
 
 void populate_method_tab(const Recipe &recipe)
 {
+    diag_bc(DIAG_UI_POP_METH_ENTER, 0);
+
     lv_obj_t *tab = objects.recipe_detail_method_tab;
     if (!valid(tab))
         return;
@@ -434,10 +441,14 @@ void populate_method_tab(const Recipe &recipe)
     if (any == 0)
         ui_theme::make_label(tab, "No method steps", ui_theme::font_body,
                              UI_COLOR_TEXT_MUTED);
+
+    diag_bc(DIAG_UI_POP_METH_DONE, 0);
 }
 
 void reset_hero_image(const Recipe &recipe)
 {
+    diag_bc(DIAG_UI_HERO_ENTER, 0);
+
     if (!valid(objects.recipe_detail_hero))
         return;
 
@@ -449,6 +460,8 @@ void reset_hero_image(const Recipe &recipe)
     if (!valid(parent))
         return;
 
+    diag_bc(DIAG_UI_HERO_DELETED, 0);
+
     lv_obj_t *hero = lv_image_create(parent);
     lv_obj_set_size(hero, kRecipeImageW, kRecipeImageH);
     lv_obj_set_style_bg_color(hero, lv_color_hex(UI_COLOR_SURFACE_HIGH), 0);
@@ -456,12 +469,14 @@ void reset_hero_image(const Recipe &recipe)
     lv_obj_set_style_radius(hero, 0, 0);
     lv_obj_move_to_index(hero, 0);
     objects.recipe_detail_hero = hero;
+    diag_bc(DIAG_UI_HERO_CREATED, 0);
 
     // Same URL and size as the recipe card, so this is a cache hit when the
     // card that opened this screen already downloaded its thumbnail.
     const std::string &url =
         recipe.imageUrl.empty() ? recipe.imageUrlBig : recipe.imageUrl;
     add_image(hero, url, kRecipeImageW, kRecipeImageH);
+    diag_bc(DIAG_UI_HERO_IMAGED, 0);
 }
 
 void set_spinner_visible(bool visible)
@@ -760,7 +775,11 @@ void retryCookbookDetail()
 
 void showRecipeDetailScreen(const Recipe &recipe)
 {
+    diag_bc(DIAG_UI_DETAIL_ENTER, 0);
+
     thumb_queue_cancel_all();
+    diag_bc(DIAG_UI_DETAIL_CANCELLED, 0);
+
     reset_hero_image(recipe);
 
     if (valid(objects.recipe_detail_title_lbl))
@@ -794,15 +813,23 @@ void showRecipeDetailScreen(const Recipe &recipe)
                           recipe.difficulty.empty() ? "-"
                                                     : recipe.difficulty.c_str());
 
+    diag_bc(DIAG_UI_DETAIL_TEXT, 0);
+
     if (valid(objects.recipe_detail_tabview))
         lv_tabview_set_active(objects.recipe_detail_tabview, 0, LV_ANIM_OFF);
+    diag_bc(DIAG_UI_DETAIL_TAB, 0);
 
     populate_ingredients_tab(recipe);
     populate_method_tab(recipe);
 
     if (valid(objects.recipe_detail))
+    {
+        diag_bc(DIAG_UI_DETAIL_ANIM, 0);
         lv_screen_load_anim(objects.recipe_detail,
                             LV_SCREEN_LOAD_ANIM_MOVE_LEFT, 200, 0, false);
+    }
+
+    diag_bc(DIAG_UI_DETAIL_DONE, 0);
 }
 
 void showCookbookDetailFailure(const std::string &cookbookId)
