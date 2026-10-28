@@ -426,9 +426,9 @@ void action_cookbook_open(lv_event_t *event)
 void action_cookbook_back(lv_event_t *)
 {
     leaveCookbookDetail();
+    // Return to the main screen without a slide transition.
     if (objects.main && lv_obj_is_valid(objects.main))
-        lv_screen_load_anim(objects.main, LV_SCREEN_LOAD_ANIM_MOVE_RIGHT, 200, 0,
-                            false);
+        lv_screen_load(objects.main);
 }
 
 void action_cookbook_retry(lv_event_t *)
@@ -467,8 +467,7 @@ void action_recipe_back(lv_event_t *)
     if (!target || !lv_obj_is_valid(target))
         target = objects.main;
     if (target && lv_obj_is_valid(target))
-        lv_screen_load_anim(target, LV_SCREEN_LOAD_ANIM_MOVE_RIGHT, 200, 0,
-                            false);
+        lv_screen_load(target);
 }
 
 void request_cookbook_recipes(const std::string &cookbookId)

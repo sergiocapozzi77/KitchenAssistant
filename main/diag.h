@@ -148,6 +148,18 @@ extern "C"
     // kept running while everything else stalled.
     void diag_lvgl_beat(void);
 
+    // Logs internal/PSRAM heap headroom with a caller-supplied tag, and updates
+    // the RTC copy plus its since-boot minima. Call from task context (it takes
+    // the heap lock) at allocation-heavy points: thumbnail queue pushes, grid
+    // renders, large fetches.
+    void diag_heap_log(const char *what);
+
+    // Reports where the two panel framebuffers, the LVGL root object and the
+    // heap LVGL allocates from sit, so the next capture can be compared with
+    // the v10 crash layout. Pass the screen object captured under the display
+    // lock; call once after the display and UI are up.
+    void diag_report_layout(const void *lvgl_root);
+
     // Task identities recorded by the tick probes. Every tick writes the id and
     // FreeRTOS priority of the task each core was running, so the next boot
     // shows what was executing when the ticks stopped. Only tasks registered

@@ -626,10 +626,16 @@ void populateCookbooksUi()
     if (last > cookbooks.size())
         last = cookbooks.size();
 
+    // DIAGNOSTIC (temporary): headroom before and after building the cards, so
+    // the delta is the grid's own draw-time allocation.
+    diag_heap_log("grid render begin");
+
     for (size_t i = first; i < last; ++i)
         add_cookbook_card(objects.cookbooks_list, cookbooks[i]);
 
     update_cookbook_pager(page_count);
+
+    diag_heap_log("grid render done");
 
     ESP_LOGI(TAG, "Cookbook grid rendered (page %d/%d, %u cards)",
              s_cookbook_page + 1, page_count, (unsigned)(last - first));
@@ -677,9 +683,9 @@ void showCookbookDetail(const std::string &cookbookId)
     set_spinner_visible(!cached);
     set_detail_list_visible(cached);
 
+    // Open the cookbook without a slide transition.
     if (valid(objects.cookbook_detail))
-        lv_screen_load_anim(objects.cookbook_detail,
-                            LV_SCREEN_LOAD_ANIM_MOVE_LEFT, 200, 0, false);
+        lv_screen_load(objects.cookbook_detail);
 }
 
 void populateCookbookRecipesUi(const std::string &cookbookId)
@@ -825,8 +831,8 @@ void showRecipeDetailScreen(const Recipe &recipe)
     if (valid(objects.recipe_detail))
     {
         diag_bc(DIAG_UI_DETAIL_ANIM, 0);
-        lv_screen_load_anim(objects.recipe_detail,
-                            LV_SCREEN_LOAD_ANIM_MOVE_LEFT, 200, 0, false);
+        // Open the recipe without a slide transition.
+        lv_screen_load(objects.recipe_detail);
     }
 
     diag_bc(DIAG_UI_DETAIL_DONE, 0);

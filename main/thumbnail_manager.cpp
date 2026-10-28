@@ -500,6 +500,9 @@ void thumb_queue_push(ThumbContext *ctx)
 {
     ctx->generation = s_thumb_generation.load();
     diag_bc(DIAG_THUMB_PUSH, (uint16_t)ctx->generation);
+    // DIAGNOSTIC (temporary): headroom at every thumbnail download, so the
+    // post-mortem shows whether the internal heap was already spent by then.
+    diag_heap_log("thumb push");
     ESP_LOGI(TAG, "Queue push: gen=%u url=%.60s", ctx->generation, ctx->url.c_str());
     if (xQueueSend(s_thumb_queue, &ctx, 0) != pdTRUE)
     {

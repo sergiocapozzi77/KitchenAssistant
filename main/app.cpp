@@ -276,12 +276,26 @@ void Application::initHardware()
                     { diag_lvgl_beat(); },
                     250, nullptr);
 
+    // Captured under the display lock for the layout report below.
+    lv_obj_t *lvgl_root = lv_screen_active();
+
     bsp_display_unlock();
 
+    // DIAGNOSTIC (temporary): with the display buffers and the first UI objects
+    // allocated, report where they lie so the next capture can be compared with
+    // the v10 crash layout.
+    diag_report_layout(lvgl_root);
+
     // If no saved WiFi credentials, navigate to the settings tab so the user
-    // can configure WiFi (overrides the Cookbooks startup tab).
+    // can configure WiFi (overrides the Cookbooks startup tab). lv_async_call()
+    // mutates LVGL's async list, which lv_timer_handler() drains under lv_lock();
+    // app_main is not the LVGL task, so take the lock around it.
     if (!m_wifiCredsFound)
+    {
+        lv_lock();
         lv_async_call([](void *) { show_main_settings_tab(); }, nullptr);
+        lv_unlock();
+    }
 
     ESP_LOGI(TAG, "Hardware initialized");
 }

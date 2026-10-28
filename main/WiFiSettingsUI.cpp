@@ -177,7 +177,13 @@ void WiFiSettingsUI::monitorConnectionTask(void *arg)
         ESP_LOGW(TAG, "Connection to %s timed out after 30s", ctx->ssid.c_str());
     }
 
+    // lv_async_call() links a node into lv_global.async_list, which
+    // lv_timer_handler() drains while holding lv_lock(). Calling it from this
+    // background task without that lock can link into a node the LVGL task is
+    // freeing, so the next drain walks freed memory.
+    lv_lock();
     lv_async_call(connectResultCb, ctx);
+    lv_unlock();
     vTaskDelete(NULL);
 }
 
@@ -226,7 +232,8 @@ void WiFiSettingsUI::onPasswordConnectClick(lv_event_t *e)
 
     const char *password_chars = lv_textarea_get_text(s_password_ta);
     std::string password = password_chars ? password_chars : "";
-    ESP_LOGI(TAG, "PWD after textarea copy (len=%zu): %s", password.length(), password.c_str());
+    // Never print the credential: serial captures are persisted and shared.
+    ESP_LOGI(TAG, "PWD after textarea copy (len=%zu)", password.length());
 
     if (s_keyboard && lv_obj_is_valid(s_keyboard))
     {
@@ -531,10 +538,12 @@ void WiFiSettingsUI::scanTask(void *arg)
     if (!started)
     {
         ESP_LOGE(TAG, "All scan attempts failed");
+        lv_lock();
         lv_async_call([](void *)
                       {
             if (s_scanning_lbl)
                 lv_label_set_text(s_scanning_lbl, "Scan failed. Tap Rescan."); }, nullptr);
+        lv_unlock();
         vTaskDelete(NULL);
         return;
     }
@@ -551,7 +560,9 @@ void WiFiSettingsUI::scanTask(void *arg)
         }
     }
 
+    lv_lock();
     lv_async_call(scanCompleteCb, new ScanCtx());
+    lv_unlock();
     vTaskDelete(NULL);
 }
 
