@@ -15,6 +15,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include <algorithm>
 #include <atomic>
 #include <cstdint>
 #include <mutex>
@@ -34,6 +35,7 @@ std::atomic<bool> s_reload_running{false};
 std::atomic<bool> s_cookbooks_running{false};
 std::mutex s_cookbook_mutex;
 std::set<std::string> s_cookbook_inflight;
+lv_timer_t *s_cookbook_retry_timer = nullptr;
 lv_timer_t *s_search_timer = nullptr;
 
 struct ProductUpdateCtx
@@ -186,11 +188,46 @@ struct CookbookFetchCtx
     std::string id;
 };
 
+bool cookbook_is_open(const std::string &cookbookId)
+{
+    lv_lock();
+    const bool isOpen = openCookbookId() == cookbookId;
+    lv_unlock();
+    return isOpen;
+}
+
+void retry_cookbook_task_start(lv_timer_t *)
+{
+    s_cookbook_retry_timer = nullptr;
+    const std::string cookbookId = openCookbookId();
+    if (!cookbookId.empty() && !recipesManager.hasCookbook(cookbookId))
+        request_cookbook_recipes(cookbookId);
+}
+
 void cookbook_recipes_task(void *arg)
 {
     auto *ctx = static_cast<CookbookFetchCtx *>(arg);
 
-    recipesManager.fetchForCookbookSync(ctx->id);
+    uint32_t retryDelayMs = 1000;
+    bool loaded = false;
+    while (cookbook_is_open(ctx->id))
+    {
+        loaded = recipesManager.fetchForCookbookSync(ctx->id);
+        if (loaded)
+            break;
+
+        ESP_LOGW(TAG, "Cookbook recipe fetch failed; retrying in %u ms",
+                 (unsigned)retryDelayMs);
+        uint32_t waitedMs = 0;
+        while (waitedMs < retryDelayMs && cookbook_is_open(ctx->id))
+        {
+            const uint32_t delayMs =
+                std::min<uint32_t>(250, retryDelayMs - waitedMs);
+            vTaskDelay(pdMS_TO_TICKS(delayMs));
+            waitedMs += delayMs;
+        }
+        retryDelayMs = std::min<uint32_t>(retryDelayMs * 2, 30000);
+    }
 
     lv_lock();
     {
@@ -198,7 +235,7 @@ void cookbook_recipes_task(void *arg)
         s_cookbook_inflight.erase(ctx->id);
     }
     // Discard the result when the user already left this cookbook.
-    if (openCookbookId() == ctx->id)
+    if (loaded && openCookbookId() == ctx->id)
         populateCookbookRecipesUi(ctx->id);
     lv_unlock();
 
@@ -472,7 +509,7 @@ void action_recipe_back(lv_event_t *)
 
 void request_cookbook_recipes(const std::string &cookbookId)
 {
-    if (cookbookId.empty())
+    if (!cookbook_recipe_ui_enabled() || cookbookId.empty())
         return;
 
     {
@@ -489,7 +526,14 @@ void request_cookbook_recipes(const std::string &cookbookId)
             std::lock_guard<std::mutex> lock(s_cookbook_mutex);
             s_cookbook_inflight.erase(cookbookId);
         }
-        showSnackbar("Couldn't load recipes", 3000);
-        showCookbookDetailFailure(cookbookId);
+        if (!s_cookbook_retry_timer)
+        {
+            s_cookbook_retry_timer =
+                lv_timer_create(retry_cookbook_task_start, 1000, nullptr);
+            if (s_cookbook_retry_timer)
+                lv_timer_set_repeat_count(s_cookbook_retry_timer, 1);
+            else
+                ESP_LOGE(TAG, "Couldn't schedule cookbook fetch retry");
+        }
     }
 }

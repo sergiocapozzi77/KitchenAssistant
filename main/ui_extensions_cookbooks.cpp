@@ -98,8 +98,8 @@ void add_image(lv_obj_t *image, const std::string &url, uint16_t width,
         // little softness.
         const uint16_t fetch_w = width > 1 ? width / 2 : width;
         const uint16_t fetch_h = height > 1 ? height / 2 : height;
-        push_thumbnail(image, url, fetch_w, fetch_h, true);
-        return;
+        if (push_thumbnail(image, url, fetch_w, fetch_h, true))
+            return;
     }
     lv_obj_t *placeholder = ui_theme::make_label(
         image, LV_SYMBOL_IMAGE, ui_theme::font_icon, UI_COLOR_TEXT_MUTED);
@@ -899,6 +899,14 @@ void populateCookbooksUi()
     if (!valid(objects.cookbooks_list))
         return;
 
+    if (!cookbook_recipe_ui_enabled())
+    {
+        lv_obj_clean(objects.cookbooks_list);
+        if (valid(objects.cookbooks_pager))
+            lv_obj_add_flag(objects.cookbooks_pager, LV_OBJ_FLAG_HIDDEN);
+        return;
+    }
+
     thumb_queue_cancel_all();
     lv_obj_clean(objects.cookbooks_list);
 
@@ -951,6 +959,9 @@ void shiftCookbookPage(int delta)
 
 void showCookbookDetail(const std::string &cookbookId)
 {
+    if (!cookbook_recipe_ui_enabled())
+        return;
+
     s_open_cookbook_id = cookbookId;
     s_cookbook_detail_page = 0;
 
@@ -992,6 +1003,15 @@ void populateCookbookRecipesUi(const std::string &cookbookId)
 {
     if (!valid(objects.cookbook_detail_list))
         return;
+    if (!cookbook_recipe_ui_enabled())
+    {
+        lv_obj_clean(objects.cookbook_detail_list);
+        if (valid(objects.cookbook_detail_pager))
+            lv_obj_add_flag(objects.cookbook_detail_pager, LV_OBJ_FLAG_HIDDEN);
+        set_spinner_visible(false);
+        set_detail_list_visible(false);
+        return;
+    }
     // The user may have left the screen while the fetch was running.
     if (cookbookId != s_open_cookbook_id)
         return;
@@ -1002,9 +1022,9 @@ void populateCookbookRecipesUi(const std::string &cookbookId)
     {
         thumb_queue_cancel_all();
         lv_obj_clean(list);
-        set_spinner_visible(false);
+        set_spinner_visible(true);
         set_detail_list_visible(false);
-        set_detail_state("Could not load recipes", true);
+        set_detail_state("", false);
         return;
     }
 
@@ -1074,6 +1094,8 @@ void shiftCookbookRecipesPage(int delta)
 
 void retryCookbookDetail()
 {
+    if (!cookbook_recipe_ui_enabled())
+        return;
     set_detail_state("", false);
     set_spinner_visible(true);
     set_detail_list_visible(false);
@@ -1081,6 +1103,9 @@ void retryCookbookDetail()
 
 void showRecipeDetailScreen(const Recipe &recipe)
 {
+    if (!cookbook_recipe_ui_enabled())
+        return;
+
     diag_bc(DIAG_UI_DETAIL_ENTER, 0);
 
     thumb_queue_cancel_all();
@@ -1143,9 +1168,9 @@ void showCookbookDetailFailure(const std::string &cookbookId)
 {
     if (cookbookId != s_open_cookbook_id)
         return;
-    set_spinner_visible(false);
+    set_spinner_visible(true);
     set_detail_list_visible(false);
-    set_detail_state("Could not load recipes", true);
+    set_detail_state("", false);
 }
 
 void leaveCookbookDetail()

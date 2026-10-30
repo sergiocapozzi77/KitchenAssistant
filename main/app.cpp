@@ -12,6 +12,7 @@
 #include "esp_chip_info.h"
 #include "esp_freertos_hooks.h"
 #include "esp_attr.h"
+#include "esp_lvgl_port.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include <cstdint>
@@ -32,6 +33,7 @@
 
 static const char *TAG = "APP";
 static BatteryMonitor s_battery;
+static constexpr bool s_lvgl_freeze_test = false;
 
 // ── DIAGNOSTIC (temporary) ───────────────────────────────────────────────────
 //
@@ -57,6 +59,12 @@ static lv_indev_read_cb_t s_bsp_touch_read_cb = nullptr;
 
 static void wrappedTouchReadCb(lv_indev_t *indev, lv_indev_data_t *data)
 {
+    if (s_lvgl_freeze_test)
+    {
+        data->state = LV_INDEV_STATE_RELEASED;
+        return;
+    }
+
     if (s_bsp_touch_read_cb)
         s_bsp_touch_read_cb(indev, data);
 
@@ -95,10 +103,8 @@ void Application::initQueues()
     //     abort();
     // }
     // ESP_LOGI(TAG, "Queues created");
-    // Thumbnail caching is disabled: the 7 MB SPIFFS partition fills up and
-    // cache writes start failing. Images still download and decode into PSRAM
-    // on demand, they are just not persisted across boots.
-    ui_extensions_init(112, 112, false);
+    // Disable thumbnail downloads and decoding while investigating resets.
+    ui_extensions_init(112, 112, true, true, true);
 }
 
 static void combinedFetchTask(void *param)
@@ -217,7 +223,6 @@ void Application::initHardware()
         {
             ESP_LOGI(TAG, "No saved WiFi credentials found — will prompt user in settings");
         }
-
     }
 
     // Initialize WiFi driver (always, regardless of saved credentials)
@@ -245,33 +250,30 @@ void Application::initHardware()
     bsp_display_start_with_config(&cfg);
     bsp_display_backlight_on();
 
-    // Build the hand-written UI once
+    // Build the normal UI before suspending LVGL for the freeze test.
     bsp_display_lock(0);
 
-    // ── wrap the BSP touch indev ──────────────────────────────────────
-    lv_indev_t *cur = lv_indev_get_next(nullptr);
-    while (cur)
+    if (s_lvgl_freeze_test)
     {
-        if (lv_indev_get_type(cur) == LV_INDEV_TYPE_POINTER)
+        lv_indev_t *cur = lv_indev_get_next(nullptr);
+        while (cur)
         {
-            s_bsp_touch_read_cb = lv_indev_get_read_cb(cur);
-            lv_indev_set_read_cb(cur, wrappedTouchReadCb);
-            ESP_LOGI(TAG, "Touch callback wrapped");
-            break;
+            if (lv_indev_get_type(cur) == LV_INDEV_TYPE_POINTER)
+            {
+                s_bsp_touch_read_cb = lv_indev_get_read_cb(cur);
+                lv_indev_set_read_cb(cur, wrappedTouchReadCb);
+                break;
+            }
+            cur = lv_indev_get_next(cur);
         }
-        cur = lv_indev_get_next(cur);
     }
 
-    // ── init sleep + quick panel ──────────────────────────────────────
-    g_display_sleep.init(60 * 10 * 1000); // 10min inactivity timeout
+    g_display_sleep.init(60 * 10 * 1000);
     g_quick_panel.init();
     s_battery.init();
 
     ui_init();
 
-    // DIAGNOSTIC (temporary): a periodic LVGL timer. If its last beat in the
-    // RTC log is far behind the esp_timer monitor's, the LVGL task stopped
-    // while the rest of the system kept running.
     lv_timer_create([](lv_timer_t *)
                     { diag_lvgl_beat(); },
                     250, nullptr);
@@ -281,11 +283,6 @@ void Application::initHardware()
 
     bsp_display_unlock();
 
-    // DIAGNOSTIC (temporary): with the display buffers and the first UI objects
-    // allocated, report where they lie so the next capture can be compared with
-    // the v10 crash layout.
-    diag_report_layout(lvgl_root);
-
     // If no saved WiFi credentials, navigate to the settings tab so the user
     // can configure WiFi (overrides the Cookbooks startup tab). lv_async_call()
     // mutates LVGL's async list, which lv_timer_handler() drains under lv_lock();
@@ -293,9 +290,23 @@ void Application::initHardware()
     if (!m_wifiCredsFound)
     {
         lv_lock();
-        lv_async_call([](void *) { show_main_settings_tab(); }, nullptr);
+        lv_async_call([](void *)
+                      { show_main_settings_tab(); }, nullptr);
         lv_unlock();
     }
+
+    if (s_lvgl_freeze_test)
+    {
+        // Let LVGL render the initial UI, then suspend its timer/draw work.
+        vTaskDelay(pdMS_TO_TICKS(500));
+        bsp_display_lock(0);
+        ESP_ERROR_CHECK(lvgl_port_stop());
+        bsp_display_unlock();
+        ESP_LOGI(TAG, "UI construction test active: LVGL timers stopped");
+    }
+
+    // DIAGNOSTIC (temporary): report the display buffers and active LVGL root.
+    diag_report_layout(lvgl_root);
 
     ESP_LOGI(TAG, "Hardware initialized");
 }
@@ -315,20 +326,24 @@ void Application::mainLoop()
         if ((++loop_count % 100) == 0)
             diag_bc(DIAG_APP_MAINLOOP, (uint16_t)(loop_count / 100));
 
-        bsp_display_lock(0);
-        ui_tick();
-        bsp_display_unlock();
-
-        uint32_t now = lv_tick_get();
-        if (now - last_info_update >= 2000)
+        if (!s_lvgl_freeze_test)
         {
-            last_info_update = now;
+            bsp_display_lock(0);
+            ui_tick();
+            bsp_display_unlock();
 
-            bool connected = wifiManager.isConnected();
-            g_quick_panel.updateWifi(connected,
-                                     connected ? wifiManager.getSSID().c_str() : nullptr);
+            uint32_t now = lv_tick_get();
+            if (now - last_info_update >= 2000)
+            {
+                last_info_update = now;
 
-            g_quick_panel.updateBattery(s_battery.readPercent());
+                bool connected = wifiManager.isConnected();
+                g_quick_panel.updateWifi(
+                    connected, connected ? wifiManager.getSSID().c_str()
+                                         : nullptr);
+
+                g_quick_panel.updateBattery(s_battery.readPercent());
+            }
         }
         vTaskDelay(pdMS_TO_TICKS(10)); // ~100Hz update rate
     }

@@ -20,9 +20,12 @@ enum class ProductSort
     Expiry
 };
 
-// Call once at startup; initialises the thumbnail worker only.
+// Call once at startup; feature switches can disable thumbnail work or
+// cookbook/recipe UI population.
 void ui_extensions_init(uint16_t thumbMaxWidth, uint16_t thumbMaxHeight,
-                        bool thumbEnableCache);
+                        bool thumbEnableCache, bool thumbnailsEnabled = true,
+                        bool cookbookRecipeUiEnabled = true);
+bool cookbook_recipe_ui_enabled();
 
 // ── Inventory ───────────────────────────────────────────────────────────────
 void populateProductListUi(lv_obj_t *root, const std::vector<Product> &products);
