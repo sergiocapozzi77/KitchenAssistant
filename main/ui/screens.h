@@ -90,6 +90,7 @@ typedef struct objects_t
     lv_obj_t *recipe_detail_tabview;
     lv_obj_t *recipe_detail_ingredients_tab;
     lv_obj_t *recipe_detail_method_tab;
+    lv_obj_t *recipe_detail_steps_tab;
 
     // Settings
     lv_obj_t *current_wifi_lbl;

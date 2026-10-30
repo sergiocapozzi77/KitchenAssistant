@@ -95,10 +95,10 @@ void Application::initQueues()
     //     abort();
     // }
     // ESP_LOGI(TAG, "Queues created");
-    // DIAGNOSTIC (temporary): cache back on, with phase logging in cache_io.
-    // Tests whether the boot-time SPIFFS index load/purge triggers the silent
-    // INT-WDT reset; the last "[io] ..." line before a reset names the phase.
-    ui_extensions_init(112, 112, true);
+    // Thumbnail caching is disabled: the 7 MB SPIFFS partition fills up and
+    // cache writes start failing. Images still download and decode into PSRAM
+    // on demand, they are just not persisted across boots.
+    ui_extensions_init(112, 112, false);
 }
 
 static void combinedFetchTask(void *param)

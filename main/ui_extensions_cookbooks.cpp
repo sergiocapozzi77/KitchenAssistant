@@ -12,6 +12,7 @@
 
 #include "esp_log.h"
 
+#include <cctype>
 #include <string>
 #include <vector>
 
@@ -445,6 +446,305 @@ void populate_method_tab(const Recipe &recipe)
     diag_bc(DIAG_UI_POP_METH_DONE, 0);
 }
 
+bool instruction_section_visible(const InstructionSection &section)
+{
+    for (const auto &step : section.steps)
+        if (!step.empty())
+            return true;
+    return false;
+}
+
+std::string normalized_section_name(const std::string &name)
+{
+    const size_t first = name.find_first_not_of(" \t\r\n");
+    if (first == std::string::npos)
+        return std::string();
+
+    std::string out = name.substr(first, name.find_last_not_of(" \t\r\n") -
+                                             first + 1);
+    for (char &c : out)
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    return out;
+}
+
+// The Step by Step tab only makes sense when both sides are split into the same
+// named groups in the same order. Sections that render empty in their own tabs
+// are ignored so the pairing matches what those tabs show.
+bool collect_paired_sections(
+    const Recipe &recipe,
+    std::vector<const IngredientSection *> &ingredient_sections,
+    std::vector<const InstructionSection *> &method_sections)
+{
+    ingredient_sections.clear();
+    method_sections.clear();
+
+    for (const auto &section : recipe.ingredients)
+        if (!section.items.empty())
+            ingredient_sections.push_back(&section);
+    for (const auto &section : recipe.methodSteps)
+        if (instruction_section_visible(section))
+            method_sections.push_back(&section);
+
+    if (ingredient_sections.size() < 2 ||
+        ingredient_sections.size() != method_sections.size())
+        return false;
+
+    for (size_t i = 0; i < ingredient_sections.size(); ++i)
+        if (normalized_section_name(ingredient_sections[i]->name) !=
+            normalized_section_name(method_sections[i]->name))
+            return false;
+
+    return true;
+}
+
+// ── Step by Step pager ──────────────────────────────────────────────────────
+// One matched group is shown at a time. Every group keeps its own panel so
+// ingredient checkmarks survive moving between pages.
+std::vector<lv_obj_t *> s_step_panels;
+std::vector<lv_obj_t *> s_step_labels;
+int s_step_group = 0;
+
+lv_obj_t *s_step_bar = nullptr;
+lv_obj_t *s_step_content = nullptr;
+lv_obj_t *s_step_page_lbl = nullptr;
+lv_obj_t *s_step_prev_btn = nullptr;
+lv_obj_t *s_step_next_btn = nullptr;
+
+void set_pager_button_enabled(lv_obj_t *button, bool enabled); // defined below
+
+void show_step_group()
+{
+    const int count = (int)s_step_panels.size();
+    if (count == 0)
+        return;
+    if (s_step_group < 0)
+        s_step_group = 0;
+    if (s_step_group >= count)
+        s_step_group = count - 1;
+
+    for (int i = 0; i < count; ++i)
+    {
+        if (!valid(s_step_panels[i]))
+            continue;
+        if (i == s_step_group)
+            lv_obj_remove_flag(s_step_panels[i], LV_OBJ_FLAG_HIDDEN);
+        else
+            lv_obj_add_flag(s_step_panels[i], LV_OBJ_FLAG_HIDDEN);
+    }
+
+    if (valid(s_step_bar))
+        lv_bar_set_value(s_step_bar, s_step_group + 1, LV_ANIM_OFF);
+
+    for (size_t i = 0; i < s_step_labels.size(); ++i)
+    {
+        if (!valid(s_step_labels[i]))
+            continue;
+        uint32_t color = UI_COLOR_TEXT_MUTED;
+        if ((int)i == s_step_group)
+            color = UI_COLOR_ACCENT;
+        else if ((int)i < s_step_group)
+            color = UI_COLOR_TEXT_SECONDARY;
+        lv_obj_set_style_text_color(s_step_labels[i], lv_color_hex(color), 0);
+    }
+
+    if (valid(s_step_page_lbl))
+    {
+        std::string text = "Page " + std::to_string(s_step_group + 1) +
+                           " of " + std::to_string(count);
+        lv_label_set_text(s_step_page_lbl, text.c_str());
+    }
+
+    set_pager_button_enabled(s_step_prev_btn, s_step_group > 0);
+    set_pager_button_enabled(s_step_next_btn, s_step_group + 1 < count);
+    if (valid(s_step_content))
+        lv_obj_scroll_to_y(s_step_content, 0, LV_ANIM_OFF);
+}
+
+void step_prev_clicked_cb(lv_event_t *)
+{
+    if (s_step_group <= 0)
+        return;
+    --s_step_group;
+    show_step_group();
+}
+
+void step_next_clicked_cb(lv_event_t *)
+{
+    if (s_step_group + 1 >= (int)s_step_panels.size())
+        return;
+    ++s_step_group;
+    show_step_group();
+}
+
+void build_step_pager(lv_obj_t *tab,
+                      const std::vector<const IngredientSection *> &sections)
+{
+    const int group_count = (int)sections.size();
+
+    // The page itself must not scroll: the group content sits between a fixed
+    // progress bar and a fixed pager row.
+    lv_obj_clear_flag(tab, LV_OBJ_FLAG_SCROLLABLE);
+
+    // Each group name sits over its equal slice of the progress bar below.
+    lv_obj_t *names = lv_obj_create(tab);
+    lv_obj_set_width(names, LV_PCT(100));
+    lv_obj_set_height(names, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(names, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(names, 0, 0);
+    lv_obj_set_style_pad_all(names, 0, 0);
+    lv_obj_set_flex_flow(names, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(names, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START,
+                          LV_FLEX_ALIGN_START);
+    lv_obj_clear_flag(names, LV_OBJ_FLAG_SCROLLABLE);
+
+    for (const auto *section : sections)
+    {
+        lv_obj_t *cell = lv_obj_create(names);
+        lv_obj_set_flex_grow(cell, 1);
+        lv_obj_set_height(cell, LV_SIZE_CONTENT);
+        lv_obj_set_style_bg_opa(cell, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_border_width(cell, 0, 0);
+        lv_obj_set_style_pad_top(cell, 0, 0);
+        lv_obj_set_style_pad_bottom(cell, 0, 0);
+        lv_obj_set_style_pad_left(cell, 4, 0);
+        lv_obj_set_style_pad_right(cell, 4, 0);
+        lv_obj_clear_flag(cell, LV_OBJ_FLAG_SCROLLABLE);
+
+        lv_obj_t *label = ui_theme::make_label(
+            cell, section->name.c_str(), ui_theme::font_small,
+            UI_COLOR_TEXT_MUTED);
+        lv_obj_set_width(label, LV_PCT(100));
+        lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
+        lv_label_set_long_mode(label, LV_LABEL_LONG_MODE_WRAP);
+        s_step_labels.push_back(label);
+    }
+
+    s_step_bar = lv_bar_create(tab);
+    lv_obj_set_width(s_step_bar, LV_PCT(100));
+    lv_obj_set_height(s_step_bar, 12);
+    lv_bar_set_range(s_step_bar, 0, group_count);
+    lv_bar_set_value(s_step_bar, 1, LV_ANIM_OFF);
+    lv_obj_set_style_bg_color(s_step_bar, lv_color_hex(UI_COLOR_SURFACE_HIGHEST),
+                              LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(s_step_bar, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_radius(s_step_bar, LV_RADIUS_CIRCLE, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(s_step_bar, lv_color_hex(UI_COLOR_ACCENT),
+                              LV_PART_INDICATOR);
+    lv_obj_set_style_bg_opa(s_step_bar, LV_OPA_COVER, LV_PART_INDICATOR);
+    lv_obj_set_style_radius(s_step_bar, LV_RADIUS_CIRCLE, LV_PART_INDICATOR);
+
+    s_step_content = lv_obj_create(tab);
+    lv_obj_set_width(s_step_content, LV_PCT(100));
+    lv_obj_set_flex_grow(s_step_content, 1);
+    lv_obj_set_style_bg_opa(s_step_content, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(s_step_content, 0, 0);
+    lv_obj_set_style_pad_all(s_step_content, 0, 0);
+    lv_obj_set_style_pad_row(s_step_content, 12, 0);
+    lv_obj_set_flex_flow(s_step_content, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(s_step_content, LV_FLEX_ALIGN_START,
+                          LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+
+    lv_obj_t *pager = lv_obj_create(tab);
+    lv_obj_set_width(pager, LV_PCT(100));
+    lv_obj_set_height(pager, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(pager, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(pager, 0, 0);
+    lv_obj_set_style_pad_all(pager, 0, 0);
+    lv_obj_set_style_pad_column(pager, 24, 0);
+    lv_obj_set_flex_flow(pager, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(pager, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
+                          LV_FLEX_ALIGN_CENTER);
+    lv_obj_clear_flag(pager, LV_OBJ_FLAG_SCROLLABLE);
+
+    s_step_prev_btn = ui_theme::make_icon_button(pager, LV_SYMBOL_LEFT, 64);
+    lv_obj_set_style_opa(s_step_prev_btn, LV_OPA_40, LV_STATE_DISABLED);
+    lv_obj_add_event_cb(s_step_prev_btn, step_prev_clicked_cb, LV_EVENT_CLICKED,
+                        NULL);
+
+    s_step_page_lbl = ui_theme::make_label(pager, "", ui_theme::font_body,
+                                           UI_COLOR_TEXT_MUTED);
+    lv_obj_set_width(s_step_page_lbl, 180);
+    lv_obj_set_style_text_align(s_step_page_lbl, LV_TEXT_ALIGN_CENTER, 0);
+
+    s_step_next_btn = ui_theme::make_icon_button(pager, LV_SYMBOL_RIGHT, 64);
+    lv_obj_set_style_opa(s_step_next_btn, LV_OPA_40, LV_STATE_DISABLED);
+    lv_obj_add_event_cb(s_step_next_btn, step_next_clicked_cb, LV_EVENT_CLICKED,
+                        NULL);
+}
+
+void populate_step_by_step_tab(const Recipe &recipe)
+{
+    lv_obj_t *tab = objects.recipe_detail_steps_tab;
+    if (!valid(tab))
+        return;
+
+    std::vector<const IngredientSection *> ingredient_sections;
+    std::vector<const InstructionSection *> method_sections;
+    const bool available =
+        collect_paired_sections(recipe, ingredient_sections, method_sections);
+
+    // The tab is always the third one; hide its button when the recipe does not
+    // have matching groups so the screen keeps its usual two tabs.
+    lv_obj_t *button =
+        valid(objects.recipe_detail_tabview)
+            ? lv_tabview_get_tab_button(objects.recipe_detail_tabview, 2)
+            : nullptr;
+    if (valid(button))
+    {
+        if (available)
+            lv_obj_remove_flag(button, LV_OBJ_FLAG_HIDDEN);
+        else
+            lv_obj_add_flag(button, LV_OBJ_FLAG_HIDDEN);
+    }
+
+    lv_obj_clean(tab);
+    s_step_bar = nullptr;
+    s_step_content = nullptr;
+    s_step_page_lbl = nullptr;
+    s_step_prev_btn = nullptr;
+    s_step_next_btn = nullptr;
+    s_step_panels.clear();
+    s_step_labels.clear();
+    s_step_group = 0;
+
+    if (!available)
+        return;
+
+    build_step_pager(tab, ingredient_sections);
+
+    // Method numbering continues across groups, so the numbers match the
+    // Method tab even though only one group is visible.
+    int number = 1;
+    for (size_t i = 0; i < ingredient_sections.size(); ++i)
+    {
+        lv_obj_t *panel = lv_obj_create(s_step_content);
+        lv_obj_set_width(panel, LV_PCT(100));
+        lv_obj_set_height(panel, LV_SIZE_CONTENT);
+        lv_obj_set_style_bg_opa(panel, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_border_width(panel, 0, 0);
+        lv_obj_set_style_pad_all(panel, 0, 0);
+        lv_obj_set_style_pad_row(panel, 12, 0);
+        lv_obj_set_flex_flow(panel, LV_FLEX_FLOW_COLUMN);
+        lv_obj_clear_flag(panel, LV_OBJ_FLAG_SCROLLABLE);
+
+        add_section_title(panel, ingredient_sections[i]->name);
+        for (const auto &ingredient : ingredient_sections[i]->items)
+            add_ingredient_row(panel, ingredient);
+        for (const auto &step : method_sections[i]->steps)
+        {
+            if (step.empty())
+                continue;
+            add_method_step(panel, number++, step);
+        }
+
+        if (i > 0)
+            lv_obj_add_flag(panel, LV_OBJ_FLAG_HIDDEN);
+        s_step_panels.push_back(panel);
+    }
+
+    show_step_group();
+}
+
 void reset_hero_image(const Recipe &recipe)
 {
     diag_bc(DIAG_UI_HERO_ENTER, 0);
@@ -827,6 +1127,7 @@ void showRecipeDetailScreen(const Recipe &recipe)
 
     populate_ingredients_tab(recipe);
     populate_method_tab(recipe);
+    populate_step_by_step_tab(recipe);
 
     if (valid(objects.recipe_detail))
     {

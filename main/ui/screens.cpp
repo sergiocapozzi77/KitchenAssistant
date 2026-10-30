@@ -577,9 +577,12 @@ static void create_recipe_detail_screen()
         objects.recipe_detail_tabview, "Ingredients");
     objects.recipe_detail_method_tab = lv_tabview_add_tab(
         objects.recipe_detail_tabview, "Method");
+    objects.recipe_detail_steps_tab = lv_tabview_add_tab(
+        objects.recipe_detail_tabview, "Step by Step");
 
     for (lv_obj_t *page : {objects.recipe_detail_ingredients_tab,
-                           objects.recipe_detail_method_tab})
+                           objects.recipe_detail_method_tab,
+                           objects.recipe_detail_steps_tab})
     {
         lv_obj_set_style_pad_all(page, 24, 0);
         lv_obj_set_style_pad_row(page, 12, 0);
