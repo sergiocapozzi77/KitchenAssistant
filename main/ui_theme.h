@@ -34,6 +34,7 @@ namespace ui_theme
 extern const lv_font_t *font_display; // ext 36
 extern const lv_font_t *font_title;   // ext 26
 extern const lv_font_t *font_body;    // ext 18
+extern const lv_font_t *font_recipe_body; // built-in 20
 extern const lv_font_t *font_small;   // built-in 16
 extern const lv_font_t *font_icon;    // built-in 26, carries LV_SYMBOL_*
 extern const lv_font_t *font_icon_small;

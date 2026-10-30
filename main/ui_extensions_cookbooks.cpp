@@ -331,7 +331,7 @@ void add_ingredient_row(lv_obj_t *parent, const Ingredient &ingredient)
     lv_obj_center(tick);
 
     lv_obj_t *label = ui_theme::make_label(
-        row, ingredient_text(ingredient).c_str(), ui_theme::font_body,
+        row, ingredient_text(ingredient).c_str(), ui_theme::font_recipe_body,
         UI_COLOR_TEXT_PRIMARY);
     lv_obj_set_flex_grow(label, 1);
     lv_label_set_long_mode(label, LV_LABEL_LONG_MODE_WRAP);
@@ -350,7 +350,8 @@ void add_section_title(lv_obj_t *parent, const std::string &name)
                          UI_COLOR_TEXT_SECONDARY);
 }
 
-void add_method_step(lv_obj_t *parent, int number, const std::string &step)
+void add_method_step(lv_obj_t *parent, int number, const std::string &step,
+                     bool numbered = true, int top_margin = 0)
 {
     lv_obj_t *row = lv_obj_create(parent);
     lv_obj_set_width(row, LV_PCT(100));
@@ -359,18 +360,34 @@ void add_method_step(lv_obj_t *parent, int number, const std::string &step)
     lv_obj_set_style_border_width(row, 0, 0);
     lv_obj_set_style_pad_all(row, 0, 0);
     lv_obj_set_style_pad_column(row, 12, 0);
+    if (top_margin > 0)
+        lv_obj_set_style_margin_top(row, top_margin, 0);
     lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START,
                           LV_FLEX_ALIGN_START);
     lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_obj_t *number_lbl = ui_theme::make_label(
-        row, std::to_string(number).c_str(), ui_theme::font_title,
-        UI_COLOR_ACCENT);
-    lv_obj_set_width(number_lbl, 40);
+    if (numbered)
+    {
+        lv_obj_t *number_lbl = ui_theme::make_label(
+            row, std::to_string(number).c_str(), ui_theme::font_title,
+            UI_COLOR_ACCENT);
+        lv_obj_set_width(number_lbl, 40);
+    }
+    else
+    {
+        lv_obj_t *bullet = lv_obj_create(row);
+        lv_obj_set_size(bullet, 10, 10);
+        lv_obj_set_style_radius(bullet, LV_RADIUS_CIRCLE, 0);
+        lv_obj_set_style_bg_color(bullet, lv_color_hex(UI_COLOR_ACCENT), 0);
+        lv_obj_set_style_bg_opa(bullet, LV_OPA_COVER, 0);
+        lv_obj_set_style_border_width(bullet, 0, 0);
+        lv_obj_set_style_margin_top(bullet, 7, 0);
+        lv_obj_clear_flag(bullet, LV_OBJ_FLAG_SCROLLABLE);
+    }
 
     lv_obj_t *text = ui_theme::make_label(
-        row, step.c_str(), ui_theme::font_body, UI_COLOR_TEXT_PRIMARY);
+        row, step.c_str(), ui_theme::font_recipe_body, UI_COLOR_TEXT_PRIMARY);
     lv_obj_set_flex_grow(text, 1);
     lv_label_set_long_mode(text, LV_LABEL_LONG_MODE_WRAP);
 }
@@ -730,11 +747,14 @@ void populate_step_by_step_tab(const Recipe &recipe)
         add_section_title(panel, ingredient_sections[i]->name);
         for (const auto &ingredient : ingredient_sections[i]->items)
             add_ingredient_row(panel, ingredient);
+        bool first_step = true;
         for (const auto &step : method_sections[i]->steps)
         {
             if (step.empty())
                 continue;
-            add_method_step(panel, number++, step);
+            add_method_step(panel, number++, step, false,
+                            first_step ? 20 : 0);
+            first_step = false;
         }
 
         if (i > 0)
