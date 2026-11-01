@@ -245,12 +245,17 @@ static void create_cookbooks_tab(lv_obj_t *tab)
     lv_obj_set_flex_flow(header, LV_FLEX_FLOW_COLUMN);
 
     lv_obj_t *title_row = make_row(header, 72);
+    lv_obj_set_style_pad_column(title_row, 12, 0);
     objects.cookbooks_title_lbl = ui_theme::make_label(
         title_row, "Cookbooks", ui_theme::font_display, UI_COLOR_TEXT_PRIMARY);
     lv_obj_set_flex_grow(objects.cookbooks_title_lbl, 1);
     objects.cookbooks_reload_btn = ui_theme::make_icon_button(
         title_row, LV_SYMBOL_REFRESH, 72);
     lv_obj_add_event_cb(objects.cookbooks_reload_btn, action_cookbooks_reload,
+                        LV_EVENT_CLICKED, NULL);
+    objects.cookbooks_sleep_btn = ui_theme::make_icon_button(
+        title_row, LV_SYMBOL_POWER, 72);
+    lv_obj_add_event_cb(objects.cookbooks_sleep_btn, action_device_sleep,
                         LV_EVENT_CLICKED, NULL);
 
     objects.cookbooks_list = lv_obj_create(tab);

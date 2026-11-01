@@ -11,6 +11,7 @@ public:
     void sleep();
     void wake();
     void sleepWithoutWake(); ///< Like sleep() but suppresses wake from lingering touch samples
+    void sleepUntilTouch();  ///< Light sleep with the display off; touch INT wakes the chip
     void onTouch();          // call from touch_read_cb on every press
     bool isSleeping() const { return _sleeping; }
 

@@ -18,6 +18,9 @@ void action_product_qty_minus(lv_event_t *e);
 void action_product_qty_plus(lv_event_t *e);
 void action_settings_wifi(lv_event_t *e);
 
+// Puts the device into touch-wake sleep (display off, CPU halted).
+void action_device_sleep(lv_event_t *e);
+
 // Cookbooks and recipes
 void action_cookbooks_reload(lv_event_t *e);
 void action_cookbooks_prev(lv_event_t *e);

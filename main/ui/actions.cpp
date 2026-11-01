@@ -6,6 +6,7 @@
 #include "RecipesManager.h"
 #include "WiFiManager.h"
 #include "WiFiSettingsUI.h"
+#include "display_sleep.h"
 #include "screens.h"
 #include "thumbnail_manager.h"
 #include "ui_extensions.h"
@@ -421,6 +422,13 @@ void request_cookbooks_load()
         s_cookbooks_running.store(false);
         showSnackbar("Couldn't load cookbooks", 3000);
     }
+}
+
+void action_device_sleep(lv_event_t *)
+{
+    // Defer: the screen goes dark only after the button event has been
+    // handled and the finger has had time to lift (see sleepUntilTouch).
+    lv_async_call([](void *) { g_display_sleep.sleepUntilTouch(); }, nullptr);
 }
 
 void action_cookbooks_reload(lv_event_t *)

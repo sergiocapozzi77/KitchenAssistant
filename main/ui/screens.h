@@ -62,6 +62,7 @@ typedef struct objects_t
     lv_obj_t *cookbooks_list;
     lv_obj_t *cookbooks_title_lbl;
     lv_obj_t *cookbooks_reload_btn;
+    lv_obj_t *cookbooks_sleep_btn;
     lv_obj_t *cookbooks_pager;
     lv_obj_t *cookbooks_prev_btn;
     lv_obj_t *cookbooks_page_lbl;

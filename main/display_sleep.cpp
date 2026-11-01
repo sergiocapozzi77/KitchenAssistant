@@ -1,6 +1,11 @@
 #include "display_sleep.h"
 #include "esp_log.h"
-#include "bsp/esp-bsp.h" // for bsp_display_backlight_on/off
+#include "esp_sleep.h"
+#include "driver/gpio.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "bsp/esp-bsp.h"                    // for bsp_display_backlight_on/off
+#include "bsp/esp32_p4_function_ev_board.h" // for BSP_LCD_TOUCH_INT
 
 static const char *TAG = "DisplaySleep";
 
@@ -43,6 +48,47 @@ void DisplaySleep::sleepWithoutWake()
     lv_timer_set_repeat_count(t, 1);
 
     ESP_LOGI(TAG, "sleeping (explicit — wake suppressed for 500ms)");
+}
+
+void DisplaySleep::sleepUntilTouch()
+{
+    if (_sleeping)
+        return;
+    _sleeping = true;
+    _explicit_sleep = false;
+    lv_timer_pause(_timer);
+
+    bsp_display_backlight_off();
+    ESP_LOGI(TAG, "sleeping (light sleep, wake on touch)");
+
+    if (BSP_LCD_TOUCH_INT == GPIO_NUM_NC)
+    {
+        // No touch interrupt on this panel — behave like a normal display
+        // sleep; the touch read callback will wake us.
+        ESP_LOGW(TAG, "no touch interrupt wired, display sleep only");
+        return;
+    }
+
+    // Let the finger lift before arming the wake source, otherwise the touch
+    // that pressed the button would immediately wake the chip again.
+    vTaskDelay(pdMS_TO_TICKS(300));
+
+    // The GSL3680 asserts INT LOW while the panel is touched.
+    esp_err_t err = gpio_wakeup_enable(BSP_LCD_TOUCH_INT, GPIO_INTR_LOW_LEVEL);
+    if (err == ESP_OK)
+        err = esp_sleep_enable_gpio_wakeup();
+    if (err != ESP_OK)
+    {
+        // Without a wake source light sleep would never return, so stay in
+        // display sleep and let the touch input callback wake us instead.
+        ESP_LOGE(TAG, "touch wake setup failed: %s", esp_err_to_name(err));
+        return;
+    }
+
+    esp_light_sleep_start();
+
+    wake();
+    ESP_LOGI(TAG, "woke from light sleep");
 }
 
 void DisplaySleep::wake()

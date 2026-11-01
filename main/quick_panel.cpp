@@ -1,11 +1,9 @@
 #include "quick_panel.h"
 #include "display_sleep.h"
 #include "esp_log.h"
-#include "esp_sleep.h"
 #include "nvs_flash.h"
 #include "nvs.h"
 #include "bsp/display.h"
-#include "bsp/esp32_p4_function_ev_board.h"
 #include <algorithm>
 
 static const char *TAG = "QuickPanel";
@@ -72,23 +70,7 @@ void QuickPanel::onDeepSleepClick(lv_event_t *e)
                   {
         auto *qp = static_cast<QuickPanel *>(d);
         qp->hide();
-        g_display_sleep.sleep(); // sets sleeping flag + backlight off
-        vTaskDelay(pdMS_TO_TICKS(300)); // let finger lift before sleeping
-
-        ESP_LOGI(TAG, "Entering light sleep (wake on touch)...");
-
-        // Configure touch INT (GPIO 21) as wake source for light sleep.
-        // GSL3680 asserts INT LOW when the screen is touched.
-        gpio_wakeup_enable(BSP_LCD_TOUCH_INT, GPIO_INTR_LOW_LEVEL);
-        esp_sleep_enable_gpio_wakeup();
-
-        esp_light_sleep_start();
-
-        // Woke up — restore display immediately instead of waiting for a
-        // second touch to flow through wrappedTouchReadCb → onTouch().
-        g_display_sleep.wake();
-
-        ESP_LOGI(TAG, "Woke from light sleep");
+        g_display_sleep.sleepUntilTouch();
     }, self);
 }
 
