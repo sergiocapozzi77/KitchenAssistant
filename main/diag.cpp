@@ -630,13 +630,13 @@ static void diagHeartbeatTask(void *arg)
         // mutex, so the surviving core still reports if the other one stopped
         // while holding that mutex. The ROM printf has no long-long support,
         // hence the plain int/unsigned casts for every argument.
-        ESP_EARLY_LOGW("HB", "core%d dt=%dms tick0=+%u tick1=+%u (total %u/%u) int=%u/%u psram=%u",
-                       core, (int)((now_us - prev_us) / 1000),
-                       (unsigned)(tick0 - prev_tick[0]),
-                       (unsigned)(tick1 - prev_tick[1]),
-                       (unsigned)tick0, (unsigned)tick1,
-                       (unsigned)int_free, (unsigned)int_largest,
-                       (unsigned)psram_free);
+        // ESP_EARLY_LOGW("HB", "core%d dt=%dms tick0=+%u tick1=+%u (total %u/%u) int=%u/%u psram=%u",
+        //                core, (int)((now_us - prev_us) / 1000),
+        //                (unsigned)(tick0 - prev_tick[0]),
+        //                (unsigned)(tick1 - prev_tick[1]),
+        //                (unsigned)tick0, (unsigned)tick1,
+        //                (unsigned)int_free, (unsigned)int_largest,
+        //                (unsigned)psram_free);
 
         prev_us = now_us;
         prev_tick[0] = tick0;
@@ -1933,9 +1933,9 @@ typedef struct
 static diag_lvgl_tree_frame_t s_lvgl_tree_stack[DIAG_LVGL_TREE_DEPTH];
 
 [[noreturn]] static void diag_lvgl_tree_fail(const char *reason,
-                                              const lv_obj_t *parent,
-                                              uint32_t child_index,
-                                              const void *value)
+                                             const lv_obj_t *parent,
+                                             uint32_t child_index,
+                                             const void *value)
 {
     ESP_LOGE(TAG, "LVGL object tree invalid: %s parent=%p child[%u]=%p",
              reason, (const void *)parent, (unsigned)child_index, value);
