@@ -1,7 +1,13 @@
+# WHOLE_ARCHIVE: lv_mem_custom.cpp supplies LVGL's allocator hooks
+# (lv_malloc_core, lv_mem_init, ...). The generated link line scans libmain.a
+# once but liblvgl__lvgl.a several times, and the LVGL copy scanned after
+# libmain.a pulls lv_init.c.obj / lv_mem.c.obj, which reference those hooks.
+# Without --whole-archive those references go unresolved at the final link.
 idf_component_register(
     SRCS
         main.cpp
         app.cpp
+        lv_mem_custom.cpp
         diag.cpp
         SupabaseClient.cpp
         ProductService.cpp
@@ -48,7 +54,8 @@ idf_component_register(
         ui/ui_image_snacks.c
     INCLUDE_DIRS
     .
-    ui)
+    ui
+    WHOLE_ARCHIVE)
 
 idf_component_get_property(LVGL_LIB lvgl__lvgl COMPONENT_LIB)
 target_compile_options(
@@ -56,32 +63,3 @@ target_compile_options(
     PRIVATE
         -DLV_LVGL_H_INCLUDE_SIMPLE
 )
-
-# Diagnostic: route every esp_cache_msync() call through __wrap_esp_cache_msync
-# in diag.cpp so the next post-mortem shows whether the freeze happened inside
-# a cache writeback (and how long those interrupts-off windows get). The
-# esp_restart entries are wrapped for the same reason: an ESP_RST_SW boot is a
-# deliberate software reset, and their wrappers record the calling PC.
-#
-# xt_unhandled_exception is the port entry for synchronous faults; its wrapper
-# copies the full trap frame, the faulting task identity and a window of its
-# stack into RTC RAM before the panic handler can wedge. The three panic.c
-# entry points are wrapped to record how far the panic path got before a reset
-# (RTC WDT armed, TIMG WDTs disabled, system panic handler reached).
-target_link_options(${COMPONENT_LIB} INTERFACE
-    "-Wl,--wrap=esp_cache_msync"
-    "-Wl,--wrap=esp_restart"
-    "-Wl,--wrap=esp_restart_noos"
-    "-Wl,--wrap=esp_panic_handler_increment_entry_count"
-    "-Wl,--wrap=xt_unhandled_exception"
-    "-Wl,--wrap=esp_panic_handler_enable_rtc_wdt"
-    "-Wl,--wrap=esp_panic_handler_disable_timg_wdts"
-    "-Wl,--wrap=esp_panic_handler"
-    # The blend guard needs to see every LVGL draw buffer from the moment it is
-    # created, and every software blend before it stores pixels. See blendGuard
-    # in diag.cpp.
-    "-Wl,--wrap=lv_draw_buf_init"
-    "-Wl,--wrap=lv_draw_buf_create"
-    "-Wl,--wrap=lv_draw_buf_create_ex"
-    "-Wl,--wrap=lv_draw_buf_destroy"
-    "-Wl,--wrap=lv_draw_sw_blend")

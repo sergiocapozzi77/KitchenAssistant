@@ -83,7 +83,7 @@ void clear_child_clicks(lv_obj_t *obj)
     for (uint32_t i = 0; i < count; i++)
     {
         lv_obj_t *child = lv_obj_get_child(obj, i);
-        lv_obj_remove_flag(child, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_clickable(child, false);
         clear_child_clicks(child);
     }
 }
@@ -118,8 +118,8 @@ void add_empty_state(lv_obj_t *root, const char *title, const char *subtitle)
     lv_obj_set_flex_flow(empty, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(empty, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
                           LV_FLEX_ALIGN_CENTER);
-    lv_obj_remove_flag(empty, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_clear_flag(empty, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_clickable(empty, false);
+    lv_obj_set_scrollable(empty, false);
 
     ui_theme::make_label(empty, title, ui_theme::font_title,
                          UI_COLOR_TEXT_PRIMARY);
@@ -143,8 +143,8 @@ void add_cookbook_card(lv_obj_t *parent, const Cookbook &cookbook)
     lv_obj_set_style_pad_all(card, 0, 0);
     lv_obj_set_style_clip_corner(card, true, 0);
     lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
-    lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(card, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_scrollable(card, false);
+    lv_obj_set_clickable(card, true);
 
     // The cover size doubles as the Supabase render size, so a smaller card
     // also downloads a smaller image.
@@ -162,7 +162,7 @@ void add_cookbook_card(lv_obj_t *parent, const Cookbook &cookbook)
     lv_obj_set_style_pad_all(info, 12, 0);
     lv_obj_set_style_pad_row(info, 6, 0);
     lv_obj_set_flex_flow(info, LV_FLEX_FLOW_COLUMN);
-    lv_obj_clear_flag(info, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(info, false);
 
     lv_obj_t *name = ui_theme::make_label(
         info, cookbook.name.c_str(), ui_theme::font_title,
@@ -195,8 +195,8 @@ void add_recipe_card(lv_obj_t *parent, const Recipe &recipe)
     lv_obj_set_style_pad_column(card, 0, 0);
     lv_obj_set_style_clip_corner(card, true, 0);
     lv_obj_set_flex_flow(card, LV_FLEX_FLOW_ROW);
-    lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(card, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_scrollable(card, false);
+    lv_obj_set_clickable(card, true);
 
     lv_obj_t *image = lv_image_create(card);
     lv_obj_set_size(image, kRecipeImageW, kRecipeImageH);
@@ -212,7 +212,7 @@ void add_recipe_card(lv_obj_t *parent, const Recipe &recipe)
     lv_obj_set_style_pad_all(info, 20, 0);
     lv_obj_set_style_pad_row(info, 10, 0);
     lv_obj_set_flex_flow(info, LV_FLEX_FLOW_COLUMN);
-    lv_obj_clear_flag(info, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(info, false);
 
     lv_obj_t *title = ui_theme::make_label(
         info, recipe.name.c_str(), ui_theme::font_title,
@@ -232,7 +232,7 @@ void add_recipe_card(lv_obj_t *parent, const Recipe &recipe)
     lv_obj_set_style_pad_all(meta, 0, 0);
     lv_obj_set_style_pad_column(meta, 8, 0);
     lv_obj_set_flex_flow(meta, LV_FLEX_FLOW_ROW);
-    lv_obj_clear_flag(meta, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(meta, false);
 
     add_badge_if_present(meta, recipe.totalTime, UI_COLOR_TIME_BG,
                          UI_COLOR_TIME_TEXT);
@@ -277,9 +277,9 @@ void apply_check_row(CheckRowState *state)
                                     : UI_COLOR_FILTER_STROKE),
         0);
     if (state->checked)
-        lv_obj_remove_flag(state->tick, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(state->tick, false);
     else
-        lv_obj_add_flag(state->tick, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(state->tick, true);
 
     lv_obj_set_style_text_decor(
         state->label,
@@ -312,8 +312,8 @@ void add_ingredient_row(lv_obj_t *parent, const Ingredient &ingredient)
     lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
                           LV_FLEX_ALIGN_CENTER);
-    lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_scrollable(row, false);
+    lv_obj_set_clickable(row, true);
 
     lv_obj_t *box = lv_obj_create(row);
     lv_obj_set_size(box, 32, 32);
@@ -323,8 +323,8 @@ void add_ingredient_row(lv_obj_t *parent, const Ingredient &ingredient)
     lv_obj_set_style_border_width(box, 2, 0);
     lv_obj_set_style_border_color(box, lv_color_hex(UI_COLOR_FILTER_STROKE),
                                   0);
-    lv_obj_clear_flag(box, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_remove_flag(box, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_scrollable(box, false);
+    lv_obj_set_clickable(box, false);
 
     lv_obj_t *tick = ui_theme::make_label(box, LV_SYMBOL_OK,
                                           ui_theme::font_icon_small, 0xFFFFFF);
@@ -365,7 +365,7 @@ void add_method_step(lv_obj_t *parent, int number, const std::string &step,
     lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START,
                           LV_FLEX_ALIGN_START);
-    lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(row, false);
 
     if (numbered)
     {
@@ -383,7 +383,7 @@ void add_method_step(lv_obj_t *parent, int number, const std::string &step,
         lv_obj_set_style_bg_opa(bullet, LV_OPA_COVER, 0);
         lv_obj_set_style_border_width(bullet, 0, 0);
         lv_obj_set_style_margin_top(bullet, 7, 0);
-        lv_obj_clear_flag(bullet, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(bullet, false);
     }
 
     lv_obj_t *text = ui_theme::make_label(
@@ -544,9 +544,9 @@ void show_step_group()
         if (!valid(s_step_panels[i]))
             continue;
         if (i == s_step_group)
-            lv_obj_remove_flag(s_step_panels[i], LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(s_step_panels[i], false);
         else
-            lv_obj_add_flag(s_step_panels[i], LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(s_step_panels[i], true);
     }
 
     if (valid(s_step_bar))
@@ -600,7 +600,7 @@ void build_step_pager(lv_obj_t *tab,
 
     // The page itself must not scroll: the group content sits between a fixed
     // progress bar and a fixed pager row.
-    lv_obj_clear_flag(tab, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(tab, false);
 
     // Each group name sits over its equal slice of the progress bar below.
     lv_obj_t *names = lv_obj_create(tab);
@@ -612,7 +612,7 @@ void build_step_pager(lv_obj_t *tab,
     lv_obj_set_flex_flow(names, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(names, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START,
                           LV_FLEX_ALIGN_START);
-    lv_obj_clear_flag(names, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(names, false);
 
     for (const auto *section : sections)
     {
@@ -625,7 +625,7 @@ void build_step_pager(lv_obj_t *tab,
         lv_obj_set_style_pad_bottom(cell, 0, 0);
         lv_obj_set_style_pad_left(cell, 4, 0);
         lv_obj_set_style_pad_right(cell, 4, 0);
-        lv_obj_clear_flag(cell, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(cell, false);
 
         lv_obj_t *label = ui_theme::make_label(
             cell, section->name.c_str(), ui_theme::font_small,
@@ -671,7 +671,7 @@ void build_step_pager(lv_obj_t *tab,
     lv_obj_set_flex_flow(pager, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(pager, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
                           LV_FLEX_ALIGN_CENTER);
-    lv_obj_clear_flag(pager, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(pager, false);
 
     s_step_prev_btn = ui_theme::make_icon_button(pager, LV_SYMBOL_LEFT, 64);
     lv_obj_set_style_opa(s_step_prev_btn, LV_OPA_40, LV_STATE_DISABLED);
@@ -709,9 +709,9 @@ void populate_step_by_step_tab(const Recipe &recipe)
     if (valid(button))
     {
         if (available)
-            lv_obj_remove_flag(button, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(button, false);
         else
-            lv_obj_add_flag(button, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(button, true);
     }
 
     lv_obj_clean(tab);
@@ -742,7 +742,7 @@ void populate_step_by_step_tab(const Recipe &recipe)
         lv_obj_set_style_pad_all(panel, 0, 0);
         lv_obj_set_style_pad_row(panel, 12, 0);
         lv_obj_set_flex_flow(panel, LV_FLEX_FLOW_COLUMN);
-        lv_obj_clear_flag(panel, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(panel, false);
 
         add_section_title(panel, ingredient_sections[i]->name);
         for (const auto &ingredient : ingredient_sections[i]->items)
@@ -758,7 +758,7 @@ void populate_step_by_step_tab(const Recipe &recipe)
         }
 
         if (i > 0)
-            lv_obj_add_flag(panel, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(panel, true);
         s_step_panels.push_back(panel);
     }
 
@@ -804,10 +804,9 @@ void set_spinner_visible(bool visible)
     if (!valid(objects.cookbook_detail_spinner))
         return;
     if (visible)
-        lv_obj_remove_flag(objects.cookbook_detail_spinner,
-                           LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(objects.cookbook_detail_spinner, false);
     else
-        lv_obj_add_flag(objects.cookbook_detail_spinner, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(objects.cookbook_detail_spinner, true);
 }
 
 void set_detail_list_visible(bool visible)
@@ -815,16 +814,15 @@ void set_detail_list_visible(bool visible)
     if (valid(objects.cookbook_detail_list))
     {
         if (visible)
-            lv_obj_remove_flag(objects.cookbook_detail_list,
-                               LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(objects.cookbook_detail_list, false);
         else
-            lv_obj_add_flag(objects.cookbook_detail_list, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(objects.cookbook_detail_list, true);
     }
 
     // The pager only makes sense alongside the list; update_recipe_pager()
     // re-shows it when the loaded cookbook spans more than one page.
     if (!visible && valid(objects.cookbook_detail_pager))
-        lv_obj_add_flag(objects.cookbook_detail_pager, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(objects.cookbook_detail_pager, true);
 }
 
 void set_detail_state(const char *text, bool show_retry)
@@ -834,24 +832,20 @@ void set_detail_state(const char *text, bool show_retry)
         if (text && text[0])
         {
             lv_label_set_text(objects.cookbook_detail_state_lbl, text);
-            lv_obj_remove_flag(objects.cookbook_detail_state_lbl,
-                               LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(objects.cookbook_detail_state_lbl, false);
         }
         else
         {
-            lv_obj_add_flag(objects.cookbook_detail_state_lbl,
-                            LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(objects.cookbook_detail_state_lbl, true);
         }
     }
 
     if (valid(objects.cookbook_detail_retry_btn))
     {
         if (show_retry)
-            lv_obj_remove_flag(objects.cookbook_detail_retry_btn,
-                               LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(objects.cookbook_detail_retry_btn, false);
         else
-            lv_obj_add_flag(objects.cookbook_detail_retry_btn,
-                            LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(objects.cookbook_detail_retry_btn, true);
     }
 }
 
@@ -870,9 +864,9 @@ void update_cookbook_pager(int page_count)
     if (valid(objects.cookbooks_pager))
     {
         if (page_count > 1)
-            lv_obj_remove_flag(objects.cookbooks_pager, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(objects.cookbooks_pager, false);
         else
-            lv_obj_add_flag(objects.cookbooks_pager, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(objects.cookbooks_pager, true);
     }
 
     if (valid(objects.cookbooks_page_lbl))
@@ -892,11 +886,9 @@ void update_recipe_pager(int page_count)
     if (valid(objects.cookbook_detail_pager))
     {
         if (page_count > 1)
-            lv_obj_remove_flag(objects.cookbook_detail_pager,
-                               LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(objects.cookbook_detail_pager, false);
         else
-            lv_obj_add_flag(objects.cookbook_detail_pager,
-                            LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(objects.cookbook_detail_pager, true);
     }
 
     if (valid(objects.cookbook_detail_page_lbl))
@@ -923,7 +915,7 @@ void populateCookbooksUi()
     {
         lv_obj_clean(objects.cookbooks_list);
         if (valid(objects.cookbooks_pager))
-            lv_obj_add_flag(objects.cookbooks_pager, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(objects.cookbooks_pager, true);
         return;
     }
 
@@ -986,7 +978,7 @@ void showCookbookDetail(const std::string &cookbookId)
     s_cookbook_detail_page = 0;
 
     if (valid(objects.cookbook_detail_pager))
-        lv_obj_add_flag(objects.cookbook_detail_pager, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(objects.cookbook_detail_pager, true);
 
     Cookbook cookbook;
     const bool known = cookbooksManager.getCookbook(cookbookId, cookbook);
@@ -1027,7 +1019,7 @@ void populateCookbookRecipesUi(const std::string &cookbookId)
     {
         lv_obj_clean(objects.cookbook_detail_list);
         if (valid(objects.cookbook_detail_pager))
-            lv_obj_add_flag(objects.cookbook_detail_pager, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(objects.cookbook_detail_pager, true);
         set_spinner_visible(false);
         set_detail_list_visible(false);
         return;
@@ -1148,11 +1140,9 @@ void showRecipeDetailScreen(const Recipe &recipe)
     {
         lv_label_set_text(objects.recipe_detail_source_lbl, source.c_str());
         if (source.empty())
-            lv_obj_add_flag(objects.recipe_detail_source_lbl,
-                            LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(objects.recipe_detail_source_lbl, true);
         else
-            lv_obj_remove_flag(objects.recipe_detail_source_lbl,
-                               LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(objects.recipe_detail_source_lbl, false);
     }
 
     if (valid(objects.recipe_detail_time_lbl))

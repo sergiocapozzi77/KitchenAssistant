@@ -9,7 +9,11 @@ set(srcs "src/esp_video_buffer.c"
 set(include_dirs "include")
 set(priv_include_dirs "private_include")
 set(priv_requires "vfs")
-set(requires "esp_driver_cam" "esp_driver_isp" "esp_cam_sensor" "esp_h264" "esp_driver_jpeg")
+# esp_driver_gpio / esp_driver_i2c: esp_video_init.c includes driver/gpio.h
+# and esp_video_init.h includes driver/i2c_master.h. ESP-IDF v6 no longer
+# re-exports these through the legacy `driver` component (esp_driver_cam and
+# esp_driver_isp only list gpio in PRIV_REQUIRES).
+set(requires "esp_driver_cam" "esp_driver_isp" "esp_cam_sensor" "esp_h264" "esp_driver_jpeg" "esp_driver_gpio" "esp_driver_i2c")
 
 if(CONFIG_ESP_VIDEO_ENABLE_MIPI_CSI_VIDEO_DEVICE)
     list(APPEND srcs "src/device/esp_video_csi_device.c")

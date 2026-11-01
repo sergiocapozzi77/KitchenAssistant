@@ -50,8 +50,8 @@ void QuickPanel::animateTo(int32_t target_y, bool hide_when_done)
 void QuickPanel::onAnimDone(lv_anim_t *a)
 {
     auto *self = static_cast<QuickPanel *>(lv_anim_get_user_data(a));
-    lv_obj_add_flag(self->_panel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(self->_scrim, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(self->_panel, true);
+    lv_obj_set_hidden(self->_scrim, true);
     self->_visible = false;
 }
 
@@ -103,8 +103,8 @@ void QuickPanel::show()
     if (_visible)
         return;
     _visible = true;
-    lv_obj_clear_flag(_scrim, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(_panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(_scrim, false);
+    lv_obj_set_hidden(_panel, false);
     lv_obj_set_style_bg_opa(_scrim, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_y(_panel, -PANEL_H);
     animateTo(0, false);
@@ -332,7 +332,7 @@ void QuickPanel::buildUI()
     lv_obj_set_pos(_scrim, 0, 0);
     lv_obj_set_style_bg_color(_scrim, lv_color_hex(0x000000), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(_scrim, LV_OPA_30, LV_PART_MAIN);
-    lv_obj_add_flag(_scrim, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(_scrim, true);
     lv_obj_add_event_cb(_scrim, [](lv_event_t *e)
                         { static_cast<QuickPanel *>(lv_event_get_user_data(e))->hide(); }, LV_EVENT_CLICKED, this);
 
@@ -356,14 +356,14 @@ void QuickPanel::buildUI()
     lv_obj_set_flex_flow(_panel, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(
         _panel, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);
-    lv_obj_clear_flag(_panel, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(_panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_scrollable(_panel, false);
+    lv_obj_set_hidden(_panel, true);
 
     // ── drag handle pill ──────────────────────────────────────────────
     lv_obj_t *handle_wrap = lv_obj_create(_panel);
     lv_obj_remove_style_all(handle_wrap);
     lv_obj_set_size(handle_wrap, LV_PCT(100), 22);
-    lv_obj_clear_flag(handle_wrap, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(handle_wrap, false);
 
     _handle = lv_obj_create(handle_wrap);
     lv_obj_remove_style_all(_handle);
@@ -381,7 +381,7 @@ void QuickPanel::buildUI()
     lv_obj_set_flex_flow(status, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(
         status, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_clear_flag(status, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(status, false);
 
     _bat_label = lv_label_create(status);
     lv_label_set_text(_bat_label, LV_SYMBOL_BATTERY_FULL "  --%");
@@ -411,7 +411,7 @@ void QuickPanel::buildUI()
     lv_obj_set_flex_align(
         tiles, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_column(tiles, 16, LV_PART_MAIN);
-    lv_obj_clear_flag(tiles, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(tiles, false);
 
     auto makeTile = [&](const char *sym, const char *label_text,
                         lv_event_cb_t cb, uint32_t accent_hex)
@@ -434,7 +434,7 @@ void QuickPanel::buildUI()
         lv_obj_set_flex_align(
             tile, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
         lv_obj_set_style_pad_row(tile, 6, LV_PART_MAIN);
-        lv_obj_clear_flag(tile, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(tile, false);
         if (cb)
             lv_obj_add_event_cb(tile, cb, LV_EVENT_CLICKED, this);
 
@@ -464,7 +464,7 @@ void QuickPanel::buildUI()
     lv_obj_set_flex_align(
         bright_row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_column(bright_row, 14, LV_PART_MAIN);
-    lv_obj_clear_flag(bright_row, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(bright_row, false);
 
     lv_obj_t *sun_label = lv_label_create(bright_row);
     lv_label_set_text(sun_label, LV_SYMBOL_IMAGE);

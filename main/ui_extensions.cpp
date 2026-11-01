@@ -70,7 +70,7 @@ static void hide_snackbar_cb(lv_timer_t *)
 {
     s_snackbar_timer = nullptr;
     if (objects.snackbar && lv_obj_is_valid(objects.snackbar))
-        lv_obj_add_flag(objects.snackbar, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(objects.snackbar, true);
 }
 
 void showSnackbar(const char *message, int duration_ms)
@@ -85,7 +85,7 @@ void showSnackbar(const char *message, int duration_ms)
     }
 
     lv_label_set_text(objects.snackbar_text, message);
-    lv_obj_clear_flag(objects.snackbar, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(objects.snackbar, false);
     lv_obj_move_foreground(objects.snackbar);
 
     if (s_snackbar_timer)
@@ -98,7 +98,7 @@ void showSpinner()
 {
     if (!objects.spinner || !lv_obj_is_valid(objects.spinner))
         return;
-    lv_obj_clear_flag(objects.spinner, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(objects.spinner, false);
     lv_obj_move_foreground(objects.spinner);
 }
 
@@ -106,5 +106,5 @@ void hideSpinner()
 {
     if (!objects.spinner || !lv_obj_is_valid(objects.spinner))
         return;
-    lv_obj_add_flag(objects.spinner, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(objects.spinner, true);
 }

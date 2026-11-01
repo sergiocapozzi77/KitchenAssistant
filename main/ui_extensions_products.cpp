@@ -200,17 +200,17 @@ void group_toggle_cb(lv_event_t *event)
     if (!ctx || !ctx->content || !lv_obj_is_valid(ctx->content))
         return;
 
-    bool is_collapsed = lv_obj_has_flag(ctx->content, LV_OBJ_FLAG_HIDDEN);
+    bool is_collapsed = lv_obj_is_hidden(ctx->content);
     if (is_collapsed)
     {
-        lv_obj_clear_flag(ctx->content, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(ctx->content, false);
         s_collapsed.erase(ctx->key);
         if (ctx->chevron)
             lv_label_set_text(ctx->chevron, LV_SYMBOL_UP);
     }
     else
     {
-        lv_obj_add_flag(ctx->content, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(ctx->content, true);
         s_collapsed.insert(ctx->key);
         if (ctx->chevron)
             lv_label_set_text(ctx->chevron, LV_SYMBOL_DOWN);
@@ -259,7 +259,7 @@ lv_obj_t *make_product_row(lv_obj_t *parent, const Product &product, int days)
     lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START,
                           LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(row, true);
 
     Product *row_product = new Product(product);
     lv_obj_add_event_cb(row, edit_product_cb, LV_EVENT_CLICKED, row_product);
@@ -315,7 +315,7 @@ void add_group(lv_obj_t *root, const std::string &category,
     lv_obj_set_flex_flow(header, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(header, LV_FLEX_ALIGN_SPACE_BETWEEN,
                           LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_add_flag(header, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(header, true);
 
     std::string title = upper + "  " LV_SYMBOL_BULLET "  " +
                         std::to_string(products.size()) +
@@ -338,7 +338,7 @@ void add_group(lv_obj_t *root, const std::string &category,
     bool collapsed = s_collapsed.count(category) > 0;
     if (collapsed)
     {
-        lv_obj_add_flag(content, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(content, true);
         lv_label_set_text(chevron, LV_SYMBOL_DOWN);
     }
 
@@ -527,19 +527,19 @@ void open_product_edit_modal(const Product &product)
     adjust_product_modal_quantity(0);
 
     if (objects.keyboard)
-        lv_obj_add_flag(objects.keyboard, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(objects.keyboard, true);
     if (objects.product_edit_save_btn)
         lv_obj_clear_state(objects.product_edit_save_btn, LV_STATE_DISABLED);
-    lv_obj_clear_flag(objects.product_edit_modal, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(objects.product_edit_modal, false);
     lv_obj_move_foreground(objects.product_edit_modal);
 }
 
 void close_product_edit_modal()
 {
     if (objects.product_edit_modal && lv_obj_is_valid(objects.product_edit_modal))
-        lv_obj_add_flag(objects.product_edit_modal, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(objects.product_edit_modal, true);
     if (objects.keyboard)
-        lv_obj_add_flag(objects.keyboard, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(objects.keyboard, true);
     delete s_modal;
     s_modal = nullptr;
 }

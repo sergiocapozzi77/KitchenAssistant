@@ -33,6 +33,24 @@ namespace thumbnail_cache
              std::vector<uint8_t> &out_jpeg);
 
     /**
+     * @brief Retrieve a cached thumbnail into a PSRAM buffer
+     *
+     * Identical lookup and read path to the vector overload, but the JPEG bytes
+     * are allocated from SPIRAM instead of the internal heap. On success the
+     * caller owns *out_data and must release it with heap_caps_free(). On
+     * failure *out_data is set to nullptr and *out_len to 0.
+     *
+     * @param url Original image URL
+     * @param width Requested thumbnail width
+     * @param height Requested thumbnail height
+     * @param out_data Output PSRAM buffer
+     * @param out_len Output JPEG size in bytes
+     * @return true if found and successfully read, false otherwise
+     */
+    bool get(const std::string &url, uint16_t width, uint16_t height,
+             uint8_t **out_data, size_t *out_len);
+
+    /**
      * @brief Store a thumbnail in the cache
      *
      * Copies the JPEG data to SPIRAM and queues it for async write.

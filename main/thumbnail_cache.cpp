@@ -14,6 +14,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <errno.h>
+#include <cstdlib>
+#include <cstddef>
 #include <cstring>
 #include <algorithm>
 #include <vector>
@@ -52,12 +54,51 @@ static const char *TAG = "THUMBCACHE";
 namespace thumbnail_cache
 {
 
+    // The cache index holds up to MAX_CACHE_ITEMS entries whose URLs are the
+    // largest thing in it (a few hundred bytes each for signed image URLs).
+    // Keep them in PSRAM so the index does not permanently eat the internal
+    // heap that TLS, DMA and task stacks need. Falls back to internal memory if
+    // PSRAM is exhausted; the build has C++ exceptions disabled, so a total
+    // allocation failure aborts exactly like the default std::allocator would.
+    template <typename T>
+    struct PsramAllocator
+    {
+        using value_type = T;
+
+        PsramAllocator() noexcept = default;
+        template <typename U>
+        PsramAllocator(const PsramAllocator<U> &) noexcept {}
+
+        T *allocate(std::size_t n)
+        {
+            void *ptr = heap_caps_malloc(n * sizeof(T), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+            if (!ptr)
+                ptr = heap_caps_malloc(n * sizeof(T), MALLOC_CAP_DEFAULT);
+            if (!ptr)
+            {
+                ESP_LOGE(TAG, "OOM allocating thumbnail cache string (%u B)",
+                         (unsigned)(n * sizeof(T)));
+                abort();
+            }
+            return static_cast<T *>(ptr);
+        }
+
+        void deallocate(T *ptr, std::size_t) noexcept { heap_caps_free(ptr); }
+
+        template <typename U>
+        bool operator==(const PsramAllocator<U> &) const noexcept { return true; }
+        template <typename U>
+        bool operator!=(const PsramAllocator<U> &) const noexcept { return false; }
+    };
+
+    using PsramString = std::basic_string<char, std::char_traits<char>, PsramAllocator<char>>;
+
     // ─── Types ───────────────────────────────────────────────────────────────────
 
     struct CacheEntry
     {
         std::string hash;
-        std::string url;
+        PsramString url;
         uint16_t width;
         uint16_t height;
         uint64_t timestamp; // µs from esp_timer_get_time() — monotonic, always valid
@@ -74,16 +115,21 @@ namespace thumbnail_cache
     // ─── GET context ─────────────────────────────────────────────────────────────
     //
     // Heap-allocated and handed to the IO task. get() waits for done_sem without
-    // a timeout, so the IO task may safely write into the caller's output vector;
-    // ownership of the context passes back to get() when it returns.
+    // a timeout, so the IO task may safely write into the caller's output target;
+    // ownership of the context passes back to get() when it returns. Exactly one
+    // of out_jpeg / out_psram is set: the vector overload fills internal memory,
+    // the raw overload returns an owned PSRAM allocation.
     //
     struct GetContext
     {
         std::vector<uint8_t> *out_jpeg;
+        uint8_t **out_psram;
+        size_t *out_psram_len;
         bool result;
         SemaphoreHandle_t done_sem;
 
-        GetContext() : out_jpeg(nullptr), result(false), done_sem(nullptr) {}
+        GetContext() : out_jpeg(nullptr), out_psram(nullptr), out_psram_len(nullptr),
+                       result(false), done_sem(nullptr) {}
     };
 
     // ─── IO job ──────────────────────────────────────────────────────────────────
@@ -678,7 +724,9 @@ namespace thumbnail_cache
 
                 std::string path = std::string(CACHE_BASE_DIR) + "/" + job.hash + ".jpg";
                 bool ok = false;
+                long file_len = 0;
                 std::vector<uint8_t> local_buf;
+                uint8_t *psram_buf = nullptr;
 
                 FILE *f = fopen(path.c_str(), "rb");
                 diag_bc(DIAG_IO_GET_OPEN, f ? 1 : 0);
@@ -689,9 +737,29 @@ namespace thumbnail_cache
                     fseek(f, 0, SEEK_SET);
                     if (len > 0 && len <= MAX_CACHE_FILE_BYTES)
                     {
-                        local_buf.resize(len);
-                        size_t rd = fread(local_buf.data(), 1, len, f);
-                        ok = (rd == (size_t)len);
+                        file_len = len;
+                        if (ctx->out_psram)
+                        {
+                            // Cache reads go straight to PSRAM so a hit does not
+                            // add to internal-heap fragmentation.
+                            psram_buf = static_cast<uint8_t *>(heap_caps_malloc(
+                                (size_t)len, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+                            if (psram_buf)
+                            {
+                                size_t rd = fread(psram_buf, 1, (size_t)len, f);
+                                ok = (rd == (size_t)len);
+                            }
+                            else
+                            {
+                                ESP_LOGE(TAG, "OOM for cached JPEG (%ld B)", len);
+                            }
+                        }
+                        else
+                        {
+                            local_buf.resize((size_t)len);
+                            size_t rd = fread(local_buf.data(), 1, (size_t)len, f);
+                            ok = (rd == (size_t)len);
+                        }
                     }
                     else
                     {
@@ -700,7 +768,14 @@ namespace thumbnail_cache
                     }
                     fclose(f);
                     if (!ok)
+                    {
                         local_buf.clear();
+                        if (psram_buf)
+                        {
+                            heap_caps_free(psram_buf);
+                            psram_buf = nullptr;
+                        }
+                    }
                 }
                 else
                 {
@@ -709,11 +784,21 @@ namespace thumbnail_cache
                 diag_bc(DIAG_IO_GET_READ, ok ? 1 : 0);
 
                 // get() blocks until this semaphore is given, so ctx (and the
-                // caller's output vector) are guaranteed to still be alive here.
+                // caller's output target) are guaranteed to still be alive here.
                 // Deliberately no LRU update on reads: only PUT ages entries, so
                 // a cache hit never dirties the index.
                 if (ok)
-                    *ctx->out_jpeg = std::move(local_buf);
+                {
+                    if (ctx->out_psram)
+                    {
+                        *ctx->out_psram = psram_buf;
+                        *ctx->out_psram_len = (size_t)file_len;
+                    }
+                    else
+                    {
+                        *ctx->out_jpeg = std::move(local_buf);
+                    }
+                }
                 ctx->result = ok;
 
                 // After this line we must NOT touch ctx — get() owns it now.
@@ -788,8 +873,11 @@ namespace thumbnail_cache
         return true;
     }
 
-    bool get(const std::string &url, uint16_t width, uint16_t height,
-             std::vector<uint8_t> &out_jpeg)
+    // Shared body of both public get() overloads; exactly one output target is
+    // set by the caller.
+    static bool get_impl(const std::string &url, uint16_t width, uint16_t height,
+                         std::vector<uint8_t> *out_jpeg, uint8_t **out_psram,
+                         size_t *out_psram_len)
     {
         if (!s_initialized)
             return false;
@@ -815,7 +903,9 @@ namespace thumbnail_cache
         // Heap-allocated because the IO task writes its result through this
         // context after get() has queued the job.
         GetContext *ctx = new GetContext{};
-        ctx->out_jpeg = &out_jpeg;
+        ctx->out_jpeg = out_jpeg;
+        ctx->out_psram = out_psram;
+        ctx->out_psram_len = out_psram_len;
         ctx->done_sem = xSemaphoreCreateBinary();
 
         if (!ctx->done_sem)
@@ -839,8 +929,8 @@ namespace thumbnail_cache
         }
 
         // Wait until the IO task has read the file. Waiting without a timeout is
-        // required for memory safety: returning early would destroy out_jpeg
-        // while the IO task can still be writing into it.
+        // required for memory safety: returning early would destroy the caller's
+        // output target while the IO task can still be writing into it.
         diag_bc(DIAG_IO_GET_WAIT, 0);
         xSemaphoreTake(ctx->done_sem, portMAX_DELAY);
 
@@ -849,6 +939,22 @@ namespace thumbnail_cache
         vSemaphoreDelete(ctx->done_sem);
         delete ctx;
         return result;
+    }
+
+    bool get(const std::string &url, uint16_t width, uint16_t height,
+             std::vector<uint8_t> &out_jpeg)
+    {
+        return get_impl(url, width, height, &out_jpeg, nullptr, nullptr);
+    }
+
+    bool get(const std::string &url, uint16_t width, uint16_t height,
+             uint8_t **out_data, size_t *out_len)
+    {
+        if (!out_data || !out_len)
+            return false;
+        *out_data = nullptr;
+        *out_len = 0;
+        return get_impl(url, width, height, nullptr, out_data, out_len);
     }
 
     bool put(const std::string &url, uint16_t width, uint16_t height,

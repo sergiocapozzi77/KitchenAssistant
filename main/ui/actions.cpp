@@ -142,10 +142,10 @@ void close_search()
     if (objects.product_search_ta)
     {
         lv_textarea_set_text(objects.product_search_ta, "");
-        lv_obj_add_flag(objects.product_search_ta, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(objects.product_search_ta, true);
     }
     if (objects.keyboard)
-        lv_obj_add_flag(objects.keyboard, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(objects.keyboard, true);
     setProductSearchFilter("");
     productsManager.populateProductList();
 }
@@ -264,14 +264,14 @@ void action_product_search_open(lv_event_t *)
     if (!objects.product_search_ta || !lv_obj_is_valid(objects.product_search_ta))
         return;
 
-    if (lv_obj_has_flag(objects.product_search_ta, LV_OBJ_FLAG_HIDDEN))
+    if (lv_obj_is_hidden(objects.product_search_ta))
     {
-        lv_obj_clear_flag(objects.product_search_ta, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(objects.product_search_ta, false);
         lv_obj_move_foreground(objects.product_search_ta);
         if (objects.keyboard && lv_obj_is_valid(objects.keyboard))
         {
             lv_keyboard_set_textarea(objects.keyboard, objects.product_search_ta);
-            lv_obj_clear_flag(objects.keyboard, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(objects.keyboard, false);
             lv_obj_move_foreground(objects.keyboard);
         }
     }
@@ -293,15 +293,15 @@ void action_product_filter_toggle(lv_event_t *)
 {
     if (!objects.product_filter_chips)
         return;
-    if (lv_obj_has_flag(objects.product_filter_chips, LV_OBJ_FLAG_HIDDEN))
+    if (lv_obj_is_hidden(objects.product_filter_chips))
     {
-        lv_obj_clear_flag(objects.product_filter_chips, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(objects.product_filter_chips, false);
         if (objects.product_sort_chips)
-            lv_obj_add_flag(objects.product_sort_chips, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(objects.product_sort_chips, true);
     }
     else
     {
-        lv_obj_add_flag(objects.product_filter_chips, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(objects.product_filter_chips, true);
     }
 }
 
@@ -309,15 +309,15 @@ void action_product_sort_toggle(lv_event_t *)
 {
     if (!objects.product_sort_chips)
         return;
-    if (lv_obj_has_flag(objects.product_sort_chips, LV_OBJ_FLAG_HIDDEN))
+    if (lv_obj_is_hidden(objects.product_sort_chips))
     {
-        lv_obj_clear_flag(objects.product_sort_chips, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(objects.product_sort_chips, false);
         if (objects.product_filter_chips)
-            lv_obj_add_flag(objects.product_filter_chips, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(objects.product_filter_chips, true);
     }
     else
     {
-        lv_obj_add_flag(objects.product_sort_chips, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(objects.product_sort_chips, true);
     }
 }
 
@@ -327,7 +327,7 @@ void action_product_filter_chip(lv_event_t *event)
         reinterpret_cast<intptr_t>(lv_event_get_user_data(event)));
     setProductFilter(filter);
     if (objects.product_filter_chips)
-        lv_obj_add_flag(objects.product_filter_chips, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(objects.product_filter_chips, true);
 }
 
 void action_product_sort_chip(lv_event_t *event)
@@ -336,7 +336,7 @@ void action_product_sort_chip(lv_event_t *event)
         reinterpret_cast<intptr_t>(lv_event_get_user_data(event)));
     setProductSort(sort);
     if (objects.product_sort_chips)
-        lv_obj_add_flag(objects.product_sort_chips, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(objects.product_sort_chips, true);
 }
 
 void action_product_edit_save(lv_event_t *)

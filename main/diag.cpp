@@ -27,6 +27,7 @@
 #endif
 
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 
 // The draw guard below needs LVGL's draw task, layer and blend descriptor
@@ -34,6 +35,8 @@
 // lvgl component exports both its root and its `src` directory as public
 // include dirs, so these paths resolve from the app.
 #include "lvgl.h"
+#include "core/lv_obj_private.h"
+#include "core/lv_obj_style_private.h"
 #include "draw/lv_draw_buf.h"
 #include "draw/lv_draw_private.h"
 #include "draw/sw/blend/lv_draw_sw_blend.h"
@@ -44,8 +47,8 @@ static const char *TAG = "DIAG";
 // ── DIAGNOSTIC (temporary): post-mortem state in RTC RAM ─────────────────────
 //
 // See the comment at the top of diag.h for why this exists. Everything here is
-// deliberately dependency-free: plain stores, no locks, no allocation, so the
-// probes cannot be the thing that hangs.
+// deliberately low-level. The LVGL beat additionally validates the live object
+// tree and internal heap, and aborts as soon as either check detects corruption.
 
 #define DIAG_MAGIC 0x44494147u // "DIAG"
 // v12: store watchpoints removed (heap poisoning tripped them); layout report
@@ -130,7 +133,7 @@ typedef struct
 
 typedef struct
 {
-    uint32_t seq;      // 1-based panic-handler entry number on this core
+    uint32_t seq; // 1-based panic-handler entry number on this core
     uint32_t mepc;
     uint32_t mcause;
     uint32_t mtval;
@@ -283,10 +286,10 @@ typedef struct
 // Blend-guard counters, per core, in DRAM. Copied into RTC RAM together with
 // the records above; a rising src_bad count with a crash is the source-side
 // analogue of the destination guard.
-#define DIAG_BLEND_STAT_ACC 0     // blends that passed validation and ran
-#define DIAG_BLEND_STAT_REJ 1     // blends rejected and skipped
-#define DIAG_BLEND_STAT_SRC 2     // rejected because of the source/mask window
-#define DIAG_BLEND_STAT_DESC 3    // rejected because t/dsc were not in RAM
+#define DIAG_BLEND_STAT_ACC 0  // blends that passed validation and ran
+#define DIAG_BLEND_STAT_REJ 1  // blends rejected and skipped
+#define DIAG_BLEND_STAT_SRC 2  // rejected because of the source/mask window
+#define DIAG_BLEND_STAT_DESC 3 // rejected because t/dsc were not in RAM
 typedef struct
 {
     uint32_t valid;
@@ -301,13 +304,13 @@ typedef struct
 // destroy, if the race is real.
 typedef struct
 {
-    uint32_t valid;    // 1 once the quarantine has parked or retired anything
-    uint32_t parked;   // buffers parked since boot
-    uint32_t evicted;  // parked buffers scanned and really freed
-    uint32_t hits;     // evicted buffers that contained the page background
-    uint32_t skipped;  // buffers that could not be parked
-    uint32_t active;   // parked slots at the last update
-    uint32_t bytes;    // parked data bytes at the last update
+    uint32_t valid;   // 1 once the quarantine has parked or retired anything
+    uint32_t parked;  // buffers parked since boot
+    uint32_t evicted; // parked buffers scanned and really freed
+    uint32_t hits;    // evicted buffers that contained the page background
+    uint32_t skipped; // buffers that could not be parked
+    uint32_t active;  // parked slots at the last update
+    uint32_t bytes;   // parked data bytes at the last update
     uint32_t last_buf;
     uint32_t last_data;
     uint32_t last_size;
@@ -315,13 +318,13 @@ typedef struct
     uint32_t last_w;
     uint32_t last_h;
     uint32_t last_cf;
-    uint32_t last_off;  // byte offset of the first page-background word
-    uint32_t last_hits; // page-background words found
+    uint32_t last_off;         // byte offset of the first page-background word
+    uint32_t last_hits;        // page-background words found
     uint32_t last_dirty_off;   // byte offset of the first word not holding the fill
     uint32_t last_dirty_val;   // that word's value
     uint32_t last_dirty_count; // words that no longer hold the 0xA5 fill
-    uint32_t last_ms;   // when the hit was found (eviction time)
-    uint32_t last_core; // core that found it
+    uint32_t last_ms;          // when the hit was found (eviction time)
+    uint32_t last_core;        // core that found it
     uint32_t last_task;
     diag_last_blend_t last_blend[2]; // blends at destroy time
 } diag_quar_t;
@@ -354,10 +357,10 @@ typedef struct
 
     // OS tick bookkeeping, sampled by the monitor
     uint32_t tick_count[2];
-    int64_t tick_last_us[2]; // last sample at which the counter advanced
-    int64_t tick_isr_us[2];  // written from the tick ISR itself
-    uint32_t tick_isr_pc[2]; // interrupted PC (mepc) seen by the last tick
-    uint32_t cur_task_id[2]; // diag_task_t running at the last tick
+    int64_t tick_last_us[2];        // last sample at which the counter advanced
+    int64_t tick_isr_us[2];         // written from the tick ISR itself
+    uint32_t tick_isr_pc[2];        // interrupted PC (mepc) seen by the last tick
+    uint32_t cur_task_id[2];        // diag_task_t running at the last tick
     uint32_t tick_cache_enabled[2]; // ext-mem cache state (global, sw-tracked) at the last tick
     uint32_t tick_stall_mask;
     int64_t tick_stall_us[2];
@@ -422,6 +425,7 @@ static volatile uint32_t s_tick_count[2] = {0, 0};
 static const void *volatile s_task_tcb[DIAG_MAX_TASKS];
 static volatile uint8_t s_task_id[DIAG_MAX_TASKS];
 static volatile uint32_t s_task_count = 0;
+static TaskHandle_t volatile s_lvgl_task = nullptr;
 
 static const char *bc_name(uint16_t code);
 static void blendLog(const diag_blend_t *b);
@@ -566,28 +570,23 @@ static uint8_t IRAM_ATTR current_task_id(BaseType_t core)
     return DIAG_TASK_UNKNOWN;
 }
 
-// IRAM so the hook still runs while the flash cache is disabled. esp_timer_get_time()
-// is a lock-free systimer counter read and is IRAM as well, as are the two
-// kernel task getters above and spi_flash_cache_enabled().
-static void IRAM_ATTR tickProbeCpu0(void)
+#define DIAG_TICK_RTC_EVERY 32u // power of two: the mask below avoids a division
+
+static void IRAM_ATTR tickProbe(int core)
 {
-    s_tick_count[0] = s_tick_count[0] + 1;
-    s_rtc.tick_isr_us[0] = esp_timer_get_time();
-    s_rtc.tick_isr_pc[0] = read_trap_pc();
-    s_rtc.cur_task_id[0] = current_task_id((BaseType_t)0);
-    // spi_flash_cache_enabled() is IRAM (as is its callee in libhal), so this is
-    // safe even if a flash operation has the cache disabled on this core.
-    s_rtc.tick_cache_enabled[0] = spi_flash_cache_enabled() ? 1u : 0u;
+    const uint32_t n = s_tick_count[core] + 1u;
+    s_tick_count[core] = n;
+    if ((n & (DIAG_TICK_RTC_EVERY - 1u)) != 0u)
+        return;
+
+    s_rtc.tick_isr_us[core] = esp_timer_get_time();
+    s_rtc.tick_isr_pc[core] = read_trap_pc();
+    s_rtc.cur_task_id[core] = current_task_id((BaseType_t)core);
+    s_rtc.tick_cache_enabled[core] = spi_flash_cache_enabled() ? 1u : 0u;
 }
 
-static void IRAM_ATTR tickProbeCpu1(void)
-{
-    s_tick_count[1] = s_tick_count[1] + 1;
-    s_rtc.tick_isr_us[1] = esp_timer_get_time();
-    s_rtc.tick_isr_pc[1] = read_trap_pc();
-    s_rtc.cur_task_id[1] = current_task_id((BaseType_t)1);
-    s_rtc.tick_cache_enabled[1] = spi_flash_cache_enabled() ? 1u : 0u;
-}
+static void IRAM_ATTR tickProbeCpu0(void) { tickProbe(0); }
+static void IRAM_ATTR tickProbeCpu1(void) { tickProbe(1); }
 
 // ── Heartbeat tasks ──────────────────────────────────────────────────────────
 
@@ -937,6 +936,7 @@ extern "C" void __real_esp_panic_handler_increment_entry_count(void);
 extern "C" void IRAM_ATTR __wrap_esp_panic_handler_increment_entry_count(void);
 extern "C" void IRAM_ATTR __wrap_esp_panic_handler_increment_entry_count(void)
 {
+    esp_rom_printf(DRAM_STR("[diag] panic entry core%d\n"), (int)esp_cpu_get_core_id());
     notePanicEntry();
     __real_esp_panic_handler_increment_entry_count();
 }
@@ -1048,6 +1048,7 @@ extern "C" void IRAM_ATTR __wrap_xt_unhandled_exception(void *frame);
 extern "C" void IRAM_ATTR __wrap_xt_unhandled_exception(void *frame)
 {
     noteException(frame);
+    esp_rom_printf(DRAM_STR("[diag] fault captured core%d\n"), (int)esp_cpu_get_core_id());
     __real_xt_unhandled_exception(frame);
 }
 
@@ -1092,19 +1093,47 @@ extern "C" void IRAM_ATTR __wrap_esp_panic_handler(void *info)
     __real_esp_panic_handler(info);
 }
 
+static void diag_lvgl_validate(void);
+
 void diag_lvgl_beat(void)
 {
     // The beat is an LVGL timer callback, so this runs in the LVGL port task.
-    static bool s_lvgl_task_registered = false;
-    if (!s_lvgl_task_registered)
+    if (s_lvgl_task == nullptr)
     {
-        s_lvgl_task_registered = true;
-        diag_task_register(xTaskGetCurrentTaskHandle(), DIAG_TASK_LVGL);
+        s_lvgl_task = xTaskGetCurrentTaskHandle();
+        diag_task_register(s_lvgl_task, DIAG_TASK_LVGL);
     }
 
+    diag_lvgl_validate();
     s_rtc.lvgl_last_us = esp_timer_get_time();
     s_rtc.lvgl_count = s_rtc.lvgl_count + 1;
     s_rtc.lvgl_stall_logged = 0;
+}
+
+extern "C" void __real_lv_obj_delete(lv_obj_t *obj);
+extern "C" void __wrap_lv_obj_delete(lv_obj_t *obj)
+{
+    const TaskHandle_t current = xTaskGetCurrentTaskHandle();
+    if (s_lvgl_task != nullptr && current != s_lvgl_task)
+    {
+        ESP_LOGE(TAG, "lv_obj_delete outside LVGL task=%s obj=%p caller=%p",
+                 pcTaskGetName(current), (void *)obj,
+                 __builtin_return_address(0));
+    }
+    __real_lv_obj_delete(obj);
+}
+
+extern "C" void __real_lv_obj_clean(lv_obj_t *obj);
+extern "C" void __wrap_lv_obj_clean(lv_obj_t *obj)
+{
+    const TaskHandle_t current = xTaskGetCurrentTaskHandle();
+    if (s_lvgl_task != nullptr && current != s_lvgl_task)
+    {
+        ESP_LOGE(TAG, "lv_obj_clean outside LVGL task=%s obj=%p caller=%p",
+                 pcTaskGetName(current), (void *)obj,
+                 __builtin_return_address(0));
+    }
+    __real_lv_obj_clean(obj);
 }
 
 void diag_heap_log(const char *what)
@@ -1890,6 +1919,145 @@ static inline bool guard_range_mapped(uint64_t start, uint64_t len)
     return false;
 }
 
+#define DIAG_LVGL_TREE_DEPTH 64u
+#define DIAG_LVGL_TREE_OBJECTS 4096u
+
+typedef struct
+{
+    lv_obj_t *obj;
+    lv_obj_t **children;
+    uint16_t child_count;
+    uint16_t next_child;
+} diag_lvgl_tree_frame_t;
+
+static diag_lvgl_tree_frame_t s_lvgl_tree_stack[DIAG_LVGL_TREE_DEPTH];
+
+[[noreturn]] static void diag_lvgl_tree_fail(const char *reason,
+                                              const lv_obj_t *parent,
+                                              uint32_t child_index,
+                                              const void *value)
+{
+    ESP_LOGE(TAG, "LVGL object tree invalid: %s parent=%p child[%u]=%p",
+             reason, (const void *)parent, (unsigned)child_index, value);
+    abort();
+}
+
+static void diag_lvgl_tree_push(lv_obj_t *obj, lv_obj_t *parent,
+                                uint32_t child_index, uint32_t *visits,
+                                uint32_t depth)
+{
+    const uint32_t obj_addr = (uint32_t)(uintptr_t)obj;
+    if (obj == nullptr ||
+        (obj_addr % alignof(lv_obj_t)) != 0 ||
+        !guard_range_mapped(obj_addr, sizeof(lv_obj_t)))
+        diag_lvgl_tree_fail("object pointer outside mapped RAM", parent,
+                            child_index, obj);
+
+    if (parent != nullptr && obj->parent != parent)
+        diag_lvgl_tree_fail("child parent mismatch", parent, child_index,
+                            obj->parent);
+
+    if (obj->style_cnt != 0)
+    {
+        const uint32_t styles_addr = (uint32_t)(uintptr_t)obj->styles;
+        const uint64_t styles_size =
+            (uint64_t)obj->style_cnt * sizeof(lv_obj_style_t);
+        if (obj->styles == nullptr ||
+            (styles_addr % alignof(lv_obj_style_t)) != 0 ||
+            !guard_range_mapped(styles_addr, styles_size))
+            diag_lvgl_tree_fail("style array outside mapped RAM", obj,
+                                UINT32_MAX, obj->styles);
+    }
+
+    lv_obj_t **children = nullptr;
+    uint16_t child_count = 0;
+    if (obj->spec_attr != nullptr)
+    {
+        const uint32_t attr_addr = (uint32_t)(uintptr_t)obj->spec_attr;
+        if ((attr_addr % alignof(lv_obj_spec_attr_t)) != 0 ||
+            !guard_range_mapped(attr_addr, sizeof(lv_obj_spec_attr_t)))
+            diag_lvgl_tree_fail("special attributes outside mapped RAM", obj,
+                                UINT32_MAX, obj->spec_attr);
+
+        children = obj->spec_attr->children;
+        child_count = obj->spec_attr->child_cnt;
+        if (child_count > DIAG_LVGL_TREE_OBJECTS)
+            diag_lvgl_tree_fail("unreasonable child count", obj, child_count,
+                                children);
+        if (child_count != 0)
+        {
+            const uint32_t children_addr = (uint32_t)(uintptr_t)children;
+            const uint64_t children_size =
+                (uint64_t)child_count * sizeof(lv_obj_t *);
+            if (children == nullptr ||
+                (children_addr % alignof(lv_obj_t *)) != 0 ||
+                !guard_range_mapped(children_addr, children_size))
+                diag_lvgl_tree_fail("child array outside mapped RAM", obj,
+                                    UINT32_MAX, children);
+        }
+    }
+
+    if (*visits >= DIAG_LVGL_TREE_OBJECTS)
+        diag_lvgl_tree_fail("object traversal limit exceeded", parent,
+                            child_index, obj);
+    ++*visits;
+
+    if (child_count == 0)
+        return;
+    if (depth >= DIAG_LVGL_TREE_DEPTH)
+        diag_lvgl_tree_fail("object tree depth exceeded", parent,
+                            child_index, obj);
+
+    diag_lvgl_tree_frame_t &frame = s_lvgl_tree_stack[depth];
+    frame.obj = obj;
+    frame.children = children;
+    frame.child_count = child_count;
+    frame.next_child = 0;
+}
+
+static void diag_lvgl_validate(void)
+{
+    lv_obj_t *root = lv_screen_active();
+    if (root == nullptr)
+        return;
+
+    uint32_t visits = 0;
+    uint32_t depth = 0;
+    diag_lvgl_tree_push(root, nullptr, UINT32_MAX, &visits, depth);
+    if (root->spec_attr != nullptr && root->spec_attr->child_cnt != 0)
+        depth = 1;
+
+    while (depth != 0)
+    {
+        diag_lvgl_tree_frame_t &frame = s_lvgl_tree_stack[depth - 1];
+        if (frame.next_child == frame.child_count)
+        {
+            --depth;
+            continue;
+        }
+
+        const uint32_t index = frame.next_child++;
+        lv_obj_t *child = frame.children[index];
+        const uint32_t child_addr = (uint32_t)(uintptr_t)child;
+        if (child == nullptr ||
+            (child_addr % alignof(lv_obj_t)) != 0 ||
+            !guard_range_mapped(child_addr, sizeof(lv_obj_t)))
+            diag_lvgl_tree_fail("invalid child slot", frame.obj, index, child);
+
+        const uint32_t next_depth = depth;
+        diag_lvgl_tree_push(child, frame.obj, index, &visits, next_depth);
+        if (child->spec_attr != nullptr &&
+            child->spec_attr->child_cnt != 0)
+            ++depth;
+    }
+
+    if (!heap_caps_check_integrity(MALLOC_CAP_INTERNAL, true))
+    {
+        ESP_LOGE(TAG, "internal heap integrity failed during LVGL beat");
+        abort();
+    }
+}
+
 // The layer and draw buffer descriptors are ordinary heap allocations
 // (CONFIG_LV_USE_CLIB_MALLOC), so they are not guaranteed to be in internal
 // DRAM: malloc() only *prefers* internal memory for sizes up to
@@ -1919,8 +2087,8 @@ typedef struct
 } diag_buf_rec_t;
 
 static diag_buf_rec_t s_buf_rec[DIAG_BUF_SLOTS];
-static uint32_t s_buf_next;    // next slot to reuse once all are taken
-static uint32_t s_buf_over;    // slots evicted while still in use
+static uint32_t s_buf_next; // next slot to reuse once all are taken
+static uint32_t s_buf_over; // slots evicted while still in use
 static portMUX_TYPE s_buf_mux = portMUX_INITIALIZER_UNLOCKED;
 
 static void bufRecAdd(const lv_draw_buf_t *db)

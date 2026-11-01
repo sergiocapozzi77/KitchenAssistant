@@ -21,7 +21,9 @@
 //   * per-core FreeRTOS tick counters and the last tick-ISR timestamp,
 //   * an esp_timer-driven monitor that runs even when the FreeRTOS tick stops
 //     and logs live whenever a core stops ticking while esp_timer still
-//     advances.
+//     advances,
+//   * an LVGL-beat object-tree and internal-heap integrity check, plus logs
+//     for object deletion/cleaning outside the LVGL task.
 //
 // The distinction the monitor makes is the decisive one: if it keeps logging
 // during the silence, interrupts and the scheduler are alive and only the

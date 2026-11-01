@@ -81,6 +81,21 @@ static void wrappedTouchReadCb(lv_indev_t *indev, lv_indev_data_t *data)
         data->state = LV_INDEV_STATE_RELEASED;
 }
 
+// cJSON keeps its parse trees out of the small internal heap: Supabase
+// responses are the largest JSON documents this firmware parses, and cJSON
+// nodes are CPU-only data that never feed DMA. Falling back to internal memory
+// keeps parsing working if PSRAM is exhausted.
+static void *cjson_malloc_psram(size_t size)
+{
+    void *ptr = heap_caps_malloc(size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    return ptr ? ptr : heap_caps_malloc(size, MALLOC_CAP_DEFAULT);
+}
+
+static void cjson_free_psram(void *ptr)
+{
+    heap_caps_free(ptr);
+}
+
 void Application::initNVS()
 {
     esp_err_t ret = nvs_flash_init();
@@ -362,15 +377,23 @@ void Application::run()
     // a stall during NVS/SPIFFS init is visible too.
     diag_init();
 
+    cJSON_Hooks cjson_hooks = {};
+    cjson_hooks.malloc_fn = cjson_malloc_psram;
+    cjson_hooks.free_fn = cjson_free_psram;
+    cJSON_InitHooks(&cjson_hooks);
+
     initNVS();
     initHardware();
     diag_bc(DIAG_APP_HW_READY, 0);
+    diag_heap_log("hw ready");
 
     initQueues();
     diag_bc(DIAG_APP_QUEUES_READY, 0);
+    diag_heap_log("queues ready");
 
     initTasks();
     diag_bc(DIAG_APP_LOOP, 0);
+    diag_heap_log("tasks ready");
 
     mainLoop();
 }

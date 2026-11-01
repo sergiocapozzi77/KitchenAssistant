@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-KitchenAssistant is an ESP32-P4 embedded application for kitchen inventory management. It mirrors one Supabase account (`RoastedMaple`): the device lists products, edits and deletes them, and browses the account's cookbooks, their recipes and the full recipe detail. The UI is hand-written C++ on an 800x1280 LCD using LVGL 9.5.
+KitchenAssistant is an ESP32-P4 embedded application for kitchen inventory management. It mirrors one Supabase account (`RoastedMaple`): the device lists products, edits and deletes them, and browses the account's cookbooks, their recipes and the full recipe detail. The UI is hand-written C++ on an 800x1280 LCD using LVGL 9.6.
 
 ## Build Commands
 
-Requires ESP-IDF v5.5.2 installed at `C:\Users\sergi\esp\v5.5.2\esp-idf`.
+Requires ESP-IDF v6.1.0 installed at `C:\esp\v6.1\esp-idf`.
 
 ```bash
 idf.py set-target esp32p4   # one-time setup

@@ -34,7 +34,10 @@
 /* LCD display color bits */
 #define BSP_LCD_BITS_PER_PIXEL      (16)
 /* LCD display color space */
-#define BSP_LCD_COLOR_SPACE         (ESP_LCD_COLOR_SPACE_RGB)
+#define BSP_LCD_COLOR_SPACE         (LCD_RGB_ELEMENT_ORDER_RGB)
+/* LCD DPI input pixel format (ESP-IDF v6 renamed LCD_COLOR_PIXEL_FORMAT_* to LCD_COLOR_FMT_*) */
+#define BSP_LCD_DPI_COLOR_FORMAT_RGB565    (LCD_COLOR_FMT_RGB565)
+#define BSP_LCD_DPI_COLOR_FORMAT_RGB888    (LCD_COLOR_FMT_RGB888)
 
 #if CONFIG_BSP_LCD_TYPE_1024_600
 /* LCD display definition 1024x600 */

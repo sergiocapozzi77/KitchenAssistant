@@ -83,6 +83,19 @@ public:
         return true;
     }
 
+    // Takes ownership of a PSRAM allocation (as returned by thumbnail_cache).
+    bool adopt(uint8_t *data, size_t len)
+    {
+        if (!data || len == 0)
+            return false;
+        if (data_)
+            heap_caps_free(data_);
+        data_ = data;
+        size_ = len;
+        capacity_ = len;
+        return true;
+    }
+
     void advance(size_t len) { size_ += len; }
     uint8_t *data() { return data_; }
     size_t size() const { return size_; }
@@ -194,8 +207,16 @@ bool decode_jpeg_buffer(const uint8_t *jpeg, size_t jpeg_len, uint16_t target_w,
     if (!jpeg || jpeg_len == 0 || !out_dsc || !out_px)
         return false;
 
+    // Prefer internal RAM, but the work buffer is only ever touched by the CPU
+    // and tjpgd is happy with PSRAM. Falling back keeps thumbnails decoding when
+    // the internal heap is fragmented rather than failing every cache hit.
     auto *work = static_cast<uint8_t *>(
         heap_caps_malloc(kTjpgdWorkBytes, MALLOC_CAP_INTERNAL));
+    if (!work)
+    {
+        work = static_cast<uint8_t *>(
+            heap_caps_malloc(kTjpgdWorkBytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+    }
     if (!work)
     {
         ESP_LOGE(TAG, "OOM for TJpgD work buffer");
@@ -579,18 +600,20 @@ bool fetch_and_decode_jpeg(const std::string &url, uint16_t W, uint16_t H,
 
     if (useCache && s_cache_ready)
     {
-        std::vector<uint8_t> cached;
+        uint8_t *cached = nullptr;
+        size_t cached_len = 0;
         diag_bc(DIAG_THUMB_CACHE_GET_ENTER, 0);
-        const bool hit = thumbnail_cache::get(url, W, H, cached);
+        const bool hit = thumbnail_cache::get(url, W, H, &cached, &cached_len);
         diag_bc(DIAG_THUMB_CACHE_GET_DONE, hit ? 1 : 0);
-        if (hit && !cached.empty() &&
-            jpeg.assign(cached.data(), cached.size()))
+        if (hit && jpeg.adopt(cached, cached_len))
         {
             loaded = true;
             ESP_LOGI(TAG, "cache hit %ux%u: %.60s", W, H, url.c_str());
         }
         else
         {
+            if (cached)
+                heap_caps_free(cached);
             ESP_LOGI(TAG, "cache miss %ux%u: %.60s", W, H, url.c_str());
         }
     }
