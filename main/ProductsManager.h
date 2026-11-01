@@ -1,46 +1,28 @@
 #pragma once
-#include <string>
-#include <vector>
+
 #include <mutex>
 #include <optional>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
+#include <string>
+#include <vector>
+
 #include "models.h"
 
 class ProductsManager
 {
 public:
-    void updateProduct(const Product &updated);
-
-    void deleteProduct(const std::string &rowId);
-    std::optional<Product> getProductById(const std::string &rowId);
-    // void addProduct(const Product &product);
     void addProducts(const std::vector<Product> &products);
-    // void removeProduct(const std::string &id);
-    std::vector<Product> getProducts() const;
-    //  Product getProduct(const std::string &id) const;
-    std::vector<Product> getAllProducts();
+    std::vector<Product> getAllProducts() const;
+    std::optional<Product> getProductById(const std::string &id) const;
+    void updateProduct(const Product &updated);
+    void deleteProduct(const std::string &id);
 
-    void addSelectedProduct(const Product &product);
-    void removeSelectedProduct(const std::string &id);
-    int getSelectedCount() const;
-    std::vector<Product> getSelectedProducts() const;
-
-    void fetchProductsAsync();
     void fetchProductsSync();
-
     void populateProductList();
+    size_t count() const;
 
 private:
-    static void fetchProductsTask(void *param);
-
-    StackType_t *_productTaskStack = nullptr;
-    StaticTask_t _productTaskBuf;
-
-    std::vector<Product> _allProducts;
-    std::vector<Product> _selectedProducts;
-    // ProductsManager.h
-    mutable std::mutex _productMutex;
+    mutable std::mutex _mutex;
+    std::vector<Product> _products;
 };
 
 extern ProductsManager productsManager;

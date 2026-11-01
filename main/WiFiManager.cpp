@@ -1,4 +1,5 @@
 #include "WiFiManager.h"
+#include "diag.h"
 #include "esp_log.h"
 #include "esp_netif.h"
 #include "esp_sntp.h"
@@ -39,7 +40,9 @@ void WiFiManager::init()
     esp_wifi_start();
 
     // Start worker task
-    xTaskCreate(wifiTask, "wifi_task", 4096, this, 5, nullptr);
+    TaskHandle_t handle = nullptr;
+    xTaskCreate(wifiTask, "wifi_task", 4096, this, 5, &handle);
+    diag_task_register(handle, DIAG_TASK_WIFI);
 }
 
 // ─────────────────────────────────────────────
@@ -55,8 +58,10 @@ bool WiFiManager::connectToNetwork(const std::string &ssid, const std::string &p
     strncpy(cmd.password, password.c_str(), sizeof(cmd.password) - 1);
     cmd.password[sizeof(cmd.password) - 1] = 0;
 
-    ESP_LOGI(TAG, "connectToNetwork: ssid=%s pwd_len_input=%zu pwd_cmd=%s",
-             ssid.c_str(), password.length(), cmd.password);
+    // Never log the credential itself: serial captures are persisted and
+    // shared. The length is enough to tell an empty password from a set one.
+    ESP_LOGI(TAG, "connectToNetwork: ssid=%s pwd_len_input=%zu",
+             ssid.c_str(), password.length());
 
     return xQueueSend(m_cmdQueue, &cmd, 0) == pdTRUE;
 }
@@ -80,13 +85,17 @@ void WiFiManager::wifiTask(void *arg)
 
     while (true)
     {
+        diag_bc(DIAG_WIFI_WAIT, 0);
         if (xQueueReceive(self->m_cmdQueue, &cmd, portMAX_DELAY))
         {
+            diag_bc(DIAG_WIFI_CMD, (uint16_t)cmd.type);
             switch (cmd.type)
             {
             case CmdType::Connect:
             {
-                ESP_LOGI(TAG, "Connecting to %s (pwd_from_queue=%s)", cmd.ssid, cmd.password);
+                ESP_LOGI(TAG, "Connecting to %s (password from queue, %u chars)",
+                         cmd.ssid, (unsigned)strlen(cmd.password));
+                diag_bc(DIAG_WIFI_CONNECT_ENTER, 0);
 
                 self->m_ssid = cmd.ssid;
                 self->m_password = cmd.password;
@@ -97,6 +106,7 @@ void WiFiManager::wifiTask(void *arg)
                 self->applyConfig();
 
                 esp_wifi_disconnect();
+                diag_bc(DIAG_WIFI_CONNECT_SENT, 0);
                 esp_wifi_connect();
 
                 self->m_state = State::Connecting;
@@ -141,12 +151,13 @@ void WiFiManager::applyConfig()
     cfg.sta.threshold.authmode =
         m_password.empty() ? WIFI_AUTH_OPEN : WIFI_AUTH_WPA2_PSK;
 
-    ESP_LOGI(TAG, "applyConfig: ssid=%s pwd=%s auth=%d",
-             cfg.sta.ssid, cfg.sta.password, cfg.sta.threshold.authmode);
+    ESP_LOGI(TAG, "applyConfig: ssid=%s pwd_len=%u auth=%d",
+             cfg.sta.ssid, (unsigned)strlen((const char *)cfg.sta.password),
+             cfg.sta.threshold.authmode);
 
-    esp_wifi_set_config(WIFI_IF_STA, &cfg);
+    const esp_err_t err = esp_wifi_set_config(WIFI_IF_STA, &cfg);
 
-    ESP_LOGI(TAG, "applyConfig: after esp_wifi_set_config pwd=%s", cfg.sta.password);
+    ESP_LOGI(TAG, "applyConfig: esp_wifi_set_config ret=%d", (int)err);
 }
 
 // ─────────────────────────────────────────────
@@ -157,8 +168,19 @@ void WiFiManager::eventHandler(void *arg, esp_event_base_t base, int32_t id, voi
 {
     auto *self = static_cast<WiFiManager *>(arg);
 
+    // This handler is invoked by the default event loop's task; name it for
+    // the tick probes so a freeze there is attributable.
+    static bool s_event_task_registered = false;
+    if (!s_event_task_registered)
+    {
+        s_event_task_registered = true;
+        diag_task_register(xTaskGetCurrentTaskHandle(), DIAG_TASK_EVENT);
+    }
+
     if (base == WIFI_EVENT)
     {
+        diag_bc(DIAG_WIFI_EVENT, (uint16_t)id);
+
         if (id == WIFI_EVENT_STA_DISCONNECTED)
         {
             self->m_sntpSynced = false;
@@ -194,6 +216,7 @@ void WiFiManager::eventHandler(void *arg, esp_event_base_t base, int32_t id, voi
     }
     else if (base == IP_EVENT && id == IP_EVENT_STA_GOT_IP)
     {
+        diag_bc(DIAG_IP_EVENT, (uint16_t)id);
         self->m_state = State::Connected;
         self->m_retryDelayMs = 1000;
 

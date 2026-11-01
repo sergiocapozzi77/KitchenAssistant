@@ -1,7 +1,14 @@
 dependencies:
+  # 1.6.x requires the split esp_driver_* components on IDF >=5.3 and
+  # esp_hal_ana_conv on IDF >=6.0. 1.3.2 only listed `driver`, which no longer
+  # re-exports the split drivers in ESP-IDF v6.
   esp_codec_dev:
     public: true
-    version: 1.3.2
+    version: 1.6.2
+  # The USB Host stack is no longer a built-in IDF component in v6; it ships
+  # from the registry as espressif/usb (1.x needs IDF >=5.5.3).
+  espressif/usb:
+    version: ^1.0.0
   esp_lcd_ek79007: 1.*
   esp_lcd_ili9881c: 1.*
   esp_lcd_touch_gt911: ^1

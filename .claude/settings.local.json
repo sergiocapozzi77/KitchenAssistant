@@ -44,6 +44,9 @@
       "Bash(*export.sh* && idf.py build *)"
     ]
   },
+  "enabledMcpjsonServers": [
+    "supabase"
+  ],
   "session": {
     "autoSave": true,
     "maxSessions": 5
@@ -51,5 +54,6 @@
   "performance": {
     "tokenCountWarning": 80000,
     "enableTokenTracking": true
-  }
+  },
+  "enableAllProjectMcpServers": true
 }

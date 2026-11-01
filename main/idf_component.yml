@@ -1,13 +1,26 @@
 ## IDF Component Manager Manifest File
 dependencies:
   lvgl/lvgl:
-    version: '9.5.*'
+    version: '9.6.*'
     public: true
 
-  espressif/esp_wifi_remote:
-    version: '1.*'
+  # ESP-IDF v6.0 removed the built-in `json` component; cJSON now comes from
+  # the component registry.
+  espressif/cjson:
+    version: '^1.7.19'
 
+  # 2.9.0 uses the IDF v6.x DPI callback name (on_frame_buf_complete).
+  espressif/esp_lvgl_port:
+    version: '2.9.*'
+
+  espressif/esp_wifi_remote:
+    version: '1.6.*'
+
+  # esp_hosted 3.x is the IDF v6.1-compatible line. Its mempool code is
+  # compiled out (3.x has no ESP_HOSTED_USE_MEMPOOL Kconfig), so it no longer
+  # preallocates the ~40 KB + ~77 KB internal-DMA pools at boot.
   espressif/esp_hosted:
-    version: '2.*'
+    version: '3.0.*'
+
   espressif/esp_jpeg:
     version: '1.*'

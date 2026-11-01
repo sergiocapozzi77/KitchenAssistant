@@ -3,7 +3,7 @@
 #include "ui_extensions.h"
 #include "ui.h"      // objects
 #include "screens.h" // objects_t
-#include "styles.h"  // add_style_main_button
+#include "ui_theme.h"
 #include "cJSON.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
@@ -135,12 +135,12 @@ void WiFiSettingsUI::connectResultCb(void *arg)
             }
             if (s_list)
             {
-                lv_obj_clear_flag(s_list, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_hidden(s_list, false);
             }
             if (s_scanning_lbl)
             {
                 lv_label_set_text(s_scanning_lbl, "Connection failed. Try again.");
-                lv_obj_clear_flag(s_scanning_lbl, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_hidden(s_scanning_lbl, false);
             }
             updateStatusLabel();
         }
@@ -177,7 +177,13 @@ void WiFiSettingsUI::monitorConnectionTask(void *arg)
         ESP_LOGW(TAG, "Connection to %s timed out after 30s", ctx->ssid.c_str());
     }
 
+    // lv_async_call() links a node into lv_global.async_list, which
+    // lv_timer_handler() drains while holding lv_lock(). Calling it from this
+    // background task without that lock can link into a node the LVGL task is
+    // freeing, so the next drain walks freed memory.
+    lv_lock();
     lv_async_call(connectResultCb, ctx);
+    lv_unlock();
     vTaskDelete(NULL);
 }
 
@@ -200,7 +206,7 @@ void WiFiSettingsUI::doConnect(const std::string &ssid, const std::string &passw
     if (s_scanning_lbl)
     {
         lv_label_set_text(s_scanning_lbl, "Connecting...");
-        lv_obj_clear_flag(s_scanning_lbl, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(s_scanning_lbl, false);
     }
 
     WifiConnectCtx *ctx = new WifiConnectCtx{ssid, password};
@@ -226,12 +232,13 @@ void WiFiSettingsUI::onPasswordConnectClick(lv_event_t *e)
 
     const char *password_chars = lv_textarea_get_text(s_password_ta);
     std::string password = password_chars ? password_chars : "";
-    ESP_LOGI(TAG, "PWD after textarea copy (len=%zu): %s", password.length(), password.c_str());
+    // Never print the credential: serial captures are persisted and shared.
+    ESP_LOGI(TAG, "PWD after textarea copy (len=%zu)", password.length());
 
     if (s_keyboard && lv_obj_is_valid(s_keyboard))
     {
         lv_keyboard_set_textarea(s_keyboard, nullptr);
-        lv_obj_add_flag(s_keyboard, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(s_keyboard, true);
     }
 
     if (s_password_panel)
@@ -252,7 +259,7 @@ void WiFiSettingsUI::onPasswordCancelClick(lv_event_t *e)
     if (s_keyboard && lv_obj_is_valid(s_keyboard))
     {
         lv_keyboard_set_textarea(s_keyboard, nullptr);
-        lv_obj_add_flag(s_keyboard, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(s_keyboard, true);
     }
 
     if (s_password_panel)
@@ -263,13 +270,13 @@ void WiFiSettingsUI::onPasswordCancelClick(lv_event_t *e)
     }
 
     if (s_list)
-        lv_obj_clear_flag(s_list, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(s_list, false);
     if (s_screen && s_is_active)
         updateStatusLabel();
     if (s_scanning_lbl)
     {
         lv_label_set_text(s_scanning_lbl, "");
-        lv_obj_add_flag(s_scanning_lbl, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(s_scanning_lbl, true);
     }
 }
 
@@ -281,7 +288,7 @@ void WiFiSettingsUI::onPasswordFocused(lv_event_t *e)
     if (s_keyboard && lv_obj_is_valid(s_keyboard))
     {
         lv_keyboard_set_textarea(s_keyboard, ta);
-        lv_obj_clear_flag(s_keyboard, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(s_keyboard, false);
     }
 }
 
@@ -299,9 +306,9 @@ void WiFiSettingsUI::showPasswordDialog(const std::string &ssid)
     s_pending_ssid = ssid;
 
     if (s_list)
-        lv_obj_add_flag(s_list, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(s_list, true);
     if (s_scanning_lbl)
-        lv_obj_add_flag(s_scanning_lbl, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(s_scanning_lbl, true);
 
     if (s_status_lbl)
     {
@@ -309,7 +316,7 @@ void WiFiSettingsUI::showPasswordDialog(const std::string &ssid)
     }
     lv_obj_t *scr = s_screen ? s_screen : lv_scr_act();
     s_password_panel = lv_obj_create(scr);
-    lv_obj_add_flag(s_password_panel, LV_OBJ_FLAG_FLOATING);
+    lv_obj_set_floating(s_password_panel, true);
     lv_obj_set_size(s_password_panel, 460, 280);
     lv_obj_align(s_password_panel, LV_ALIGN_TOP_MID, 0, 350);
     lv_obj_set_style_bg_color(s_password_panel, lv_color_hex(0xFFFFFF), 0);
@@ -322,7 +329,7 @@ void WiFiSettingsUI::showPasswordDialog(const std::string &ssid)
     lv_obj_set_flex_flow(s_password_panel, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_all(s_password_panel, 20, 0);
     lv_obj_set_style_pad_row(s_password_panel, 16, 0);
-    lv_obj_clear_flag(s_password_panel, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(s_password_panel, false);
 
     // Title
     lv_obj_t *title = lv_label_create(s_password_panel);
@@ -359,7 +366,7 @@ void WiFiSettingsUI::showPasswordDialog(const std::string &ssid)
     lv_obj_t *cancel_btn = lv_btn_create(btn_row);
     lv_obj_set_height(cancel_btn, 44);
     lv_obj_set_flex_grow(cancel_btn, 1);
-    add_style_main_button(cancel_btn);
+    ui_theme::style_secondary_button(cancel_btn);
     lv_obj_add_event_cb(cancel_btn, onPasswordCancelClick, LV_EVENT_CLICKED, nullptr);
     lv_obj_t *cancel_lbl = lv_label_create(cancel_btn);
     lv_label_set_text(cancel_lbl, "Cancel");
@@ -375,7 +382,7 @@ void WiFiSettingsUI::showPasswordDialog(const std::string &ssid)
     lv_obj_t *connect_btn = lv_btn_create(btn_row);
     lv_obj_set_height(connect_btn, 44);
     lv_obj_set_flex_grow(connect_btn, 1);
-    add_style_main_button(connect_btn);
+    ui_theme::style_primary_button(connect_btn);
     lv_obj_add_event_cb(connect_btn, onPasswordConnectClick, LV_EVENT_CLICKED, nullptr);
     lv_obj_t *connect_lbl = lv_label_create(connect_btn);
     lv_label_set_text(connect_lbl, "Connect");
@@ -388,7 +395,7 @@ void WiFiSettingsUI::showPasswordDialog(const std::string &ssid)
     if (s_keyboard)
     {
         lv_keyboard_set_textarea(s_keyboard, s_password_ta);
-        lv_obj_clear_flag(s_keyboard, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(s_keyboard, false);
     }
 }
 
@@ -415,7 +422,7 @@ void WiFiSettingsUI::populateNetworkList()
         return;
     }
 
-    lv_obj_add_flag(s_scanning_lbl, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(s_scanning_lbl, true);
 
     // Add items incrementally so the LVGL task stays responsive
     int *ctx = new int(0);
@@ -464,7 +471,7 @@ void WiFiSettingsUI::populateTimerCb(lv_timer_t *t)
         lv_obj_set_style_border_width(row, 1, 0);
         lv_obj_set_style_border_color(row, lv_color_hex(0xE0E0E0), 0);
         lv_obj_set_style_shadow_width(row, 0, 0);
-        lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(row, false);
 
         int *btn_idx = new int(*idx);
         lv_obj_add_event_cb(row, onNetworkClick, LV_EVENT_CLICKED, btn_idx);
@@ -531,10 +538,12 @@ void WiFiSettingsUI::scanTask(void *arg)
     if (!started)
     {
         ESP_LOGE(TAG, "All scan attempts failed");
+        lv_lock();
         lv_async_call([](void *)
                       {
             if (s_scanning_lbl)
                 lv_label_set_text(s_scanning_lbl, "Scan failed. Tap Rescan."); }, nullptr);
+        lv_unlock();
         vTaskDelete(NULL);
         return;
     }
@@ -551,7 +560,9 @@ void WiFiSettingsUI::scanTask(void *arg)
         }
     }
 
+    lv_lock();
     lv_async_call(scanCompleteCb, new ScanCtx());
+    lv_unlock();
     vTaskDelete(NULL);
 }
 
@@ -605,7 +616,7 @@ void WiFiSettingsUI::destroyScreen()
     if (s_keyboard && lv_obj_is_valid(s_keyboard))
     {
         lv_keyboard_set_textarea(s_keyboard, nullptr);
-        lv_obj_add_flag(s_keyboard, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(s_keyboard, true);
     }
 
     // Cancel deferred cleanup timer if it still exists
@@ -657,7 +668,7 @@ void WiFiSettingsUI::closeScreen()
     if (s_keyboard && lv_obj_is_valid(s_keyboard))
     {
         lv_keyboard_set_textarea(s_keyboard, nullptr);
-        lv_obj_add_flag(s_keyboard, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(s_keyboard, true);
     }
 
     // Navigate back with slide-out-to-right animation
@@ -684,7 +695,7 @@ void WiFiSettingsUI::openScreen()
     s_screen = lv_obj_create(0);
     lv_obj_set_pos(s_screen, 0, 0);
     lv_obj_set_size(s_screen, 800, 1280);
-    lv_obj_set_style_bg_color(s_screen, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_bg_color(s_screen, lv_color_hex(UI_COLOR_PAGE_BG), 0);
     lv_obj_set_style_bg_opa(s_screen, LV_OPA_COVER, 0);
     lv_obj_set_flex_flow(s_screen, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_all(s_screen, 0, 0);
@@ -703,11 +714,11 @@ void WiFiSettingsUI::openScreen()
     lv_obj_t *header = lv_obj_create(s_screen);
     lv_obj_set_width(header, lv_pct(100));
     lv_obj_set_height(header, 55);
-    lv_obj_set_style_bg_color(header, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_bg_color(header, lv_color_hex(UI_COLOR_PAGE_BG), 0);
     lv_obj_set_style_border_width(header, 0, 0);
     lv_obj_set_style_radius(header, 0, 0);
     lv_obj_set_style_pad_all(header, 10, 0);
-    lv_obj_clear_flag(header, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(header, false);
 
     lv_obj_t *title_lbl = lv_label_create(header);
     lv_label_set_text(title_lbl, "WiFi Settings");
@@ -719,7 +730,7 @@ void WiFiSettingsUI::openScreen()
     lv_obj_set_size(close_btn, 38, 38);
     lv_obj_align(close_btn, LV_ALIGN_RIGHT_MID, -12, 0);
     lv_obj_add_event_cb(close_btn, onCloseClick, LV_EVENT_CLICKED, nullptr);
-    add_style_main_button(close_btn);
+    ui_theme::style_secondary_button(close_btn);
 
     lv_obj_t *close_lbl = lv_label_create(close_btn);
     lv_label_set_text(close_lbl, "X");
@@ -759,18 +770,18 @@ void WiFiSettingsUI::openScreen()
     lv_obj_set_x(rescan_btn, 80); // center horizontally (800 - 80*2 = 640 content width)
     lv_obj_set_height(rescan_btn, 48);
     lv_obj_add_event_cb(rescan_btn, onRescanClick, LV_EVENT_CLICKED, nullptr);
-    add_style_main_button(rescan_btn);
+    ui_theme::style_primary_button(rescan_btn);
     lv_obj_set_style_margin_bottom(rescan_btn, 20, 0);
 
     lv_obj_t *rescan_lbl = lv_label_create(rescan_btn);
     lv_label_set_text(rescan_lbl, "Rescan");
     lv_obj_center(rescan_lbl);
-    lv_obj_set_style_text_color(rescan_lbl, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_text_color(rescan_lbl, lv_color_white(), 0);
 
     // ── Keyboard (hidden by default, shown when password is needed) ──
     s_keyboard = lv_keyboard_create(s_screen);
-    lv_obj_add_flag(s_keyboard, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(s_keyboard, LV_OBJ_FLAG_FLOATING);
+    lv_obj_set_hidden(s_keyboard, true);
+    lv_obj_set_floating(s_keyboard, true);
     lv_obj_set_size(s_keyboard, lv_pct(100), 299);
     lv_obj_align(s_keyboard, LV_ALIGN_BOTTOM_LEFT, 0, 0);
     updateStatusLabel();
@@ -797,7 +808,7 @@ void WiFiSettingsUI::onRescanClick(lv_event_t *e)
 
     lv_obj_clean(s_list);
     lv_label_set_text(s_scanning_lbl, "Scanning for networks...");
-    lv_obj_clear_flag(s_scanning_lbl, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(s_scanning_lbl, false);
     startScanAsync();
 }
 

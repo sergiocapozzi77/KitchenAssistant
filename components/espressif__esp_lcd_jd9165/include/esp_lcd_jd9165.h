@@ -94,27 +94,29 @@ esp_err_t esp_lcd_new_panel_jd9165(const esp_lcd_panel_io_handle_t io, const esp
  * @note  refresh_rate = (dpi_clock_freq_mhz * 1000000) / (h_res + hsync_pulse_width + hsync_back_porch + hsync_front_porch)
  *                                                      / (v_res + vsync_pulse_width + vsync_back_porch + vsync_front_porch)
  *
- * @param[in] px_format Pixel format of the panel
+ * @note  On ESP-IDF v6.0 and later the DMA2D draw hook is enabled separately
+ *        with esp_lcd_dpi_panel_enable_dma2d() after the panel is created.
+ *
+ * @param[in] color_format Input color format of the panel
  *
  */
-#define JD9165_1024_600_PANEL_60HZ_DPI_CONFIG(px_format) \
-    {                                                    \
-        .dpi_clk_src = MIPI_DSI_DPI_CLK_SRC_DEFAULT,     \
-        .dpi_clock_freq_mhz = 80,                        \
-        .virtual_channel = 0,                            \
-        .pixel_format = px_format,                       \
-        .num_fbs = 1,                                    \
-        .video_timing = {                                \
-            .h_size = 1024,                              \
-            .v_size = 600,                               \
-            .hsync_back_porch = 160,                     \
-            .hsync_pulse_width = 40,                     \
-            .hsync_front_porch = 160,                    \
-            .vsync_back_porch = 23,                      \
-            .vsync_pulse_width = 10,                      \
-            .vsync_front_porch = 12,                     \
-        },                                               \
-        .flags.use_dma2d = true,                         \
+#define JD9165_1024_600_PANEL_60HZ_DPI_CONFIG(color_format) \
+    {                                                        \
+        .dpi_clk_src = MIPI_DSI_DPI_CLK_SRC_DEFAULT,         \
+        .dpi_clock_freq_mhz = 80,                            \
+        .virtual_channel = 0,                                \
+        .in_color_format = color_format,                     \
+        .num_fbs = 1,                                        \
+        .video_timing = {                                    \
+            .h_size = 1024,                                  \
+            .v_size = 600,                                   \
+            .hsync_back_porch = 160,                         \
+            .hsync_pulse_width = 40,                         \
+            .hsync_front_porch = 160,                        \
+            .vsync_back_porch = 23,                          \
+            .vsync_pulse_width = 10,                         \
+            .vsync_front_porch = 12,                         \
+        },                                                   \
     }
 
 #ifdef __cplusplus

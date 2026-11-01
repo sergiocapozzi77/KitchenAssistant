@@ -1,885 +1,539 @@
 #include "actions.h"
-#include "lvgl.h"
-#include "ui.h"
-#include "styles.h"
-#include "esp_log.h"
-#include "vars.h"
-#include "images.h"
-#include "ProductsManager.h"
+
+#include "CookbooksManager.h"
 #include "ProductService.h"
+#include "ProductsManager.h"
+#include "RecipesManager.h"
+#include "WiFiManager.h"
+#include "WiFiSettingsUI.h"
+#include "screens.h"
+#include "thumbnail_manager.h"
 #include "ui_extensions.h"
-#include "FavouritesManager.h"
-#include "CookbookManager.h"
-#include "RecipeSuggestionsManager.h"
-#include "filters_ui.h"
-#include <algorithm>
-#include <cctype>
-#include <string>
-#include <string.h>
+
+#include "esp_heap_caps.h"
+#include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "esp_heap_caps.h"
-#include "RecipeDetailService.h"
-#include "RecipeStepsAggregationService.h"
-#include "StepProgressBar.h"
-#include "ui_extensions_internal.h"
-#include "ui_extensions_recipe_steps.h"
-#include "WiFiSettingsUI.h"
-#include "spiffs_cleanup.h"
-#include "thumbnail_manager.h"
+
+#include <algorithm>
+#include <atomic>
+#include <cstdint>
+#include <mutex>
+#include <set>
+#include <string>
 
 static const char *TAG = "ACTIONS";
 
-filter_panel_t products_panel;
-filter_panel_t recipes_panel;
-
-// Favourites pagination state
-static int favouritesCurrentPage = 1;
-const int favouritesPageSize = 6;
-static std::string s_favouritesSearchFilter;
-
-static void updateFavouritesPaginationButtons()
+namespace
 {
-    lv_lock();
-    if (!objects.favourites_prev_btn || !lv_obj_is_valid(objects.favourites_prev_btn) ||
-        !objects.favourites_next_btn || !lv_obj_is_valid(objects.favourites_next_btn))
-    {
-        lv_unlock();
-        return;
-    }
 
-    // Update previous button
-    if (favouritesCurrentPage > 1)
-    {
-        lv_obj_clear_state(objects.favourites_prev_btn, LV_STATE_DISABLED);
-    }
-    else
-    {
-        lv_obj_add_state(objects.favourites_prev_btn, LV_STATE_DISABLED);
-    }
+constexpr uint32_t kTaskStack = 16384;
+constexpr UBaseType_t kTaskPriority = 5;
+constexpr BaseType_t kTaskCore = 1;
 
-    // Update next button
-    std::vector<Favorite> allFavourites = favouritesManager.getFavourites();
-    std::vector<Favorite> favourites;
-    if (s_favouritesSearchFilter.length() >= 3)
-    {
-        std::string filterLower = s_favouritesSearchFilter;
-        std::transform(filterLower.begin(), filterLower.end(), filterLower.begin(), ::tolower);
-        for (const auto &fav : allFavourites)
-        {
-            std::string nameLower = fav.name;
-            std::transform(nameLower.begin(), nameLower.end(), nameLower.begin(), ::tolower);
-            if (nameLower.find(filterLower) != std::string::npos)
-                favourites.push_back(fav);
-        }
-    }
-    else
-    {
-        favourites = std::move(allFavourites);
-    }
-    int totalPages = favourites.empty() ? 0 : ((favourites.size() + favouritesPageSize - 1) / favouritesPageSize);
-    if (totalPages == 0 || favouritesCurrentPage < totalPages)
-    {
-        lv_obj_clear_state(objects.favourites_next_btn, LV_STATE_DISABLED);
-    }
-    else
-    {
-        lv_obj_add_state(objects.favourites_next_btn, LV_STATE_DISABLED);
-    }
-    lv_unlock();
-}
+std::atomic<bool> s_reload_running{false};
+std::atomic<bool> s_cookbooks_running{false};
+std::mutex s_cookbook_mutex;
+std::set<std::string> s_cookbook_inflight;
+lv_timer_t *s_cookbook_retry_timer = nullptr;
+lv_timer_t *s_search_timer = nullptr;
 
-void showCurrentPageFavourites(bool force)
-{
-    if (!objects.favourites_list || !lv_obj_is_valid(objects.favourites_list))
-    {
-        ESP_LOGE("favourites", "favourites_list is invalid");
-        return;
-    }
-
-    // Show/hide the top bar (search, reload, pagination) based on view mode
-    if (objects.favourite_bar && lv_obj_is_valid(objects.favourite_bar))
-    {
-        if (g_favouritesViewMode == FavouritesViewMode::COOKBOOK_LIST)
-            lv_obj_add_flag(objects.favourite_bar, LV_OBJ_FLAG_HIDDEN);
-        else
-            lv_obj_clear_flag(objects.favourite_bar, LV_OBJ_FLAG_HIDDEN);
-    }
-
-    if (lv_obj_get_child_count(objects.favourites_list) > 0 && !force)
-    {
-        updateFavouritesPaginationButtons();
-        return;
-    }
-
-    // ── View mode dispatch ──
-    if (g_favouritesViewMode == FavouritesViewMode::COOKBOOK_LIST)
-    {
-        showCurrentPageCookbooks(force);
-        return;
-    }
-
-    // ── COOKBOOK_DRILL: show favourites for the active cookbook ──
-    ensure_back_button();
-
-    std::vector<Favorite> allFavs = favouritesManager.getFavourites();
-    std::vector<Favorite> filtered;
-    for (const auto &fav : allFavs)
-    {
-        if (std::find(fav.cookbookIds.begin(), fav.cookbookIds.end(), g_activeCookbookId) != fav.cookbookIds.end())
-            filtered.push_back(fav);
-    }
-
-    populateFavouritesList(objects.favourites_list, filtered);
-}
-
-// Structure for barcode upsert task
-struct BarcodeUpsertCtx
-{
-    std::string barcode;
-    std::string name;
-    std::string category;
-};
-
-// Structure for product update task
 struct ProductUpdateCtx
 {
     Product product;
-    std::string barcode;
-    bool success = false;
 };
 
-// Structure for product delete task
 struct ProductDeleteCtx
 {
-    std::string rowId;
-    bool success = false;
+    std::string id;
 };
 
-static void barcode_upsert_task(void *arg)
+bool spawn_task(TaskFunction_t fn, const char *name, void *arg)
 {
-    BarcodeUpsertCtx *ctx = (BarcodeUpsertCtx *)arg;
-    if (ctx && !ctx->barcode.empty())
+    BaseType_t result = xTaskCreatePinnedToCoreWithCaps(
+        fn, name, kTaskStack, arg, kTaskPriority, nullptr, kTaskCore,
+        MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (result != pdPASS)
     {
-        bool success = productService.upsertBarcode(ctx->barcode, ctx->name, ctx->category);
-        if (success)
-        {
-            ESP_LOGI("actions", "Barcode upserted: %s", ctx->barcode.c_str());
-        }
-        else
-        {
-            ESP_LOGE("actions", "Failed to upsert barcode: %s", ctx->barcode.c_str());
-        }
+        ESP_LOGE(TAG, "Failed to create task %s", name);
+        return false;
     }
-    delete ctx;
-    vTaskDelete(NULL);
+    return true;
 }
 
-static void product_update_ui_cb(void *arg)
+void products_reload_task(void *)
 {
-    ProductUpdateCtx *ctx = (ProductUpdateCtx *)arg;
-    if (!ctx)
-        return;
-    if (ctx->success)
+    productsManager.fetchProductsSync();
+
+    lv_lock();
+    s_reload_running.store(false);
+    hideSpinner();
+    lv_unlock();
+
+    vTaskDelete(nullptr);
+}
+
+void product_update_task(void *arg)
+{
+    auto *ctx = static_cast<ProductUpdateCtx *>(arg);
+
+    bool ok = productService.updateProduct(ctx->product);
+    if (ok && !ctx->product.barcode.empty())
     {
-        ESP_LOGI("actions", "Product updated successfully");
-        showSnackbar("Product updated", 3000);
+        productService.upsertBarcode(ctx->product.barcode, ctx->product.name,
+                                     ctx->product.category);
+    }
+
+    lv_lock();
+    if (ok)
+    {
         productsManager.updateProduct(ctx->product);
-        // Spawn barcode upsert task if barcode exists
-        if (!ctx->barcode.empty())
-        {
-            BarcodeUpsertCtx *barcode_ctx = new BarcodeUpsertCtx{ctx->barcode, ctx->product.name, ctx->product.category};
-            BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
-                barcode_upsert_task, "BarcodeUpsert",
-                16384, barcode_ctx, 3, NULL, tskNO_AFFINITY,
-                MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-            if (ret != pdPASS)
-            {
-                ESP_LOGE("actions", "Failed to create barcode upsert task");
-                delete barcode_ctx;
-            }
-        }
         close_product_edit_modal();
         productsManager.populateProductList();
+        showSnackbar("Product updated", 2500);
     }
     else
     {
-        ESP_LOGE("actions", "Failed to update product");
-        showSnackbar("Failed to update product", 5000);
-        close_product_edit_modal();
+        showSnackbar("Couldn't update product", 4000);
+        if (objects.product_edit_save_btn)
+            lv_obj_clear_state(objects.product_edit_save_btn, LV_STATE_DISABLED);
     }
+    hideSpinner();
+    lv_unlock();
+
     delete ctx;
+    vTaskDelete(nullptr);
 }
 
-static void product_delete_ui_cb(void *arg)
+void product_delete_task(void *arg)
 {
-    ProductDeleteCtx *ctx = (ProductDeleteCtx *)arg;
-    if (!ctx)
+    auto *ctx = static_cast<ProductDeleteCtx *>(arg);
+
+    bool ok = productService.deleteProduct(ctx->id);
+
+    lv_lock();
+    if (ok)
+    {
+        productsManager.deleteProduct(ctx->id);
+        productsManager.populateProductList();
+        showSnackbar("Deleted", 2000);
+    }
+    else
+    {
+        showSnackbar("Couldn't delete product", 4000);
+    }
+    lv_unlock();
+
+    delete ctx;
+    vTaskDelete(nullptr);
+}
+
+void search_timer_cb(lv_timer_t *)
+{
+    s_search_timer = nullptr;
+    if (!objects.product_search_ta || !lv_obj_is_valid(objects.product_search_ta))
         return;
-    if (ctx->success)
-    {
-        ESP_LOGI("actions", "Product deleted successfully");
-        showSnackbar("Product deleted", 5000);
-        productsManager.deleteProduct(ctx->rowId);
-        close_product_edit_modal();
-        productsManager.populateProductList();
-    }
-    else
-    {
-        ESP_LOGE("actions", "Failed to delete product");
-        showSnackbar("Failed to delete product", 5000);
-        close_product_edit_modal();
-    }
-    delete ctx;
-}
-
-static void product_update_task(void *arg)
-{
-    ProductUpdateCtx *ctx = (ProductUpdateCtx *)arg;
-    if (ctx)
-    {
-        ctx->success = productService.updateProduct(ctx->product);
-        lv_async_call(product_update_ui_cb, ctx);
-    }
-    vTaskDelete(NULL);
-}
-
-static void product_delete_task(void *arg)
-{
-    ProductDeleteCtx *ctx = (ProductDeleteCtx *)arg;
-    if (ctx)
-    {
-        ctx->success = productService.deleteProduct(ctx->rowId);
-        lv_async_call(product_delete_ui_cb, ctx);
-    }
-    vTaskDelete(NULL);
-}
-
-static void keyboard_ready_cb(lv_event_t *e)
-{
-    if (objects.keywords_keyboard && lv_obj_is_valid(objects.keywords_keyboard))
-    {
-        lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
-    }
-}
-
-static void keyboard_cancel_cb(lv_event_t *e)
-{
-    if (objects.keywords_keyboard && lv_obj_is_valid(objects.keywords_keyboard))
-    {
-        lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
-    }
-}
-
-void keywords_textarea_focused_cb(lv_event_t *e)
-{
-    ESP_LOGI(TAG, "FOCUSED fired, keyboard valid: %d",
-             objects.keywords_keyboard && lv_obj_is_valid(objects.keywords_keyboard));
-
-    // Get the textarea that was focused
-    lv_obj_t *focused_textarea = (lv_obj_t *)lv_event_get_target(e);
-
-    // Assign keyboard to this textarea
-    if (objects.keywords_keyboard && lv_obj_is_valid(objects.keywords_keyboard))
-    {
-        lv_keyboard_set_textarea(objects.keywords_keyboard, focused_textarea);
-        // Remove from grid layout so the keyboard is positioned freely,
-        // then anchor to the bottom of the screen.
-        // This keeps the keyboard at the correct position regardless of
-        // screen dimensions, tab bar size, or list-rebuild layout changes.
-        //      lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_FLOATING);
-        //  lv_obj_align(objects.keywords_keyboard, LV_ALIGN_BOTTOM_MID, 0, 0);
-        lv_obj_clear_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
-    }
-
-    ESP_LOGI(TAG, "Keyboard hidden after clear: %d",
-             lv_obj_has_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN));
-}
-
-void keywords_textarea_defocused_cb(lv_event_t *e)
-{
-    ESP_LOGI(TAG, "DEFOCUSED fired on: %p", lv_event_get_target(e));
-    // Hide keyboard when textarea loses focus
-    if (objects.keywords_keyboard && lv_obj_is_valid(objects.keywords_keyboard))
-    {
-        lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
-    }
-}
-
-static void product_search_value_changed_cb(lv_event_t *e)
-{
-    lv_obj_t *textarea = (lv_obj_t *)lv_event_get_target(e);
-    const char *text = lv_textarea_get_text(textarea);
-    if (!text)
-        text = "";
-    setProductSearchFilter(text);
+    setProductSearchFilter(lv_textarea_get_text(objects.product_search_ta));
     productsManager.populateProductList();
 }
 
-static void favourites_search_value_changed_cb(lv_event_t *e)
+void close_search()
 {
-    lv_obj_t *textarea = (lv_obj_t *)lv_event_get_target(e);
-    const char *text = lv_textarea_get_text(textarea);
-    if (!text)
-        text = "";
-    s_favouritesSearchFilter = text;
-    favouritesCurrentPage = 1;
-    showCurrentPageFavourites(true);
+    if (objects.product_search_ta)
+    {
+        lv_textarea_set_text(objects.product_search_ta, "");
+        lv_obj_set_hidden(objects.product_search_ta, true);
+    }
+    if (objects.keyboard)
+        lv_obj_set_hidden(objects.keyboard, true);
+    setProductSearchFilter("");
+    productsManager.populateProductList();
 }
 
-void set_tab_icon(lv_obj_t *tabview, uint32_t index, const void *img_src)
+struct CookbooksLoadCtx
 {
-    lv_obj_t *tab_btns = lv_tabview_get_tab_btns(tabview);
-    lv_obj_t *btn = lv_obj_get_child(tab_btns, index);
+    bool refresh = false;
+};
 
-    if (!btn)
+void cookbooks_reload_task(void *arg)
+{
+    auto *ctx = static_cast<CookbooksLoadCtx *>(arg);
+    bool refresh = ctx->refresh;
+    delete ctx;
+
+    // Cookbooks is the startup tab, so this task can be spawned before the
+    // network is up. Wait for WiFi and SNTP before hitting TLS (same gates as
+    // combinedFetchTask). Both are no-ops once the network is ready.
+    while (!wifiManager.isConnected())
+        vTaskDelay(pdMS_TO_TICKS(500));
+    while (!wifiManager.isSntpSynced())
+        vTaskDelay(pdMS_TO_TICKS(250));
+
+    bool ok = refresh ? cookbooksManager.refreshSync()
+                      : cookbooksManager.fetchSync();
+
+    lv_lock();
+    if (ok)
+        populateCookbooksUi();
+    else
+        showSnackbar("Couldn't load cookbooks", 4000);
+    s_cookbooks_running.store(false);
+    lv_unlock();
+
+    vTaskDelete(nullptr);
+}
+
+struct CookbookFetchCtx
+{
+    std::string id;
+};
+
+bool cookbook_is_open(const std::string &cookbookId)
+{
+    lv_lock();
+    const bool isOpen = openCookbookId() == cookbookId;
+    lv_unlock();
+    return isOpen;
+}
+
+void retry_cookbook_task_start(lv_timer_t *)
+{
+    s_cookbook_retry_timer = nullptr;
+    const std::string cookbookId = openCookbookId();
+    if (!cookbookId.empty() && !recipesManager.hasCookbook(cookbookId))
+        request_cookbook_recipes(cookbookId);
+}
+
+void cookbook_recipes_task(void *arg)
+{
+    auto *ctx = static_cast<CookbookFetchCtx *>(arg);
+
+    uint32_t retryDelayMs = 1000;
+    bool loaded = false;
+    while (cookbook_is_open(ctx->id))
+    {
+        loaded = recipesManager.fetchForCookbookSync(ctx->id);
+        if (loaded)
+            break;
+
+        ESP_LOGW(TAG, "Cookbook recipe fetch failed; retrying in %u ms",
+                 (unsigned)retryDelayMs);
+        uint32_t waitedMs = 0;
+        while (waitedMs < retryDelayMs && cookbook_is_open(ctx->id))
+        {
+            const uint32_t delayMs =
+                std::min<uint32_t>(250, retryDelayMs - waitedMs);
+            vTaskDelay(pdMS_TO_TICKS(delayMs));
+            waitedMs += delayMs;
+        }
+        retryDelayMs = std::min<uint32_t>(retryDelayMs * 2, 30000);
+    }
+
+    lv_lock();
+    {
+        std::lock_guard<std::mutex> lock(s_cookbook_mutex);
+        s_cookbook_inflight.erase(ctx->id);
+    }
+    // Discard the result when the user already left this cookbook.
+    if (loaded && openCookbookId() == ctx->id)
+        populateCookbookRecipesUi(ctx->id);
+    lv_unlock();
+
+    delete ctx;
+    vTaskDelete(nullptr);
+}
+
+} // namespace
+
+void action_products_reload(lv_event_t *)
+{
+    if (s_reload_running.exchange(true))
         return;
 
-    // Remove existing children (label)
-    uint32_t child_cnt = lv_obj_get_child_cnt(btn);
-    for (uint32_t i = 0; i < child_cnt; i++)
+    if (!spawn_task(products_reload_task, "products_reload", nullptr))
     {
-        lv_obj_del(lv_obj_get_child(btn, 0));
+        s_reload_running.store(false);
+        showSnackbar("Couldn't start reload", 3000);
+        return;
     }
-
-    // Add image
-    lv_obj_t *img = lv_img_create(btn);
-    lv_img_set_src(img, img_src);
-    lv_obj_center(img);
+    showSpinner();
 }
 
-static void tabview_tab_changed_cb(lv_event_t *e)
+void action_product_search_open(lv_event_t *)
 {
-    lv_obj_t *tabview = (lv_obj_t *)lv_event_get_target(e);
-    uint32_t tab = lv_tabview_get_tab_active(tabview);
+    if (!objects.product_search_ta || !lv_obj_is_valid(objects.product_search_ta))
+        return;
 
-    if (tab == 0)
+    if (lv_obj_is_hidden(objects.product_search_ta))
     {
-        // Switching TO Products tab — destroy recipe widgets to free PSRAM thumbnails
-        // Cancel any in-flight thumbnail fetches first
-        s_thumb_generation++; // defined extern in ui_extensions.h
-        // stop_all_shimmer_animations();  // DISABLED — shimmer caused crashes
-        lv_obj_clean(objects.recipes_list);
-        lv_obj_clean(objects.favourites_list);
-    }
-    else if (tab == 1)
-    {
-        // Switching TO Recipes tab — rebuild from cached data (no network call)
-        if (recipeSuggestionsManager.getSuggestionSize() > 0)
+        lv_obj_set_hidden(objects.product_search_ta, false);
+        lv_obj_move_foreground(objects.product_search_ta);
+        if (objects.keyboard && lv_obj_is_valid(objects.keyboard))
         {
-            lv_obj_add_flag(objects.recipe_list_filter_container, LV_OBJ_FLAG_HIDDEN);
-            lv_label_set_text(objects.recipe_filter_toggle_text, "\uF078");
-            recipeSuggestionsManager.showCurrentPageRecipes();
-        }
-        else
-        {
-            lv_obj_clear_flag(objects.recipe_list_filter_container, LV_OBJ_FLAG_HIDDEN);
-            lv_label_set_text(objects.recipe_filter_toggle_text, "\uF077");
-        }
-        // Hide keyboard when switching away from products tab
-        lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
-        // Cancel any in-flight thumbnail fetches for favourites (disabled to allow background downloads)
-        // s_thumb_generation++;
-        // stop_all_shimmer_animations();  // DISABLED — shimmer caused crashes
-        lv_obj_clean(objects.favourites_list);
-    }
-    else if (tab == 2)
-    {
-        // stop_all_shimmer_animations();  // DISABLED — shimmer caused crashes
-        lv_obj_clean(objects.recipes_list);
-        lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
-        // Reset to cookbook list view when entering the tab
-        cleanupCookbookDrill();
-        showCurrentPageFavourites();
-    }
-}
-
-void recipe_detail_back_cb(lv_event_t *e)
-{
-    lv_obj_t *prev = (lv_obj_t *)lv_event_get_user_data(e);
-    if (prev && lv_obj_is_valid(prev))
-        lv_scr_load_anim(prev, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 300, 0, false);
-    else
-        lv_scr_load_anim(lv_scr_act(), LV_SCR_LOAD_ANIM_MOVE_RIGHT, 300, 0, false);
-
-    // heap_caps_check_integrity_all(true); // aborts immediately at the WRITE SITE
-}
-
-void action_screen_loading(lv_event_t *e)
-{
-    // This function can be used to perform actions when the loading screen is shown
-    ESP_LOGI("actions", "Loading screen shown");
-    set_tab_icon(objects.tabview, 0, &img_shopping);
-    set_tab_icon(objects.tabview, 1, &img_chef);
-    set_tab_icon(objects.tabview, 2, &img_favourite);
-    set_tab_icon(objects.tabview, 3, &img_settings);
-
-    lv_obj_set_parent(objects.snackbar, lv_layer_top());
-    lv_obj_move_foreground(objects.snackbar); // Ensure it's the front-most child of the top layer
-
-    lv_obj_add_flag(objects.create_recipe_pnl, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(objects.snackbar, LV_OBJ_FLAG_HIDDEN);
-
-    init_products_filter_panel(&products_panel);
-    create_filter_panel(&products_panel);
-
-    init_recipes_filter_panel(&recipes_panel);
-    create_filter_panel(&recipes_panel);
-
-    lv_obj_add_flag(objects.recipe_list_filter_container, LV_OBJ_FLAG_HIDDEN);
-    lv_label_set_text(objects.recipe_filter_toggle_text, "\uF078");
-    lv_obj_add_event_cb(objects.tabview, tabview_tab_changed_cb, LV_EVENT_VALUE_CHANGED, nullptr);
-
-    // Keyboard initialization
-    lv_obj_add_flag(objects.keywords_keyboard, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_event_cb(objects.keywords_keyboard, keyboard_ready_cb, LV_EVENT_READY, nullptr);
-    lv_obj_add_event_cb(objects.keywords_keyboard, keyboard_cancel_cb, LV_EVENT_CANCEL, nullptr);
-    lv_obj_add_event_cb(objects.products_filters_panel__keywords_text, keywords_textarea_focused_cb, LV_EVENT_FOCUSED, nullptr);
-    lv_obj_add_event_cb(objects.products_filters_panel__keywords_text, keywords_textarea_defocused_cb, LV_EVENT_DEFOCUSED, nullptr);
-    lv_obj_add_event_cb(objects.recipes_filters_panel__keywords_text, keywords_textarea_focused_cb, LV_EVENT_FOCUSED, nullptr);
-    lv_obj_add_event_cb(objects.recipes_filters_panel__keywords_text, keywords_textarea_defocused_cb, LV_EVENT_DEFOCUSED, nullptr);
-    lv_obj_add_event_cb(objects.product_search_ta, keywords_textarea_focused_cb, LV_EVENT_FOCUSED, nullptr);
-    lv_obj_add_event_cb(objects.product_search_ta, keywords_textarea_defocused_cb, LV_EVENT_DEFOCUSED, nullptr);
-    lv_obj_add_event_cb(objects.product_search_ta, product_search_value_changed_cb, LV_EVENT_VALUE_CHANGED, nullptr);
-    lv_obj_add_event_cb(objects.favourites_search_ta, keywords_textarea_focused_cb, LV_EVENT_FOCUSED, nullptr);
-    lv_obj_add_event_cb(objects.favourites_search_ta, keywords_textarea_defocused_cb, LV_EVENT_DEFOCUSED, nullptr);
-    lv_obj_add_event_cb(objects.favourites_search_ta, favourites_search_value_changed_cb, LV_EVENT_VALUE_CHANGED, nullptr);
-    lv_obj_add_event_cb(objects.product_edit__product_edit_name_ta, keywords_textarea_focused_cb, LV_EVENT_FOCUSED, nullptr);
-    lv_obj_add_event_cb(objects.product_edit__product_edit_name_ta, keywords_textarea_defocused_cb, LV_EVENT_DEFOCUSED, nullptr);
-
-    lv_obj_add_event_cb(objects.recipe_back_btn, recipe_detail_back_cb, LV_EVENT_CLICKED, lv_scr_act());
-    lv_obj_add_event_cb(objects.phase_back_btn, recipe_detail_back_cb, LV_EVENT_CLICKED, objects.recipe_detail);
-}
-
-void action_main_screen_loaded(lv_event_t *e)
-{
-}
-
-void action_update_recipes_from_filter_panel(lv_event_t *e)
-{
-    ESP_LOGI("actions", "Generate Recipe button clicked");
-    log_filter_state();
-
-    lv_lock();
-    lv_tabview_set_active(objects.tabview, 1, LV_ANIM_OFF);
-    lv_obj_add_flag(objects.recipe_list_filter_container, LV_OBJ_FLAG_HIDDEN);
-    lv_label_set_text(objects.recipe_filter_toggle_text, "\uF078");
-    lv_unlock();
-
-    // Somewhere in initTasks() or after WiFi connects:
-    recipeSuggestionsManager.reset();
-    recipeSuggestionsManager.loadCurrentPage();
-}
-
-void action_generate_recipe_click(lv_event_t *e)
-{
-    ESP_LOGI("actions", "Generate Recipe button clicked");
-    log_filter_state();
-
-    lv_lock();
-    lv_obj_add_flag(objects.recipe_list_filter_container, LV_OBJ_FLAG_HIDDEN);
-    lv_label_set_text(objects.recipe_filter_toggle_text, "\uF078");
-    lv_tabview_set_active(objects.tabview, 1, LV_ANIM_OFF);
-    lv_unlock();
-
-    // Somewhere in initTasks() or after WiFi connects:
-    recipeSuggestionsManager.reset();
-    recipeSuggestionsManager.loadCurrentPage();
-}
-
-void action_snack_bar_hide_clicked(lv_event_t *e)
-{
-    lv_obj_add_flag(objects.snackbar, LV_OBJ_FLAG_HIDDEN);
-}
-
-void action_recipe_suggestion_next(lv_event_t *e)
-{
-    recipeSuggestionsManager.loadNextPage();
-}
-
-void action_recipe_suggestion_prev(lv_event_t *e)
-{
-    recipeSuggestionsManager.loadPrevPage();
-}
-
-void action_favourites_next(lv_event_t *e)
-{
-    std::vector<Favorite> allFavourites = favouritesManager.getFavourites();
-    std::vector<Favorite> favourites;
-    if (s_favouritesSearchFilter.length() >= 3)
-    {
-        std::string filterLower = s_favouritesSearchFilter;
-        std::transform(filterLower.begin(), filterLower.end(), filterLower.begin(), ::tolower);
-        for (const auto &fav : allFavourites)
-        {
-            std::string nameLower = fav.name;
-            std::transform(nameLower.begin(), nameLower.end(), nameLower.begin(), ::tolower);
-            if (nameLower.find(filterLower) != std::string::npos)
-                favourites.push_back(fav);
+            lv_keyboard_set_textarea(objects.keyboard, objects.product_search_ta);
+            lv_obj_set_hidden(objects.keyboard, false);
+            lv_obj_move_foreground(objects.keyboard);
         }
     }
     else
     {
-        favourites = std::move(allFavourites);
+        close_search();
     }
-    int totalPages = (favourites.size() + favouritesPageSize - 1) / favouritesPageSize;
-    if (totalPages == 0)
-        totalPages = 1; // at least one page even if empty
-    if (favouritesCurrentPage < totalPages)
+}
+
+void action_product_search_changed(lv_event_t *)
+{
+    if (s_search_timer)
+        lv_timer_delete(s_search_timer);
+    s_search_timer = lv_timer_create(search_timer_cb, 300, nullptr);
+    lv_timer_set_repeat_count(s_search_timer, 1);
+}
+
+void action_product_filter_toggle(lv_event_t *)
+{
+    if (!objects.product_filter_chips)
+        return;
+    if (lv_obj_is_hidden(objects.product_filter_chips))
     {
-        favouritesCurrentPage++;
-        showCurrentPageFavourites(true);
+        lv_obj_set_hidden(objects.product_filter_chips, false);
+        if (objects.product_sort_chips)
+            lv_obj_set_hidden(objects.product_sort_chips, true);
     }
-    updateFavouritesPaginationButtons();
-}
-
-void action_favourites_prev(lv_event_t *e)
-{
-    if (favouritesCurrentPage > 1)
+    else
     {
-        favouritesCurrentPage--;
-        showCurrentPageFavourites(true);
+        lv_obj_set_hidden(objects.product_filter_chips, true);
     }
-    updateFavouritesPaginationButtons();
 }
 
-void action_products_reload_click(lv_event_t *e)
+void action_product_sort_toggle(lv_event_t *)
 {
-    productsManager.fetchProductsAsync();
+    if (!objects.product_sort_chips)
+        return;
+    if (lv_obj_is_hidden(objects.product_sort_chips))
+    {
+        lv_obj_set_hidden(objects.product_sort_chips, false);
+        if (objects.product_filter_chips)
+            lv_obj_set_hidden(objects.product_filter_chips, true);
+    }
+    else
+    {
+        lv_obj_set_hidden(objects.product_sort_chips, true);
+    }
 }
 
-void action_favourites_reload_click(lv_event_t *e)
+void action_product_filter_chip(lv_event_t *event)
 {
-    lv_lock();
-    // stop_all_shimmer_animations();  // DISABLED — shimmer caused crashes
-    lv_obj_clean(objects.favourites_list);
-    lv_unlock();
-    favouritesCurrentPage = 1;
-    favouritesManager.startBackgroundFetch();
-    updateFavouritesPaginationButtons();
+    auto filter = static_cast<ProductFilter>(
+        reinterpret_cast<intptr_t>(lv_event_get_user_data(event)));
+    setProductFilter(filter);
+    if (objects.product_filter_chips)
+        lv_obj_set_hidden(objects.product_filter_chips, true);
 }
 
-void action_product_edit_close(lv_event_t *e)
+void action_product_sort_chip(lv_event_t *event)
+{
+    auto sort = static_cast<ProductSort>(
+        reinterpret_cast<intptr_t>(lv_event_get_user_data(event)));
+    setProductSort(sort);
+    if (objects.product_sort_chips)
+        lv_obj_set_hidden(objects.product_sort_chips, true);
+}
+
+void action_product_edit_save(lv_event_t *)
+{
+    Product product;
+    if (!get_product_modal_values(product))
+        return;
+
+    auto *ctx = new ProductUpdateCtx{product};
+    if (objects.product_edit_save_btn)
+        lv_obj_add_state(objects.product_edit_save_btn, LV_STATE_DISABLED);
+    showSpinner();
+
+    if (!spawn_task(product_update_task, "product_update", ctx))
+    {
+        delete ctx;
+        if (objects.product_edit_save_btn)
+            lv_obj_clear_state(objects.product_edit_save_btn, LV_STATE_DISABLED);
+        hideSpinner();
+        showSnackbar("Couldn't start update", 3000);
+    }
+}
+
+void action_product_edit_cancel(lv_event_t *)
 {
     close_product_edit_modal();
 }
 
-static std::string index_to_category(int idx)
+void action_product_edit_delete(lv_event_t *)
 {
-    static const char *categories[] = {
-        "Baby", "Bakery", "Beverages", "Breakfast & Cereal", "Condiments & Dressing",
-        "Cooking & Baking", "Dairy", "Deli", "Frozen Foods", "Grains",
-        "Pasta & Sides", "Health & Personal Care", "Household & Cleaning", "Meat",
-        "Pet Supplies", "Produce", "Seafood", "Snacks", "Soups & Canned Food",
-        "Wine, Beer & Spirit", "Other"};
-    if (idx < 0 || idx >= 21)
-        idx = 20;
-    return categories[idx];
-}
-
-void action_product_edit_save(lv_event_t *e)
-{
-    ESP_LOGI("actions", "Product edit save clicked");
-
-    lv_obj_t *panel = objects.product_edit__product_edit_panel;
-
-    std::string *rowId = static_cast<std::string *>(lv_obj_get_user_data(panel));
-    if (!rowId)
-    {
-        ESP_LOGE("actions", "RowId not found in panel");
+    std::string id;
+    if (!product_modal_id(id))
         return;
-    }
-
-    lv_obj_t *name_ta = objects.product_edit__product_edit_name_ta;         // product_edit_name_ta
-    lv_obj_t *expiry_ta = objects.product_edit__product_edit_expiry_ta;     // product_edit_expiry_ta
-    lv_obj_t *category_dd = objects.product_edit__product_edit_category_dd; // product_edit_category_dd
-    lv_obj_t *frozen_cb = objects.product_edit__product_edit_frozen_cb;     // product_edit_frozen_cb
-
-    if (!name_ta || !lv_obj_is_valid(name_ta) ||
-        !expiry_ta || !lv_obj_is_valid(expiry_ta) ||
-        !category_dd || !lv_obj_is_valid(category_dd) ||
-        !frozen_cb || !lv_obj_is_valid(frozen_cb))
-    {
-        ESP_LOGE("actions", "One or more widgets invalid");
-        return;
-    }
-
-    const char *name = lv_textarea_get_text(name_ta);
-    const char *expiry = lv_textarea_get_text(expiry_ta);
-    int cat_idx = lv_dropdown_get_selected(category_dd);
-    std::string category = index_to_category(cat_idx);
-    bool frozen = lv_obj_has_state(frozen_cb, LV_STATE_CHECKED);
-
-    ESP_LOGI("actions", "Updating product %s: name='%s', expiry='%s', category='%s', frozen='%s'",
-             rowId->c_str(), name, expiry, category.c_str(), frozen ? "true" : "false");
-
-    Product product;
-    product.rowId = *rowId;
-    product.name = name ? name : "";
-    product.expiry = expiry ? expiry : "";
-    product.category = category;
-    product.frozen = frozen;
-
-    // Preserve quantity from existing product
-    auto allProducts = productsManager.getAllProducts();
-    auto it = std::find_if(allProducts.begin(), allProducts.end(),
-                           [&rowId](const Product &p)
-                           { return p.rowId == *rowId; });
-    product.quantity = (it != allProducts.end()) ? it->quantity : 0;
-    std::string barcode = (it != allProducts.end()) ? it->barcode : "";
-    // NOTE: do NOT mutate allProducts — it's a local copy
-
-    // Create async update task
-    ProductUpdateCtx *ctx = new ProductUpdateCtx{product, barcode};
-    BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
-        product_update_task, "ProductUpdate",
-        16384, ctx, 3, NULL, tskNO_AFFINITY,
-        MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    if (ret != pdPASS)
-    {
-        ESP_LOGE("actions", "Failed to create product update task");
-        delete ctx;
-        showSnackbar("Failed to start update", 5000);
-        lv_async_call([](void *)
-                      { close_product_edit_modal(); }, nullptr);
-    }
+    close_product_edit_modal();
+    request_product_delete(id);
 }
 
-void action_product_sort_value_changed(lv_event_t *e)
+void action_product_qty_minus(lv_event_t *)
 {
-    productsManager.populateProductList();
+    adjust_product_modal_quantity(-1);
 }
 
-void action_product_filter_change(lv_event_t *e)
+void action_product_qty_plus(lv_event_t *)
 {
-    productsManager.populateProductList();
+    adjust_product_modal_quantity(1);
 }
 
-void action_product_edit_calendar(lv_event_t *e)
-{
-    ESP_LOGI("actions", "Product calendar");
-
-    lv_obj_t *calendar = objects.product_edit__calendar_editproduct; // product_edit_name_ta
-
-    // Set today's date
-    time_t now = time(nullptr);
-    struct tm *tm_now = localtime(&now);
-    lv_calendar_date_t today;
-    today.year = tm_now->tm_year + 1900;
-    today.month = tm_now->tm_mon + 1;
-    today.day = tm_now->tm_mday;
-    lv_calendar_set_today_date(calendar, today.year, today.month, today.day);
-    lv_calendar_set_showed_date(calendar, today.year, today.month);
-
-    lv_obj_clear_flag(calendar, LV_OBJ_FLAG_HIDDEN);
-}
-
-void action_edit_product_panel_clicked(lv_event_t *e)
-{
-
-    lv_obj_t *calendar = objects.product_edit__calendar_editproduct;
-
-    lv_obj_add_flag(calendar, LV_OBJ_FLAG_HIDDEN);
-}
-
-void action_product_calendar_value_changed(lv_event_t *e)
-{
-    lv_obj_t *calendar = (lv_obj_t *)lv_event_get_current_target(e);
-
-    ESP_LOGI("actions", "Product day selected");
-
-    lv_calendar_date_t date;
-    lv_calendar_get_pressed_date(calendar, &date);
-
-    // Format as YYYY-MM-DD
-    char buf[16];
-    snprintf(buf, sizeof(buf), "%04d-%02d-%02d", date.year, date.month, date.day);
-    lv_obj_t *expiry_ta = objects.product_edit__product_edit_expiry_ta; // product_edit_expiry_ta
-    lv_textarea_set_text(expiry_ta, buf);
-
-    lv_obj_add_flag(calendar, LV_OBJ_FLAG_HIDDEN);
-}
-
-void action_product_edit_delete(lv_event_t *e)
-{
-    ESP_LOGI("actions", "Product edit delete clicked");
-
-    lv_obj_t *panel = objects.product_edit__product_edit_panel;
-
-    std::string *rowId = static_cast<std::string *>(lv_obj_get_user_data(panel));
-    if (!rowId)
-    {
-        ESP_LOGE("actions", "RowId not found in panel");
-        return;
-    }
-
-    // Create async delete task
-    ProductDeleteCtx *ctx = new ProductDeleteCtx{*rowId};
-    BaseType_t ret = xTaskCreatePinnedToCoreWithCaps(
-        product_delete_task, "ProductDelete",
-        16384, ctx, 3, NULL, tskNO_AFFINITY,
-        MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    if (ret != pdPASS)
-    {
-        ESP_LOGE("actions", "Failed to create product delete task");
-        delete ctx;
-        showSnackbar("Failed to start delete", 5000);
-        lv_async_call([](void *)
-                      { close_product_edit_modal(); }, nullptr);
-    }
-}
-
-void action_product_edit_frozen(lv_event_t *e)
-{
-    lv_obj_t *checkbox = (lv_obj_t *)lv_event_get_current_target(e);
-    bool frozen = lv_obj_has_state(checkbox, LV_STATE_CHECKED);
-
-    ESP_LOGI("actions", "Product frozen state changed: %s", frozen ? "true" : "false");
-
-    // Store frozen state in checkbox's user data for later retrieval during save
-    lv_obj_set_user_data(checkbox, (void *)frozen);
-}
-
-void action_recipes_filter_panel_toggle(lv_event_t *e)
-{
-    if (lv_obj_has_flag(objects.recipe_list_filter_container, LV_OBJ_FLAG_HIDDEN))
-    {
-        lv_obj_clear_flag(objects.recipe_list_filter_container, LV_OBJ_FLAG_HIDDEN);
-        lv_label_set_text(objects.recipe_filter_toggle_text, "\uF077");
-    }
-    else
-    {
-        lv_obj_add_flag(objects.recipe_list_filter_container, LV_OBJ_FLAG_HIDDEN);
-        lv_label_set_text(objects.recipe_filter_toggle_text, "\uF078");
-    }
-}
-
-void action_create_recipe_steps_click(lv_event_t *e)
-{
-    lv_scr_load_anim(objects.recipe_phase, LV_SCR_LOAD_ANIM_MOVE_LEFT, 300, 0, false);
-
-    UIExtensionsRecipeSteps::clearCurrentRecipe();
-
-    lv_obj_clear_flag(objects.phase_detail_spinner, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(objects.step_progress, LV_OBJ_FLAG_HIDDEN);
-
-    // Disable navigation buttons until recipe is loaded
-    lv_lock();
-    UIExtensionsRecipeSteps::updatePhaseNavigationButtons();
-    lv_unlock();
-
-    // Delegate the task creation to the new class method
-    UIExtensionsRecipeSteps::createRecipeStepsTask();
-}
-
-void action_recipe_phase_next(lv_event_t *e)
-{
-    UIExtensionsRecipeSteps::navigateNext();
-}
-
-void action_recipe_phase_prev(lv_event_t *e)
-{
-    UIExtensionsRecipeSteps::navigatePrev();
-}
-
-void action_ingredients_factor(lv_event_t *e)
-{
-    lv_obj_t *target = (lv_obj_t *)lv_event_get_target(e);
-    float factor = UIExtensionsRecipeSteps::getScalingFactor(); // default to current factor if not determined below
-    if (target == objects.phase_ingredients_factor_1)
-    {
-        factor = 1.0f;
-    }
-    else if (target == objects.phase_ingredients_factor_minus)
-    {
-        if (factor < 0.2f) // prevent scaling to zero or negative
-        {
-            return;
-        }
-
-        factor = factor - 0.05f;
-    }
-    else if (target == objects.phase_ingredients_factor_plus)
-    {
-        factor = factor + 0.05f;
-    }
-    else
-    {
-        // fallback: try to interpret user data as float pointer (for backward compatibility)
-        float *ptr = (float *)lv_event_get_user_data(e);
-        if (ptr)
-        {
-            factor = *ptr;
-        }
-    }
-    UIExtensionsRecipeSteps::applyScalingFactor(factor);
-}
-
-void action_create_recipe_close_click(lv_event_t *e)
-{
-    lv_obj_add_flag(objects.create_recipe_pnl, LV_OBJ_FLAG_HIDDEN);
-}
-
-int find_index(const char *value, filter_option_t *options, int count)
-{
-    if (!value)
-        return 0;
-    for (int i = 0; i < count; i++)
-    {
-        if (strcmp(value, options[i].value) == 0)
-            return i + 1;
-    }
-    return 0;
-}
-
-void action_generate_ai_recipes_click(lv_event_t *e)
-{
-    ESP_LOGI("actions", "Generate Recipe button clicked");
-    log_filter_state();
-
-    lv_lock();
-    lv_obj_add_flag(objects.recipe_list_filter_container, LV_OBJ_FLAG_HIDDEN);
-    lv_label_set_text(objects.recipe_filter_toggle_text, "\uF078");
-    lv_tabview_set_active(objects.tabview, 1, LV_ANIM_OFF);
-    lv_dropdown_set_selected(objects.recipes_filters_panel__source_dropdown, find_index("ai-deepseek", source_options, source_count)); // Set source filter to AI DeepSeek
-    lv_unlock();
-
-    // Ensure filter state source is set to ai-deepseek
-    filter_state_t *filterState = get_filter_state();
-    filterState->source = (char *)"ai-deepseek";
-
-    // Somewhere in initTasks() or after WiFi connects:
-    recipeSuggestionsManager.reset();
-    recipeSuggestionsManager.loadCurrentPage();
-}
-
-void action_wi_fi_settings_click(lv_event_t *e)
+void action_settings_wifi(lv_event_t *)
 {
     WiFiSettingsUI::toggleDialog();
 }
 
-void action_clear_all_settings_click(lv_event_t *e)
+void request_product_delete(const std::string &id)
 {
-    ESP_LOGI("actions", "Clear All Settings clicked");
+    if (id.empty())
+        return;
 
-    spiffs_cleanup::delete_thumbnail_cache();
-    showSnackbar("All settings cleared. Restarting...", 5000);
-
-    // Create a timer to restart after the snackbar duration
-    TimerHandle_t restart_timer = xTimerCreate(
-        "restart_timer",
-        pdMS_TO_TICKS(5000),
-        pdFALSE, // one-shot
-        nullptr,
-        [](TimerHandle_t)
-        { esp_restart(); });
-    if (restart_timer)
+    auto *ctx = new ProductDeleteCtx{id};
+    if (!spawn_task(product_delete_task, "product_delete", ctx))
     {
-        xTimerStart(restart_timer, 0);
+        delete ctx;
+        showSnackbar("Couldn't start delete", 3000);
     }
-    else
+}
+
+void request_cookbooks_load()
+{
+    if (cookbooksManager.loaded())
     {
-        ESP_LOGE(TAG, "Failed to create restart timer");
-        esp_restart(); // fallback
+        if (objects.cookbooks_list && lv_obj_is_valid(objects.cookbooks_list))
+            populateCookbooksUi();
+        return;
+    }
+
+    if (s_cookbooks_running.exchange(true))
+        return;
+
+    auto *ctx = new CookbooksLoadCtx{false};
+    if (!spawn_task(cookbooks_reload_task, "cookbooks_load", ctx))
+    {
+        delete ctx;
+        s_cookbooks_running.store(false);
+        showSnackbar("Couldn't load cookbooks", 3000);
+    }
+}
+
+void action_cookbooks_reload(lv_event_t *)
+{
+    if (s_cookbooks_running.exchange(true))
+        return;
+
+    auto *ctx = new CookbooksLoadCtx{true};
+    if (!spawn_task(cookbooks_reload_task, "cookbooks_reload", ctx))
+    {
+        delete ctx;
+        s_cookbooks_running.store(false);
+        showSnackbar("Couldn't load cookbooks", 3000);
+    }
+}
+
+void action_cookbooks_prev(lv_event_t *)
+{
+    shiftCookbookPage(-1);
+}
+
+void action_cookbooks_next(lv_event_t *)
+{
+    shiftCookbookPage(1);
+}
+
+void action_cookbook_open(lv_event_t *event)
+{
+    auto *id = static_cast<std::string *>(lv_event_get_user_data(event));
+    if (!id || id->empty())
+        return;
+
+    showCookbookDetail(*id);
+    if (recipesManager.hasCookbook(*id))
+        populateCookbookRecipesUi(*id);
+    else
+        request_cookbook_recipes(*id);
+}
+
+void action_cookbook_back(lv_event_t *)
+{
+    leaveCookbookDetail();
+    // Return to the main screen without a slide transition.
+    if (objects.main && lv_obj_is_valid(objects.main))
+        lv_screen_load(objects.main);
+}
+
+void action_cookbook_retry(lv_event_t *)
+{
+    std::string id = openCookbookId();
+    if (id.empty())
+        return;
+
+    retryCookbookDetail();
+    request_cookbook_recipes(id);
+}
+
+void action_cookbook_recipes_prev(lv_event_t *)
+{
+    shiftCookbookRecipesPage(-1);
+}
+
+void action_cookbook_recipes_next(lv_event_t *)
+{
+    shiftCookbookRecipesPage(1);
+}
+
+void action_recipe_open(lv_event_t *event)
+{
+    auto *recipe = static_cast<Recipe *>(lv_event_get_user_data(event));
+    if (!recipe)
+        return;
+    showRecipeDetailScreen(*recipe);
+}
+
+void action_recipe_back(lv_event_t *)
+{
+    thumb_queue_cancel_all();
+    // The spec says RECIPE_DETAIL returns to the screen it was opened from.
+    lv_obj_t *target = objects.cookbook_detail;
+    if (!target || !lv_obj_is_valid(target))
+        target = objects.main;
+    if (target && lv_obj_is_valid(target))
+        lv_screen_load(target);
+}
+
+void request_cookbook_recipes(const std::string &cookbookId)
+{
+    if (!cookbook_recipe_ui_enabled() || cookbookId.empty())
+        return;
+
+    {
+        std::lock_guard<std::mutex> lock(s_cookbook_mutex);
+        if (!s_cookbook_inflight.insert(cookbookId).second)
+            return;
+    }
+
+    auto *ctx = new CookbookFetchCtx{cookbookId};
+    if (!spawn_task(cookbook_recipes_task, "cookbook_recipes", ctx))
+    {
+        delete ctx;
+        {
+            std::lock_guard<std::mutex> lock(s_cookbook_mutex);
+            s_cookbook_inflight.erase(cookbookId);
+        }
+        if (!s_cookbook_retry_timer)
+        {
+            s_cookbook_retry_timer =
+                lv_timer_create(retry_cookbook_task_start, 1000, nullptr);
+            if (s_cookbook_retry_timer)
+                lv_timer_set_repeat_count(s_cookbook_retry_timer, 1);
+            else
+                ESP_LOGE(TAG, "Couldn't schedule cookbook fetch retry");
+        }
     }
 }

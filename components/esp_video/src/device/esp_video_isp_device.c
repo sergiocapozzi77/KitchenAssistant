@@ -373,7 +373,10 @@ static esp_err_t isp_get_output_frame_type(cam_ctlr_color_t ctlr_color, isp_colo
     case CAM_CTLR_COLOR_YUV420:
         *isp_color = ISP_COLOR_YUV420;
         break;
-    case CAM_CTLR_COLOR_YUV422:
+    case CAM_CTLR_COLOR_YUV422_YVYU:
+    case CAM_CTLR_COLOR_YUV422_YUYV:
+    case CAM_CTLR_COLOR_YUV422_UYVY:
+    case CAM_CTLR_COLOR_YUV422_VYUY:
         *isp_color = ISP_COLOR_YUV422;
         break;
     default:
@@ -540,7 +543,7 @@ static esp_err_t isp_start_awb(struct isp_video *isp_video)
     uint32_t width = META_VIDEO_GET_FORMAT_WIDTH(isp_video->video);
     uint32_t height = META_VIDEO_GET_FORMAT_HEIGHT(isp_video->video);
     esp_isp_awb_config_t awb_config = {
-        .sample_point = ISP_AWB_SAMPLE_POINT_BEFORE_CCM,
+        .sample_point = ISP_AWB_SAMPLE_POINT_0,
         .window = {
             .top_left = {.x = width * ISP_REGION_START, .y = height * ISP_REGION_START},
             .btm_right = {.x = width * ISP_REGION_END, .y = height * ISP_REGION_END},
@@ -713,7 +716,7 @@ static esp_err_t isp_start_ae(struct isp_video *isp_video)
     uint32_t width = META_VIDEO_GET_FORMAT_WIDTH(isp_video->video);
     uint32_t height = META_VIDEO_GET_FORMAT_HEIGHT(isp_video->video);
     esp_isp_ae_config_t ae_config = {
-        .sample_point = ISP_AE_SAMPLE_POINT_AFTER_GAMMA,
+        .sample_point = ISP_AE_SAMPLE_POINT_1,
         .window = {
             .top_left = {.x = width * ISP_REGION_START, .y = height * ISP_REGION_START},
             .btm_right = {.x = width * ISP_REGION_END, .y = height * ISP_REGION_END},

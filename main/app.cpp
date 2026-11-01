@@ -7,28 +7,41 @@
 #include "esp_heap_caps.h"
 #include "esp_memory_utils.h"
 #include "esp_task_wdt.h"
+#include "esp_system.h"
+#include "esp_timer.h"
+#include "esp_chip_info.h"
+#include "esp_freertos_hooks.h"
+#include "esp_attr.h"
+#include "esp_lvgl_port.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include <cstdint>
 #include "lvgl.h"
 #include "bsp/esp-bsp.h"
 #include "bsp/display.h"
 #include "bsp_board_extra.h"
 #include "bsp/esp32_p4_function_ev_board.h"
-#include "lv_demos.h"
 #include "ui.h"
 #include "WiFiManager.h"
-#include "ProductService.h"
 #include "ui_extensions.h"
 #include "ProductsManager.h"
-#include "FavouritesManager.h"
-#include "CookbookManager.h"
-// #include "thumbnail_cache.h"  // DISABLED
 #include "cJSON.h"
-#include <cstdio>
 #include "display_sleep.h"
 #include "quick_panel.h"
 #include "battery.h"
+#include "diag.h"
 
 static const char *TAG = "APP";
 static BatteryMonitor s_battery;
+static constexpr bool s_lvgl_freeze_test = false;
+
+// ── DIAGNOSTIC (temporary) ───────────────────────────────────────────────────
+//
+// Tick probes, heartbeat tasks and the RTC breadcrumb/monitor machinery live in
+// diag.cpp. It records the previous run's last activity in RTC RAM and dumps it
+// on the next boot, and it logs live from an esp_timer callback if one or both
+// core's FreeRTOS ticks stop while esp_timer still advances. Remove it together
+// with its call sites once the watchdog resets are understood.
 
 #define BASE_DIR CONFIG_BSP_SPIFFS_MOUNT_POINT
 
@@ -46,6 +59,12 @@ static lv_indev_read_cb_t s_bsp_touch_read_cb = nullptr;
 
 static void wrappedTouchReadCb(lv_indev_t *indev, lv_indev_data_t *data)
 {
+    if (s_lvgl_freeze_test)
+    {
+        data->state = LV_INDEV_STATE_RELEASED;
+        return;
+    }
+
     if (s_bsp_touch_read_cb)
         s_bsp_touch_read_cb(indev, data);
 
@@ -60,6 +79,21 @@ static void wrappedTouchReadCb(lv_indev_t *indev, lv_indev_data_t *data)
 
     if (was_sleeping || g_display_sleep.isSleeping() || consumed)
         data->state = LV_INDEV_STATE_RELEASED;
+}
+
+// cJSON keeps its parse trees out of the small internal heap: Supabase
+// responses are the largest JSON documents this firmware parses, and cJSON
+// nodes are CPU-only data that never feed DMA. Falling back to internal memory
+// keeps parsing working if PSRAM is exhausted.
+static void *cjson_malloc_psram(size_t size)
+{
+    void *ptr = heap_caps_malloc(size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    return ptr ? ptr : heap_caps_malloc(size, MALLOC_CAP_DEFAULT);
+}
+
+static void cjson_free_psram(void *ptr)
+{
+    heap_caps_free(ptr);
 }
 
 void Application::initNVS()
@@ -84,15 +118,30 @@ void Application::initQueues()
     //     abort();
     // }
     // ESP_LOGI(TAG, "Queues created");
-    ui_extensions_init(112, 112, true);
+    // Disable thumbnail downloads and decoding while investigating resets.
+    ui_extensions_init(112, 112, true, true, true);
 }
 
 static void combinedFetchTask(void *param)
 {
-    showSpinner();
+    // DIAGNOSTIC (temporary): the main task never reached APP_LOOP in the runs
+    // that froze right after "[io] ready"; these crumbs show how far this task
+    // got while the main task waited behind it.
+    diag_bc(DIAG_APP_FETCH_ENTER, 0);
 
+    lv_lock();
+    showSpinner();
+    lv_unlock();
+    diag_bc(DIAG_APP_FETCH_UI, 0);
+
+    uint16_t waited_s = 0;
     while (!wifiManager.isConnected())
+    {
+        if ((waited_s % 10) == 0)
+            diag_bc(DIAG_APP_FETCH_WAIT, waited_s);
+        waited_s++;
         vTaskDelay(pdMS_TO_TICKS(1000));
+    }
 
     while (!wifiManager.isSntpSynced())
         vTaskDelay(pdMS_TO_TICKS(500));
@@ -102,27 +151,21 @@ static void combinedFetchTask(void *param)
         lv_label_set_text(objects.current_wifi_lbl, wifiManager.getSSID().c_str());
     lv_unlock();
 
-    ESP_LOGI(TAG, "WiFi connected. Starting combined data fetch...");
+    ESP_LOGI(TAG, "WiFi connected. Fetching products...");
 
-    // Run product and favourite fetches sequentially in one task
     productsManager.fetchProductsSync();
+    lv_lock();
     hideSpinner();
+    lv_unlock();
 
-    favouritesManager.fetchFavourites();
-
-    cookbookManager.fetchCookbooks();
-
-    // Refresh favourites UI if on the favourites tab
-    if (objects.tabview && lv_obj_is_valid(objects.tabview) && lv_tabview_get_tab_act(objects.tabview) == 2)
-    {
-        showCurrentPageFavourites(true);
-    }
-
+    diag_bc(DIAG_APP_FETCH_DONE, 0);
     vTaskDelete(NULL);
 }
 
 void Application::initTasks()
 {
+    diag_bc(DIAG_APP_TASKS_ENTER, 0);
+
     StackType_t *stack = (StackType_t *)heap_caps_malloc(16384 * sizeof(StackType_t), MALLOC_CAP_SPIRAM);
     if (!stack)
     {
@@ -130,9 +173,13 @@ void Application::initTasks()
         return;
     }
     ESP_LOGI(TAG, "Allocated combinedFetch task stack in PSRAM");
+    diag_bc(DIAG_APP_TASKS_ALLOC, 0);
 
     static StaticTask_t taskBuf;
-    xTaskCreateStatic(combinedFetchTask, "combinedFetch", 16384, nullptr, 2, stack, &taskBuf);
+    TaskHandle_t handle = xTaskCreateStatic(combinedFetchTask, "combinedFetch", 16384,
+                                            nullptr, 2, stack, &taskBuf);
+    diag_bc(DIAG_APP_TASKS_CREATED, (uint16_t)(handle != nullptr));
+    diag_task_register(handle, DIAG_TASK_FETCH);
 }
 
 void Application::initHardware()
@@ -191,12 +238,6 @@ void Application::initHardware()
         {
             ESP_LOGI(TAG, "No saved WiFi credentials found — will prompt user in settings");
         }
-
-        // // DISABLED: thumbnail cache
-        // if (!thumbnail_cache::init())
-        // {
-        //     ESP_LOGW(TAG, "Thumbnail cache init failed (continuing without cache)");
-        // }
     }
 
     // Initialize WiFi driver (always, regardless of saved credentials)
@@ -211,7 +252,10 @@ void Application::initHardware()
     bsp_display_cfg_t cfg = {
         .lvgl_port_cfg = ESP_LVGL_PORT_INIT_CONFIG(),
         .buffer_size = BSP_LCD_DRAW_BUFF_SIZE,
-        .double_buffer = BSP_LCD_DRAW_BUFF_DOUBLE,
+        // Tear-free output comes from CONFIG_BSP_DISPLAY_LVGL_AVOID_TEAR, which
+        // makes esp_lvgl_port use the panel's two frame buffers instead of these.
+        // Kept true so partial double buffering still applies if that is disabled.
+        .double_buffer = true,
         .flags = {
             .buff_dma = true,
             .buff_spiram = true,
@@ -221,41 +265,63 @@ void Application::initHardware()
     bsp_display_start_with_config(&cfg);
     bsp_display_backlight_on();
 
-    // Initialize EEZ Studio UI once
+    // Build the normal UI before suspending LVGL for the freeze test.
     bsp_display_lock(0);
 
-    // ── wrap the BSP touch indev ──────────────────────────────────────
-    lv_indev_t *cur = lv_indev_get_next(nullptr);
-    while (cur)
+    if (s_lvgl_freeze_test)
     {
-        if (lv_indev_get_type(cur) == LV_INDEV_TYPE_POINTER)
+        lv_indev_t *cur = lv_indev_get_next(nullptr);
+        while (cur)
         {
-            s_bsp_touch_read_cb = lv_indev_get_read_cb(cur);
-            lv_indev_set_read_cb(cur, wrappedTouchReadCb);
-            ESP_LOGI(TAG, "Touch callback wrapped");
-            break;
+            if (lv_indev_get_type(cur) == LV_INDEV_TYPE_POINTER)
+            {
+                s_bsp_touch_read_cb = lv_indev_get_read_cb(cur);
+                lv_indev_set_read_cb(cur, wrappedTouchReadCb);
+                break;
+            }
+            cur = lv_indev_get_next(cur);
         }
-        cur = lv_indev_get_next(cur);
     }
 
-    // ── init sleep + quick panel ──────────────────────────────────────
-    g_display_sleep.init(60 * 10 * 1000); // 10min inactivity timeout
+    g_display_sleep.init(60 * 10 * 1000);
     g_quick_panel.init();
     s_battery.init();
 
     ui_init();
+
+    lv_timer_create([](lv_timer_t *)
+                    { diag_lvgl_beat(); },
+                    250, nullptr);
+
+    // Captured under the display lock for the layout report below.
+    lv_obj_t *lvgl_root = lv_screen_active();
+
     bsp_display_unlock();
 
     // If no saved WiFi credentials, navigate to the settings tab so the user
-    // can configure WiFi
+    // can configure WiFi (overrides the Cookbooks startup tab). lv_async_call()
+    // mutates LVGL's async list, which lv_timer_handler() drains under lv_lock();
+    // app_main is not the LVGL task, so take the lock around it.
     if (!m_wifiCredsFound)
     {
+        lv_lock();
         lv_async_call([](void *)
-                      {
-            if (objects.tabview && lv_obj_is_valid(objects.tabview)) {
-                lv_tabview_set_active(objects.tabview, 3, LV_ANIM_OFF);
-            } }, nullptr);
+                      { show_main_settings_tab(); }, nullptr);
+        lv_unlock();
     }
+
+    if (s_lvgl_freeze_test)
+    {
+        // Let LVGL render the initial UI, then suspend its timer/draw work.
+        vTaskDelay(pdMS_TO_TICKS(500));
+        bsp_display_lock(0);
+        ESP_ERROR_CHECK(lvgl_port_stop());
+        bsp_display_unlock();
+        ESP_LOGI(TAG, "UI construction test active: LVGL timers stopped");
+    }
+
+    // DIAGNOSTIC (temporary): report the display buffers and active LVGL root.
+    diag_report_layout(lvgl_root);
 
     ESP_LOGI(TAG, "Hardware initialized");
 }
@@ -267,22 +333,32 @@ void Application::initHardware()
 void Application::mainLoop()
 {
     uint32_t last_info_update = 0;
+    uint32_t loop_count = 0;
+
     while (true)
     {
-        bsp_display_lock(0);
-        ui_tick();
-        bsp_display_unlock();
+        // DIAGNOSTIC (temporary): proof the main task keeps running (~1 s beat).
+        if ((++loop_count % 100) == 0)
+            diag_bc(DIAG_APP_MAINLOOP, (uint16_t)(loop_count / 100));
 
-        uint32_t now = lv_tick_get();
-        if (now - last_info_update >= 2000)
+        if (!s_lvgl_freeze_test)
         {
-            last_info_update = now;
+            bsp_display_lock(0);
+            ui_tick();
+            bsp_display_unlock();
 
-            bool connected = wifiManager.isConnected();
-            g_quick_panel.updateWifi(connected,
-                                     connected ? wifiManager.getSSID().c_str() : nullptr);
+            uint32_t now = lv_tick_get();
+            if (now - last_info_update >= 2000)
+            {
+                last_info_update = now;
 
-            g_quick_panel.updateBattery(s_battery.readPercent());
+                bool connected = wifiManager.isConnected();
+                g_quick_panel.updateWifi(
+                    connected, connected ? wifiManager.getSSID().c_str()
+                                         : nullptr);
+
+                g_quick_panel.updateBattery(s_battery.readPercent());
+            }
         }
         vTaskDelay(pdMS_TO_TICKS(10)); // ~100Hz update rate
     }
@@ -296,10 +372,28 @@ void Application::run()
 {
     ESP_LOGI(TAG, "Booting application...");
 
+    // DIAGNOSTIC (temporary): dumps the previous run's RTC log and starts the
+    // tick probes, heartbeats and liveness monitor before any flash access, so
+    // a stall during NVS/SPIFFS init is visible too.
+    diag_init();
+
+    cJSON_Hooks cjson_hooks = {};
+    cjson_hooks.malloc_fn = cjson_malloc_psram;
+    cjson_hooks.free_fn = cjson_free_psram;
+    cJSON_InitHooks(&cjson_hooks);
+
     initNVS();
     initHardware();
+    diag_bc(DIAG_APP_HW_READY, 0);
+    diag_heap_log("hw ready");
+
     initQueues();
+    diag_bc(DIAG_APP_QUEUES_READY, 0);
+    diag_heap_log("queues ready");
+
     initTasks();
+    diag_bc(DIAG_APP_LOOP, 0);
+    diag_heap_log("tasks ready");
 
     mainLoop();
 }

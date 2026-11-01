@@ -3,8 +3,16 @@ dependencies:
   esp_cam_sensor:
     path: ../esp_cam_sensor
   esp_h264: '>=1.0.3'
+  # esp_video_init.c includes esp_sccb_i2c.h. Declared here so the include
+  # path does not depend on it arriving implicitly through esp_cam_sensor's
+  # own (private) dependency on the same component.
+  esp_sccb_intf: '>=0.0.2'
+  # ESP-IDF v6 moved hal/isp_types.h (included by esp_ipa_types.h) into the
+  # esp_hal_cam component, which only esp_driver_isp exposes publicly.  esp_ipa
+  # 0.2.x has no such requirement and fails to compile; 1.3.1 is the earliest
+  # release that requires esp_driver_isp and ships prebuilt libs for v6.0+.
   esp_ipa:
-    version: 0.2.*
+    version: '^1.3.1'
   idf: '>=5.4'
 description: A framework designed to support Linux V4L2, multiple cameras and video
   streaming.
