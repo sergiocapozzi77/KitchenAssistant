@@ -13,6 +13,7 @@
 #include "esp_log.h"
 
 #include <cctype>
+#include <cstdio>
 #include <string>
 #include <vector>
 
@@ -24,6 +25,12 @@ namespace
 {
 
 std::string s_open_cookbook_id;
+
+// The recipe shown on the detail screen, kept so the serving buttons can
+// re-render its ingredient lines without going back to the manager.
+Recipe s_open_recipe;
+int s_serving_count = 0;
+constexpr int kMaxServings = 99;
 
 // Recipe cards and the recipe detail header render the image at the same size,
 // so the detail reuses the card's cached thumbnail (same source URL, same
@@ -248,19 +255,203 @@ void add_recipe_card(lv_obj_t *parent, const Recipe &recipe)
     lv_obj_add_event_cb(card, free_recipe_cb, LV_EVENT_DELETE, payload);
 }
 
-std::string ingredient_text(const Ingredient &ingredient)
+bool is_digit_at(const std::string &text, size_t pos)
 {
-    if (!ingredient.rawIngredient.empty())
-        return ingredient.rawIngredient;
+    return pos < text.size() &&
+           std::isdigit(static_cast<unsigned char>(text[pos]));
+}
 
-    std::string text;
-    if (!ingredient.quantity.empty())
-        text = ingredient.quantity;
-    if (!ingredient.unit.empty())
-        text += (text.empty() ? "" : " ") + ingredient.unit;
-    if (!ingredient.name.empty())
-        text += (text.empty() ? "" : " ") + ingredient.name;
-    return text;
+// Parses "2", "0.5" or "3/4" starting at pos. Returns false when there is no
+// number there.
+bool parse_quantity_number(const std::string &text, size_t &pos, double &value)
+{
+    const size_t start = pos;
+    double whole = 0.0;
+    bool has_digits = false;
+    while (is_digit_at(text, pos))
+    {
+        whole = whole * 10.0 + (text[pos] - '0');
+        has_digits = true;
+        ++pos;
+    }
+    if (!has_digits)
+    {
+        pos = start;
+        return false;
+    }
+
+    if (pos < text.size() && text[pos] == '/')
+    {
+        size_t denom_pos = pos + 1;
+        double denom = 0.0;
+        bool has_denom = false;
+        while (is_digit_at(text, denom_pos))
+        {
+            denom = denom * 10.0 + (text[denom_pos] - '0');
+            has_denom = true;
+            ++denom_pos;
+        }
+        if (has_denom && denom > 0.0)
+        {
+            value = whole / denom;
+            pos = denom_pos;
+            return true;
+        }
+    }
+
+    if (pos < text.size() && text[pos] == '.')
+    {
+        size_t frac_pos = pos + 1;
+        double frac = 0.0;
+        double divisor = 1.0;
+        bool has_frac = false;
+        while (is_digit_at(text, frac_pos))
+        {
+            frac = frac * 10.0 + (text[frac_pos] - '0');
+            divisor *= 10.0;
+            has_frac = true;
+            ++frac_pos;
+        }
+        if (has_frac)
+        {
+            value = whole + frac / divisor;
+            pos = frac_pos;
+            return true;
+        }
+    }
+
+    value = whole;
+    return true;
+}
+
+// A mixed number such as "1 1/2" is one quantity, not two.
+bool parse_quantity_expression(const std::string &text, size_t &pos,
+                               double &value)
+{
+    if (!parse_quantity_number(text, pos, value))
+        return false;
+
+    size_t probe = pos;
+    while (probe < text.size() && text[probe] == ' ')
+        ++probe;
+    if (probe == pos || !is_digit_at(text, probe))
+        return true;
+
+    // Only swallow the next token when it is a fraction; "2 x 400g" and
+    // "1 (6 ounce)" keep their second number.
+    size_t frac_end = probe;
+    while (is_digit_at(text, frac_end))
+        ++frac_end;
+    if (frac_end >= text.size() || text[frac_end] != '/')
+        return true;
+
+    size_t frac_pos = probe;
+    double fraction = 0.0;
+    if (parse_quantity_number(text, frac_pos, fraction) && fraction < 1.0)
+    {
+        value += fraction;
+        pos = frac_pos;
+    }
+    return true;
+}
+
+// Reads the leading quantity, including the range in "2-3 tbsp mango chutney".
+// On success `end` is the offset just past the quantity expression.
+bool parse_leading_quantity(const std::string &text, size_t start, size_t &end,
+                            double &low, double &high, std::string &separator)
+{
+    size_t pos = start;
+    if (!parse_quantity_expression(text, pos, low))
+        return false;
+
+    size_t dash_begin = pos;
+    while (dash_begin < text.size() && text[dash_begin] == ' ')
+        ++dash_begin;
+
+    size_t dash_end = dash_begin;
+    if (dash_begin < text.size() && text[dash_begin] == '-')
+        dash_end = dash_begin + 1;
+    else if (text.compare(dash_begin, 3, "\xE2\x80\x93") == 0) // en dash
+        dash_end = dash_begin + 3;
+    else
+    {
+        end = pos;
+        high = low;
+        return true;
+    }
+
+    size_t second = dash_end;
+    while (second < text.size() && text[second] == ' ')
+        ++second;
+
+    double upper = 0.0;
+    if (!parse_quantity_expression(text, second, upper) || upper <= low)
+    {
+        end = pos;
+        high = low;
+        return true;
+    }
+
+    separator = text.substr(dash_begin, dash_end - dash_begin);
+    end = second;
+    high = upper;
+    return true;
+}
+
+// Two decimals are plenty for kitchen amounts; trailing zeros are trimmed so
+// "12.00" reads back as "12".
+std::string format_quantity(double value)
+{
+    char buffer[32];
+    std::snprintf(buffer, sizeof(buffer), "%.2f", value);
+    std::string out = buffer;
+    while (!out.empty() && out.back() == '0')
+        out.pop_back();
+    if (!out.empty() && out.back() == '.')
+        out.pop_back();
+    return out;
+}
+
+std::string scaled_ingredient_text(const std::string &text, double scale)
+{
+    if (scale == 1.0 || text.empty())
+        return text;
+
+    const size_t start = text.find_first_not_of(" \t");
+    if (start == std::string::npos)
+        return text;
+
+    size_t end = start;
+    double low = 0.0;
+    double high = 0.0;
+    std::string separator;
+    if (!parse_leading_quantity(text, start, end, low, high, separator))
+        return text;
+
+    std::string out = text.substr(0, start);
+    out += format_quantity(low * scale);
+    if (!separator.empty())
+    {
+        out += separator;
+        out += format_quantity(high * scale);
+    }
+    out += text.substr(end);
+    return out;
+}
+
+std::string ingredient_text(const Ingredient &ingredient, double scale)
+{
+    std::string text = ingredient.rawIngredient;
+    if (text.empty())
+    {
+        if (!ingredient.quantity.empty())
+            text = ingredient.quantity;
+        if (!ingredient.unit.empty())
+            text += (text.empty() ? "" : " ") + ingredient.unit;
+        if (!ingredient.name.empty())
+            text += (text.empty() ? "" : " ") + ingredient.name;
+    }
+    return scaled_ingredient_text(text, scale);
 }
 
 void apply_check_row(CheckRowState *state)
@@ -300,7 +491,8 @@ void check_row_clicked_cb(lv_event_t *event)
     apply_check_row(state);
 }
 
-void add_ingredient_row(lv_obj_t *parent, const Ingredient &ingredient)
+void add_ingredient_row(lv_obj_t *parent, const Ingredient &ingredient,
+                        double scale)
 {
     lv_obj_t *row = lv_obj_create(parent);
     lv_obj_set_width(row, LV_PCT(100));
@@ -331,8 +523,8 @@ void add_ingredient_row(lv_obj_t *parent, const Ingredient &ingredient)
     lv_obj_center(tick);
 
     lv_obj_t *label = ui_theme::make_label(
-        row, ingredient_text(ingredient).c_str(), ui_theme::font_recipe_body,
-        UI_COLOR_TEXT_PRIMARY);
+        row, ingredient_text(ingredient, scale).c_str(),
+        ui_theme::font_recipe_body, UI_COLOR_TEXT_PRIMARY);
     lv_obj_set_flex_grow(label, 1);
     lv_label_set_long_mode(label, LV_LABEL_LONG_MODE_WRAP);
 
@@ -392,7 +584,7 @@ void add_method_step(lv_obj_t *parent, int number, const std::string &step,
     lv_label_set_long_mode(text, LV_LABEL_LONG_MODE_WRAP);
 }
 
-void populate_ingredients_tab(const Recipe &recipe)
+void populate_ingredients_tab(const Recipe &recipe, double scale)
 {
     diag_bc(DIAG_UI_POP_ING_ENTER, 0);
 
@@ -409,7 +601,7 @@ void populate_ingredients_tab(const Recipe &recipe)
         add_section_title(tab, section.name);
         for (const auto &ingredient : section.items)
         {
-            add_ingredient_row(tab, ingredient);
+            add_ingredient_row(tab, ingredient, scale);
             any = true;
         }
     }
@@ -527,7 +719,7 @@ lv_obj_t *s_step_page_lbl = nullptr;
 lv_obj_t *s_step_prev_btn = nullptr;
 lv_obj_t *s_step_next_btn = nullptr;
 
-void set_pager_button_enabled(lv_obj_t *button, bool enabled); // defined below
+void set_control_enabled(lv_obj_t *button, bool enabled); // defined below
 
 void show_step_group()
 {
@@ -571,8 +763,8 @@ void show_step_group()
         lv_label_set_text(s_step_page_lbl, text.c_str());
     }
 
-    set_pager_button_enabled(s_step_prev_btn, s_step_group > 0);
-    set_pager_button_enabled(s_step_next_btn, s_step_group + 1 < count);
+    set_control_enabled(s_step_prev_btn, s_step_group > 0);
+    set_control_enabled(s_step_next_btn, s_step_group + 1 < count);
     if (valid(s_step_content))
         lv_obj_scroll_to_y(s_step_content, 0, LV_ANIM_OFF);
 }
@@ -689,7 +881,7 @@ void build_step_pager(lv_obj_t *tab,
                         NULL);
 }
 
-void populate_step_by_step_tab(const Recipe &recipe)
+void populate_step_by_step_tab(const Recipe &recipe, double scale)
 {
     lv_obj_t *tab = objects.recipe_detail_steps_tab;
     if (!valid(tab))
@@ -746,7 +938,7 @@ void populate_step_by_step_tab(const Recipe &recipe)
 
         add_section_title(panel, ingredient_sections[i]->name);
         for (const auto &ingredient : ingredient_sections[i]->items)
-            add_ingredient_row(panel, ingredient);
+            add_ingredient_row(panel, ingredient, scale);
         bool first_step = true;
         for (const auto &step : method_sections[i]->steps)
         {
@@ -849,7 +1041,7 @@ void set_detail_state(const char *text, bool show_retry)
     }
 }
 
-void set_pager_button_enabled(lv_obj_t *button, bool enabled)
+void set_control_enabled(lv_obj_t *button, bool enabled)
 {
     if (!valid(button))
         return;
@@ -857,6 +1049,34 @@ void set_pager_button_enabled(lv_obj_t *button, bool enabled)
         lv_obj_remove_state(button, LV_STATE_DISABLED);
     else
         lv_obj_add_state(button, LV_STATE_DISABLED);
+}
+
+double ingredient_scale()
+{
+    if (s_open_recipe.serving <= 0 || s_serving_count <= 0)
+        return 1.0;
+    return static_cast<double>(s_serving_count) /
+           static_cast<double>(s_open_recipe.serving);
+}
+
+void update_serving_controls()
+{
+    const bool known = s_open_recipe.serving > 0 && s_serving_count > 0;
+
+    if (valid(objects.recipe_detail_serving_lbl))
+    {
+        std::string text =
+            known ? "Serves " + std::to_string(s_serving_count) : std::string();
+        lv_label_set_text(objects.recipe_detail_serving_lbl, text.c_str());
+    }
+
+    if (valid(objects.recipe_detail_serving_row))
+        lv_obj_set_hidden(objects.recipe_detail_serving_row, !known);
+
+    set_control_enabled(objects.recipe_detail_serving_minus,
+                        known && s_serving_count > 1);
+    set_control_enabled(objects.recipe_detail_serving_plus,
+                        known && s_serving_count < kMaxServings);
 }
 
 void update_cookbook_pager(int page_count)
@@ -876,9 +1096,9 @@ void update_cookbook_pager(int page_count)
         lv_label_set_text(objects.cookbooks_page_lbl, text.c_str());
     }
 
-    set_pager_button_enabled(objects.cookbooks_prev_btn, s_cookbook_page > 0);
-    set_pager_button_enabled(objects.cookbooks_next_btn,
-                             s_cookbook_page + 1 < page_count);
+    set_control_enabled(objects.cookbooks_prev_btn, s_cookbook_page > 0);
+    set_control_enabled(objects.cookbooks_next_btn,
+                        s_cookbook_page + 1 < page_count);
 }
 
 void update_recipe_pager(int page_count)
@@ -898,10 +1118,10 @@ void update_recipe_pager(int page_count)
         lv_label_set_text(objects.cookbook_detail_page_lbl, text.c_str());
     }
 
-    set_pager_button_enabled(objects.cookbook_detail_prev_btn,
-                             s_cookbook_detail_page > 0);
-    set_pager_button_enabled(objects.cookbook_detail_next_btn,
-                             s_cookbook_detail_page + 1 < page_count);
+    set_control_enabled(objects.cookbook_detail_prev_btn,
+                        s_cookbook_detail_page > 0);
+    set_control_enabled(objects.cookbook_detail_next_btn,
+                        s_cookbook_detail_page + 1 < page_count);
 }
 
 } // namespace
@@ -1120,6 +1340,11 @@ void showRecipeDetailScreen(const Recipe &recipe)
 
     diag_bc(DIAG_UI_DETAIL_ENTER, 0);
 
+    // The serving buttons need the open recipe; every visit starts from the
+    // stored serving count.
+    s_open_recipe = recipe;
+    s_serving_count = recipe.serving > 0 ? recipe.serving : 0;
+
     thumb_queue_cancel_all();
     diag_bc(DIAG_UI_DETAIL_CANCELLED, 0);
 
@@ -1129,30 +1354,28 @@ void showRecipeDetailScreen(const Recipe &recipe)
         lv_label_set_text(objects.recipe_detail_title_lbl,
                           recipe.name.empty() ? "Recipe" : recipe.name.c_str());
 
-    std::string source = recipe.recipeSource;
-    if (recipe.serving > 0)
+    const std::string link =
+        recipe.url.empty() ? recipe.recipeSource : recipe.url;
+    if (valid(objects.recipe_detail_link_lbl))
     {
-        if (!source.empty())
-            source += " - ";
-        source += "Serves " + std::to_string(recipe.serving);
-    }
-    if (valid(objects.recipe_detail_source_lbl))
-    {
-        lv_label_set_text(objects.recipe_detail_source_lbl, source.c_str());
-        if (source.empty())
-            lv_obj_set_hidden(objects.recipe_detail_source_lbl, true);
-        else
-            lv_obj_set_hidden(objects.recipe_detail_source_lbl, false);
+        lv_label_set_text(objects.recipe_detail_link_lbl, link.c_str());
+        lv_obj_set_hidden(objects.recipe_detail_link_lbl, link.empty());
     }
 
     if (valid(objects.recipe_detail_time_lbl))
-        lv_label_set_text(objects.recipe_detail_time_lbl,
-                          recipe.totalTime.empty() ? "-"
-                                                   : recipe.totalTime.c_str());
+    {
+        std::string text = "Total time: ";
+        text += recipe.totalTime.empty() ? "-" : recipe.totalTime;
+        lv_label_set_text(objects.recipe_detail_time_lbl, text.c_str());
+    }
     if (valid(objects.recipe_detail_difficulty_lbl))
-        lv_label_set_text(objects.recipe_detail_difficulty_lbl,
-                          recipe.difficulty.empty() ? "-"
-                                                    : recipe.difficulty.c_str());
+    {
+        std::string text = "Difficulty: ";
+        text += recipe.difficulty.empty() ? "-" : recipe.difficulty;
+        lv_label_set_text(objects.recipe_detail_difficulty_lbl, text.c_str());
+    }
+
+    update_serving_controls();
 
     diag_bc(DIAG_UI_DETAIL_TEXT, 0);
 
@@ -1160,9 +1383,9 @@ void showRecipeDetailScreen(const Recipe &recipe)
         lv_tabview_set_active(objects.recipe_detail_tabview, 0, LV_ANIM_OFF);
     diag_bc(DIAG_UI_DETAIL_TAB, 0);
 
-    populate_ingredients_tab(recipe);
+    populate_ingredients_tab(recipe, 1.0);
     populate_method_tab(recipe);
-    populate_step_by_step_tab(recipe);
+    populate_step_by_step_tab(recipe, 1.0);
 
     if (valid(objects.recipe_detail))
     {
@@ -1172,6 +1395,43 @@ void showRecipeDetailScreen(const Recipe &recipe)
     }
 
     diag_bc(DIAG_UI_DETAIL_DONE, 0);
+}
+
+void adjustRecipeServing(int delta)
+{
+    if (!cookbook_recipe_ui_enabled())
+        return;
+    if (s_open_recipe.serving <= 0 || s_serving_count <= 0)
+        return;
+
+    int next = s_serving_count + delta;
+    if (next < 1)
+        next = 1;
+    if (next > kMaxServings)
+        next = kMaxServings;
+    if (next == s_serving_count)
+        return;
+
+    s_serving_count = next;
+    update_serving_controls();
+
+    const double scale = ingredient_scale();
+    const int step_group = s_step_group;
+    populate_ingredients_tab(s_open_recipe, scale);
+    populate_step_by_step_tab(s_open_recipe, scale);
+
+    // The rebuild starts on the first group; keep the cook where they were.
+    if (step_group > 0 && step_group < static_cast<int>(s_step_panels.size()))
+    {
+        s_step_group = step_group;
+        show_step_group();
+    }
+}
+
+void closeRecipeDetail()
+{
+    s_open_recipe = Recipe();
+    s_serving_count = 0;
 }
 
 void showCookbookDetailFailure(const std::string &cookbookId)

@@ -504,8 +504,19 @@ void action_recipe_open(lv_event_t *event)
     showRecipeDetailScreen(*recipe);
 }
 
+void action_recipe_serving_minus(lv_event_t *)
+{
+    adjustRecipeServing(-1);
+}
+
+void action_recipe_serving_plus(lv_event_t *)
+{
+    adjustRecipeServing(1);
+}
+
 void action_recipe_back(lv_event_t *)
 {
+    closeRecipeDetail();
     thumb_queue_cancel_all();
     // The spec says RECIPE_DETAIL returns to the screen it was opened from.
     lv_obj_t *target = objects.cookbook_detail;

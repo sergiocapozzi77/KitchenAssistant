@@ -32,6 +32,8 @@ void action_cookbook_recipes_prev(lv_event_t *e);
 void action_cookbook_recipes_next(lv_event_t *e);
 void action_recipe_open(lv_event_t *e);
 void action_recipe_back(lv_event_t *e);
+void action_recipe_serving_minus(lv_event_t *e);
+void action_recipe_serving_plus(lv_event_t *e);
 
 // Loads the cookbook grid on first use; force clears every recipe cache.
 void request_cookbooks_load();

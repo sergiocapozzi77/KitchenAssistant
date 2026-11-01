@@ -53,6 +53,11 @@ void populateCookbookRecipesUi(const std::string &cookbookId);
 void shiftCookbookRecipesPage(int delta);
 void retryCookbookDetail();
 void showRecipeDetailScreen(const Recipe &recipe);
+// Changes the open recipe's serving count by one and rescales the ingredient
+// quantities shown in the Ingredients and Step by Step tabs.
+void adjustRecipeServing(int delta);
+// Drops the copy of the open recipe held for the serving buttons.
+void closeRecipeDetail();
 // Shows the failure state when a cookbook fetch could not be started.
 void showCookbookDetailFailure(const std::string &cookbookId);
 // Clears the open cookbook id so an in-flight fetch result is discarded.

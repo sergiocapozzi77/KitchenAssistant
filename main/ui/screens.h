@@ -85,9 +85,13 @@ typedef struct objects_t
     lv_obj_t *recipe_detail_back_btn;
     lv_obj_t *recipe_detail_hero;
     lv_obj_t *recipe_detail_title_lbl;
-    lv_obj_t *recipe_detail_source_lbl;
+    lv_obj_t *recipe_detail_link_lbl;
     lv_obj_t *recipe_detail_time_lbl;
     lv_obj_t *recipe_detail_difficulty_lbl;
+    lv_obj_t *recipe_detail_serving_row;
+    lv_obj_t *recipe_detail_serving_minus;
+    lv_obj_t *recipe_detail_serving_lbl;
+    lv_obj_t *recipe_detail_serving_plus;
     lv_obj_t *recipe_detail_tabview;
     lv_obj_t *recipe_detail_ingredients_tab;
     lv_obj_t *recipe_detail_method_tab;

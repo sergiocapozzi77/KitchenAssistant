@@ -339,21 +339,6 @@ static void create_settings_tab(lv_obj_t *tab)
                         LV_EVENT_CLICKED, NULL);
 }
 
-static lv_obj_t *make_meta_card(lv_obj_t *parent, const char *caption)
-{
-    lv_obj_t *card = lv_obj_create(parent);
-    lv_obj_set_flex_grow(card, 1);
-    lv_obj_set_height(card, 92);
-    ui_theme::style_card(card);
-    lv_obj_set_style_pad_all(card, 16, 0);
-    lv_obj_set_style_pad_row(card, 4, 0);
-    lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
-    ui_theme::make_label(card, caption, ui_theme::font_body,
-                         UI_COLOR_TEXT_MUTED);
-    return ui_theme::make_label(card, "-", ui_theme::font_title,
-                                UI_COLOR_TEXT_PRIMARY);
-}
-
 static void create_cookbook_detail_screen()
 {
     objects.cookbook_detail = make_screen();
@@ -482,8 +467,9 @@ static void create_recipe_detail_screen()
     lv_obj_set_style_pad_row(objects.recipe_detail, 0, 0);
     lv_obj_set_flex_flow(objects.recipe_detail, LV_FLEX_FLOW_COLUMN);
 
-    // Compact header: the thumbnail sits top-left with the name and source to
-    // its right, leaving the vertical space to the ingredients and method.
+    // Compact header: the thumbnail sits top-left with the name, link, time,
+    // difficulty and serving controls to its right, leaving the vertical space
+    // to the ingredients and method tabs.
     lv_obj_t *header = lv_obj_create(objects.recipe_detail);
     lv_obj_set_width(header, LV_PCT(100));
     lv_obj_set_height(header, LV_SIZE_CONTENT);
@@ -525,7 +511,7 @@ static void create_recipe_detail_screen()
     lv_obj_set_style_bg_opa(info, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(info, 0, 0);
     lv_obj_set_style_pad_all(info, 0, 0);
-    lv_obj_set_style_pad_row(info, 10, 0);
+    lv_obj_set_style_pad_row(info, 6, 0);
     lv_obj_set_flex_flow(info, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(info, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START,
                           LV_FLEX_ALIGN_START);
@@ -541,36 +527,78 @@ static void create_recipe_detail_screen()
     lv_label_set_long_mode(objects.recipe_detail_title_lbl,
                            LV_LABEL_LONG_MODE_DOTS);
 
-    objects.recipe_detail_source_lbl = ui_theme::make_label(
-        info, "", ui_theme::font_body, UI_COLOR_TEXT_MUTED);
-    lv_obj_set_width(objects.recipe_detail_source_lbl, LV_PCT(100));
-    lv_obj_set_height(objects.recipe_detail_source_lbl,
-                      lv_font_get_line_height(ui_theme::font_body));
-    lv_label_set_long_mode(objects.recipe_detail_source_lbl,
+    objects.recipe_detail_link_lbl = ui_theme::make_label(
+        info, "", ui_theme::font_small, UI_COLOR_TEXT_MUTED);
+    lv_obj_set_width(objects.recipe_detail_link_lbl, LV_PCT(100));
+    lv_obj_set_height(objects.recipe_detail_link_lbl,
+                      lv_font_get_line_height(ui_theme::font_small));
+    lv_label_set_long_mode(objects.recipe_detail_link_lbl,
                            LV_LABEL_LONG_MODE_DOTS);
+
+    // Total time and difficulty are plain labels, not cards, so the tab bar
+    // can move up to just below the header.
+    lv_obj_t *meta = lv_obj_create(info);
+    lv_obj_set_width(meta, LV_PCT(100));
+    lv_obj_set_height(meta, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(meta, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(meta, 0, 0);
+    lv_obj_set_style_pad_all(meta, 0, 0);
+    lv_obj_set_style_pad_column(meta, 24, 0);
+    lv_obj_set_flex_flow(meta, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(meta, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
+                          LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_scrollable(meta, false);
+
+    objects.recipe_detail_time_lbl = ui_theme::make_label(
+        meta, "", ui_theme::font_body, UI_COLOR_TEXT_SECONDARY);
+    objects.recipe_detail_difficulty_lbl = ui_theme::make_label(
+        meta, "", ui_theme::font_body, UI_COLOR_TEXT_SECONDARY);
+
+    // Serving selector: the +/- buttons rescale every ingredient quantity.
+    lv_obj_t *serving = lv_obj_create(info);
+    lv_obj_set_width(serving, LV_PCT(100));
+    lv_obj_set_height(serving, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(serving, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(serving, 0, 0);
+    lv_obj_set_style_pad_all(serving, 0, 0);
+    lv_obj_set_style_pad_column(serving, 16, 0);
+    lv_obj_set_flex_flow(serving, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(serving, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
+                          LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_scrollable(serving, false);
+    objects.recipe_detail_serving_row = serving;
+
+    objects.recipe_detail_serving_minus =
+        ui_theme::make_icon_button(serving, LV_SYMBOL_MINUS, 56);
+    lv_obj_set_style_opa(objects.recipe_detail_serving_minus, LV_OPA_40,
+                         LV_STATE_DISABLED);
+    lv_obj_add_event_cb(objects.recipe_detail_serving_minus,
+                        action_recipe_serving_minus, LV_EVENT_CLICKED, NULL);
+
+    objects.recipe_detail_serving_lbl = ui_theme::make_label(
+        serving, "", ui_theme::font_title, UI_COLOR_TEXT_PRIMARY);
+    lv_obj_set_width(objects.recipe_detail_serving_lbl, 160);
+    lv_obj_set_style_text_align(objects.recipe_detail_serving_lbl,
+                                LV_TEXT_ALIGN_CENTER, 0);
+
+    objects.recipe_detail_serving_plus =
+        ui_theme::make_icon_button(serving, LV_SYMBOL_PLUS, 56);
+    lv_obj_set_style_opa(objects.recipe_detail_serving_plus, LV_OPA_40,
+                         LV_STATE_DISABLED);
+    lv_obj_add_event_cb(objects.recipe_detail_serving_plus,
+                        action_recipe_serving_plus, LV_EVENT_CLICKED, NULL);
 
     lv_obj_t *content = lv_obj_create(objects.recipe_detail);
     lv_obj_set_width(content, LV_PCT(100));
     lv_obj_set_flex_grow(content, 1);
     lv_obj_set_style_bg_opa(content, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(content, 0, 0);
-    lv_obj_set_style_pad_all(content, 24, 0);
-    lv_obj_set_style_pad_row(content, 12, 0);
+    lv_obj_set_style_pad_left(content, 24, 0);
+    lv_obj_set_style_pad_right(content, 24, 0);
+    lv_obj_set_style_pad_top(content, 0, 0);
+    lv_obj_set_style_pad_bottom(content, 24, 0);
     lv_obj_set_flex_flow(content, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_scrollable(content, false);
-
-    lv_obj_t *meta = lv_obj_create(content);
-    lv_obj_set_width(meta, LV_PCT(100));
-    lv_obj_set_height(meta, 92);
-    lv_obj_set_style_bg_opa(meta, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(meta, 0, 0);
-    lv_obj_set_style_pad_all(meta, 0, 0);
-    lv_obj_set_style_pad_column(meta, 16, 0);
-    lv_obj_set_flex_flow(meta, LV_FLEX_FLOW_ROW);
-
-    objects.recipe_detail_time_lbl = make_meta_card(meta, "Total time");
-    objects.recipe_detail_difficulty_lbl =
-        make_meta_card(meta, "Difficulty");
 
     objects.recipe_detail_tabview = lv_tabview_create(content);
     lv_obj_set_width(objects.recipe_detail_tabview, LV_PCT(100));
